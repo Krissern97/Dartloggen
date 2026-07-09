@@ -48,8 +48,8 @@
     --shadow:none;
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
   html{overscroll-behavior:none}
+  html,body{margin:0;padding:0}
   body{
     background:var(--bg); color:var(--ink);
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
@@ -57,11 +57,12 @@
     min-height:100dvh;
   }
   button{
-    touch-action:manipulation;               /* aldri dobbelttrykk-zoom */
+    touch-action:manipulation;
     user-select:none;-webkit-user-select:none;
   }
   /* trykk på spilleknapper skal ALDRI kunne starte en scroll */
-  .hitgrid button, .bigrow button, .pad button, .rowbtns button, .modal .opts button{
+  .hitgrid button, .bigrow button, .pad button, .rowbtns button, .modal .opts button,
+  .modegrid button, .numgrid button, #quizBoardWrap, .backbtn, .seg button{
     touch-action:none;
   }
   #app{max-width:480px;margin:0 auto;padding:10px 14px 76px}
@@ -91,7 +92,21 @@
   main section{display:none}
   main section.active{display:block}
 
-  /* ---------- training ---------- */
+  /* ---------- modusvelger ---------- */
+  .modegrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .modecard{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:13px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);
+    box-shadow:var(--shadow);min-height:96px;
+  }
+  .modecard b{display:block;font-size:14px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
+  .modecard span{font-size:11.5px;color:var(--ink2);display:block;margin-top:4px;line-height:1.35}
+  .modecard span.resume{color:var(--gold);font-weight:700}
+  .modecard:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .backrow{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .backbtn{border:0;background:none;color:var(--green);font:inherit;font-weight:800;font-size:13px;cursor:pointer;padding:6px 10px 6px 0}
+
+  /* ---------- trening ---------- */
   .roundline{
     text-align:center;font-size:17px;font-weight:800;letter-spacing:.16em;
     text-transform:uppercase;color:var(--ink2);margin:0 0 6px;
@@ -108,7 +123,7 @@
   }
   .target-card .eyebrow{margin-bottom:0}
   #targetNum{font-size:clamp(104px,34vw,160px);font-weight:800;line-height:1;letter-spacing:-.02em}
-  #targetNum.bull{color:var(--red);font-size:clamp(64px,21vw,100px);line-height:1.3}
+  #targetNum.bull{color:var(--red);font-size:clamp(48px,15vw,72px);line-height:1.6}
 
   .chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:8px}
   .chips span{
@@ -170,9 +185,10 @@
     box-shadow:var(--shadow);
   }
   .primary:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .primary:disabled{opacity:.4;cursor:default}
   #btnConfirm{border-radius:16px}
-  #btnConfirm.zero{background:var(--red-soft);color:var(--red)}   /* ingen treff tappet: lyserød */
-  #btnConfirm.hits{background:var(--green-mid);color:var(--green)} /* treff tappet: lysegrønn */
+  #btnConfirm.zero{background:var(--red-soft);color:var(--red)}
+  #btnConfirm.hits{background:var(--green-mid);color:var(--green)}
 
   /* tydelig trykk-tilbakemelding */
   @keyframes pressflash{
@@ -183,6 +199,36 @@
   @media (prefers-reduced-motion: reduce){
     button.flash{animation:none;outline:3px solid var(--gold);outline-offset:1px}
   }
+
+  /* ---------- måltrening / tallgrid ---------- */
+  .numgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:6px}
+  .numgrid button{
+    border:1px solid var(--line);background:var(--surface2);color:var(--ink);
+    font:inherit;font-size:16px;font-weight:800;border-radius:10px;min-height:46px;cursor:pointer;
+  }
+  .numgrid button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+  #tpTargetNum{font-size:clamp(70px,22vw,110px);font-weight:800;line-height:1.05}
+  #tpTargetNum.bull{color:var(--red);font-size:clamp(46px,14vw,64px);line-height:1.5}
+  #coTargetNum{font-size:clamp(80px,26vw,130px);font-weight:800;line-height:1.05}
+  .cohint{min-height:22px;font-size:15px;font-weight:800;color:var(--gold);letter-spacing:.04em;margin-top:2px}
+
+  /* ---------- dartquiz ---------- */
+  .quizbar{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:8px 14px;margin-bottom:8px;min-height:56px;box-shadow:var(--shadow);
+  }
+  .quizbar .prompt{font-size:36px;font-weight:800;line-height:1;min-width:64px}
+  .quizbar .qinfo{font-size:12px;color:var(--ink2);font-weight:700;text-align:right}
+  .quizbar .clock{font-size:26px;font-weight:800;color:var(--red)}
+  #quizBoardWrap{margin:0 auto 8px;max-width:340px}
+  #quizBoardWrap svg{width:100%;height:auto;display:block}
+  #quizBoardWrap path{cursor:pointer}
+  path.qz-hl{fill:var(--gold)}
+  path.qz-good{fill:var(--green)}
+  path.qz-bad{fill:var(--red)}
+  .qresult{text-align:center;padding:18px}
+  .qresult .big{font-size:52px;font-weight:800}
 
   /* ---------- x01 ---------- */
   .seg{display:flex;gap:8px;margin-bottom:12px}
@@ -202,7 +248,7 @@
   .toggle-row label{font-size:14px;font-weight:600}
   .toggle-row input{width:22px;height:22px;accent-color:var(--green)}
 
-  .scoreboard{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .scoreboard{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
   .pcard{
     display:flex;justify-content:space-between;align-items:center;
     background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;
@@ -211,6 +257,10 @@
   .pcard .nm{font-weight:700;font-size:15px}
   .pcard .rest{font-size:30px;font-weight:800}
   .pcard .avg{font-size:11px;color:var(--ink2)}
+  #coHint{
+    text-align:center;font-size:14px;font-weight:800;color:var(--gold);
+    min-height:20px;margin-bottom:8px;letter-spacing:.03em;
+  }
   .entry{
     text-align:center;font-size:34px;font-weight:800;letter-spacing:.04em;min-height:48px;
     background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:10px;
@@ -228,7 +278,7 @@
   .winner{text-align:center;padding:26px 14px}
   .winner .wname{font-size:34px;font-weight:800}
 
-  /* ---------- stats ---------- */
+  /* ---------- statistikk ---------- */
   .chartwrap{position:relative;margin-top:10px}
   .chartwrap svg{width:100%;height:auto;display:block}
   .tip{
@@ -251,15 +301,6 @@
   h2.sec{font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:22px 2px 8px;color:var(--ink2)}
   h2.sec:first-child{margin-top:0}
 
-  /* checkout-darts modal */
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:50;padding:20px}
-  .modal.open{display:grid}
-  .modal .box{background:var(--surface);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center}
-  .modal .box p{margin:0 0 14px;font-weight:600}
-  .modal .box .opts{display:flex;gap:10px}
-  .modal .box .opts button{flex:1;font:inherit;font-size:22px;font-weight:800;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer}
-
-  /* ---------- per-tall statistikk ---------- */
   .nrow{
     display:grid;grid-template-columns:34px 1fr 44px 92px;gap:8px;align-items:center;
     padding:6px 0;border-top:1px solid var(--line);font-size:13px;
@@ -270,6 +311,15 @@
   .nrow .nbar i{display:block;height:100%;background:var(--green);border-radius:4px}
   .nrow .npct{font-weight:800;text-align:right}
   .nrow .ndt{font-size:11px;color:var(--ink2);text-align:right;white-space:nowrap}
+
+  .weakchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .weakchips button{
+    border:1.5px solid var(--red);background:var(--red-soft);color:var(--red);
+    font:inherit;font-weight:800;font-size:14px;padding:9px 14px;border-radius:20px;cursor:pointer;
+  }
+  .trendrow{display:flex;justify-content:space-between;padding:7px 2px;border-top:1px solid var(--line);font-size:13px}
+  .trendrow:first-of-type{border-top:0}
+  .trendrow .d{color:var(--ink2)}
 
   /* ---------- humørfjes + konfetti ---------- */
   #faceFx{position:fixed;inset:0;display:none;place-items:center;z-index:60;pointer-events:none}
@@ -289,6 +339,13 @@
     .hitgrid button:active,.pad button:active{transform:none}
     #faceFx span{animation:none;opacity:1}
   }
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;place-items:center;z-index:50;padding:20px}
+  .modal.open{display:grid}
+  .modal .box{background:var(--surface);border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center}
+  .modal .box p{margin:0 0 14px;font-weight:600}
+  .modal .box .opts{display:flex;gap:10px}
+  .modal .box .opts button{flex:1;font:inherit;font-size:22px;font-weight:800;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer}
 </style>
 
 <div id="app">
@@ -300,52 +357,169 @@
   <main>
     <!-- ============ TRENING ============ -->
     <section id="view-trening" class="active">
-      <div class="roundline">Runde <span class="num" id="tRound">1</span></div>
-      <div class="statrow">
-        <div class="stat"><div class="v num" id="tDarts">0</div><div class="l">Piler</div></div>
-        <div class="stat"><div class="v num" id="tPct">–</div><div class="l">Treff&nbsp;%</div></div>
-        <div class="stat"><div class="v num" id="tPpd">–</div><div class="l">Poeng/pil</div></div>
-        <div class="stat"><div class="v num" id="tBest">–</div><div class="l">Rekord</div></div>
+
+      <div id="modePicker">
+        <h2 class="sec">Velg trening</h2>
+        <div class="modegrid">
+          <button class="modecard" data-tmode="rtb"><b>Rundt brettet</b><span>1–20 og bull. Enkel +1, dobbel +2, trippel +3.</span><span class="resume" id="resumeRtb"></span></button>
+          <button class="modecard" data-tmode="dbl"><b>Dobbeltrening</b><span>D1–D20 og bullseye. Kun dobler teller.</span><span class="resume" id="resumeDbl"></span></button>
+          <button class="modecard" data-tmode="tp"><b>Måltrening</b><span>Velg ett tall, kast en serie piler, mål treffprosenten.</span></button>
+          <button class="modecard" data-tmode="co"><b>Checkout-trening</b><span>Tilfeldig utgang — klarer du å sjekke ut på 3 piler?</span></button>
+          <button class="modecard" data-tmode="quiz" style="grid-column:1/-1"><b>Dartquiz</b><span>Blindkart på dartskiva — finn riktig felt eller riktig tall. Flest riktige på ett minutt!</span></button>
+        </div>
       </div>
 
-      <div id="playArea">
+      <!-- rundt brettet + dobbeltrening (samme spillside) -->
+      <div id="boardTraining" style="display:none">
+        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow" id="btModeName"></span></div>
+        <div class="roundline">Runde <span class="num" id="tRound">1</span></div>
+        <div class="statrow">
+          <div class="stat"><div class="v num" id="tDarts">0</div><div class="l">Piler</div></div>
+          <div class="stat"><div class="v num" id="tPct">–</div><div class="l">Treff&nbsp;%</div></div>
+          <div class="stat"><div class="v num" id="tPpd">–</div><div class="l">Poeng/pil</div></div>
+          <div class="stat"><div class="v num" id="tBest">–</div><div class="l">Rekord</div></div>
+        </div>
+
+        <div id="playArea">
+          <div class="target-card">
+            <div class="eyebrow">Neste mål</div>
+            <div id="targetNum">1</div>
+            <div class="chips" id="chips"></div>
+          </div>
+
+          <div class="turnbar">
+            <span class="eyebrow">Denne runden</span>
+            <span id="turnTaps" class="taps"></span>
+          </div>
+
+          <div class="hitgrid three">
+            <button class="b-hit"  id="btnS">Enkel<small>+1 tall</small></button>
+            <button class="b-hit2" id="btnD">Dobbel<small>hopper over 1</small></button>
+            <button class="b-hit2" id="btnT">Trippel<small>hopper over 2</small></button>
+          </div>
+
+          <div class="bigrow">
+            <button id="btnMiss">Bom<small>1 pil</small></button>
+            <button class="primary" id="btnConfirm">Ingen treff — registrer 3 piler</button>
+          </div>
+
+          <div class="rowbtns">
+            <button class="ghost" id="btnUndo">↩ Angre</button>
+            <button class="ghost" id="btnReset">Nullstill runden</button>
+          </div>
+        </div>
+
+        <div id="doneArea" style="display:none">
+          <div class="card done-card">
+            <div class="eyebrow">Runden fullført</div>
+            <div class="big num" id="doneDarts">0</div>
+            <div style="color:var(--ink2);font-size:13px;margin-top:2px">piler brukt · <span id="donePct"></span></div>
+            <div class="hs" id="doneHs" style="display:none">★ Ny rekord!</div>
+            <div style="margin-top:20px"><button class="primary" id="btnNew">Ny runde</button></div>
+            <div class="rowbtns" style="margin-top:10px"><button class="ghost" id="btnShare">Del resultat</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- måltrening -->
+      <div id="tpView" style="display:none">
+        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow">Måltrening</span></div>
+        <div id="tpSetup">
+          <div class="card">
+            <div class="eyebrow">Velg mål</div>
+            <div class="numgrid" id="tpNums"></div>
+            <div class="eyebrow" style="margin-top:14px">Antall piler</div>
+            <div class="seg" id="tpCount" style="margin-top:6px">
+              <button data-c="15">15</button><button data-c="30" class="active">30</button><button data-c="60">60</button>
+            </div>
+            <button class="primary" id="tpStart" disabled>Velg et tall først</button>
+          </div>
+        </div>
+        <div id="tpPlay" style="display:none">
+          <div class="statrow">
+            <div class="stat"><div class="v num" id="tpLeft">0</div><div class="l">Piler igjen</div></div>
+            <div class="stat"><div class="v num" id="tpHits">0</div><div class="l">Treff</div></div>
+            <div class="stat"><div class="v num" id="tpPct">–</div><div class="l">Treff&nbsp;%</div></div>
+          </div>
+          <div class="target-card">
+            <div class="eyebrow">Målet ditt</div>
+            <div id="tpTargetNum">7</div>
+          </div>
+          <div class="hitgrid">
+            <button class="b-miss" id="tpMiss">Bom</button>
+            <button class="b-hit"  id="tpS">Enkel</button>
+            <button class="b-hit2" id="tpD">Dobbel</button>
+            <button class="b-hit2" id="tpT">Trippel</button>
+          </div>
+          <div class="rowbtns">
+            <button class="ghost" id="tpUndo">↩ Angre</button>
+            <button class="ghost" id="tpQuit">Avbryt økten</button>
+          </div>
+        </div>
+        <div id="tpDone" style="display:none">
+          <div class="card done-card">
+            <div class="eyebrow">Økt fullført</div>
+            <div class="big num" id="tpDonePct">0%</div>
+            <div style="color:var(--ink2);font-size:13px;margin-top:2px" id="tpDoneInfo"></div>
+            <div style="margin-top:20px"><button class="primary" id="tpAgain">Ny økt på samme tall</button></div>
+            <div class="rowbtns" style="margin-top:10px"><button class="ghost" id="tpNewNum">Velg nytt tall</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- checkout-trening -->
+      <div id="coView" style="display:none">
+        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow">Checkout-trening</span></div>
+        <div class="seg" id="coDiff">
+          <button data-d="lett">2–60</button>
+          <button data-d="mid">61–100</button>
+          <button data-d="hard">101–170</button>
+          <button data-d="alle" class="active">Alle</button>
+        </div>
         <div class="target-card">
-          <div class="eyebrow">Neste mål</div>
-          <div id="targetNum">1</div>
-          <div class="chips" id="chips"></div>
+          <div class="eyebrow">Sjekk ut</div>
+          <div id="coTargetNum" class="num">40</div>
+          <div class="cohint" id="coSug"></div>
         </div>
-
-        <div class="turnbar">
-          <span class="eyebrow">Denne runden</span>
-          <span id="turnTaps" class="taps"></span>
+        <div class="rowbtns" style="margin-bottom:8px">
+          <button class="ghost" id="coShow">Vis forslag</button>
         </div>
-
-        <div class="hitgrid three">
-          <button class="b-hit"  id="btnS">Enkel<small>+1 tall</small></button>
-          <button class="b-hit2" id="btnD">Dobbel<small>hopper over 1</small></button>
-          <button class="b-hit2" id="btnT">Trippel<small>hopper over 2</small></button>
+        <div class="hitgrid">
+          <button class="b-hit"  id="coOut1">Ut på 1<small>pil</small></button>
+          <button class="b-hit"  id="coOut2">Ut på 2<small>piler</small></button>
+          <button class="b-hit"  id="coOut3">Ut på 3<small>piler</small></button>
+          <button class="b-miss" id="coFail">Bom<small>3 piler</small></button>
         </div>
+        <div class="turnbar"><span class="eyebrow">Denne økten</span><span class="taps num" id="coSession"></span></div>
+      </div>
 
-        <div class="bigrow">
-          <button id="btnMiss">Bom<small>1 pil</small></button>
-          <button class="primary" id="btnConfirm">Ingen treff — registrer 3 piler</button>
+      <!-- dartquiz -->
+      <div id="quizView" style="display:none">
+        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow">Dartquiz</span></div>
+        <div class="seg" id="quizMode">
+          <button data-q="find" class="active">Finn feltet</button>
+          <button data-q="inv">Finn tallet</button>
         </div>
-
-        <div class="rowbtns">
-          <button class="ghost" id="btnUndo">↩ Angre</button>
-          <button class="ghost" id="btnReset">Nullstill runden</button>
+        <div class="seg" id="quizTime">
+          <button data-t="60" class="active">1 minutt</button>
+          <button data-t="0">Uten tid</button>
+        </div>
+        <div class="quizbar">
+          <span class="prompt num" id="quizPrompt">–</span>
+          <span class="clock num" id="quizClock"></span>
+          <span class="qinfo num" id="quizScore">Trykk start</span>
+        </div>
+        <div id="quizBoardWrap"></div>
+        <div class="numgrid" id="quizNums" style="display:none;margin-bottom:8px"></div>
+        <button class="primary" id="quizStart">Start</button>
+        <div class="card qresult" id="quizResult" style="display:none;margin-top:10px">
+          <div class="eyebrow">Resultat</div>
+          <div class="big num" id="qrScore">0</div>
+          <div style="color:var(--ink2);font-size:13px" id="qrInfo"></div>
+          <div class="hs" id="qrBest" style="display:none">★ Ny bestenotering!</div>
         </div>
       </div>
 
-      <div id="doneArea" style="display:none">
-        <div class="card done-card">
-          <div class="eyebrow">Runden fullført</div>
-          <div class="big num" id="doneDarts">0</div>
-          <div style="color:var(--ink2);font-size:13px;margin-top:2px">piler brukt · <span id="donePct"></span> treff</div>
-          <div class="hs" id="doneHs" style="display:none">★ Ny rekord!</div>
-          <div style="margin-top:20px"><button class="primary" id="btnNew">Ny runde</button></div>
-        </div>
-      </div>
     </section>
 
     <!-- ============ SPILL (X01) ============ -->
@@ -361,6 +535,12 @@
           <label for="dblOut">Dobbel ut (må avslutte på dobbel)</label>
           <input type="checkbox" id="dblOut">
         </div>
+        <h2 class="sec">Legs — først til</h2>
+        <div class="seg" id="legSeg">
+          <button data-l="1" class="active">1</button>
+          <button data-l="2">2</button>
+          <button data-l="3">3</button>
+        </div>
         <h2 class="sec">Spillere</h2>
         <div class="players-list" id="playersList"></div>
         <div class="rowbtns" style="margin-bottom:14px">
@@ -371,6 +551,7 @@
 
       <div id="gamePlay" style="display:none">
         <div class="scoreboard" id="scoreboard"></div>
+        <div id="coHint"></div>
         <div class="entry" id="entryBox"><span class="ph">Skriv rundens poengsum (3 piler)</span></div>
         <div class="msg" id="gameMsg"></div>
         <div class="pad">
@@ -408,6 +589,25 @@
         <div class="eyebrow">Piler per runde — lavere er bedre</div>
         <div class="chartwrap" id="chartWrap"><div class="empty" id="chartEmpty">Fullfør en runde, så tegnes grafen her.</div></div>
       </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="eyebrow">Ukestrend</div>
+        <div id="trendBox"></div>
+        <div class="empty" id="trendEmpty">Spill i minst to uker for å se trenden.</div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="eyebrow">Rekordutvikling</div>
+        <ul class="hist" id="pbList"></ul>
+        <div class="empty" id="pbEmpty">Ingen rekorder ennå.</div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="eyebrow">Tren på disse — dine svakeste tall</div>
+        <div class="weakchips" id="weakChips"></div>
+        <div class="empty" id="weakEmpty">Trenger flere kast per tall før dette kan beregnes.</div>
+      </div>
+
       <div class="card" style="margin-top:12px">
         <div class="eyebrow">Historikk</div>
         <ul class="hist" id="histList"></ul>
@@ -421,10 +621,62 @@
         <div class="empty" id="numEmpty">Spill noen runder, så bygges statistikken per tall her.</div>
       </div>
 
+      <h2 class="sec">Dobbeltrening</h2>
+      <div class="statrow">
+        <div class="stat"><div class="v num" id="dBest" style="color:var(--gold)">–</div><div class="l">Rekord</div></div>
+        <div class="stat"><div class="v num" id="dAvg">–</div><div class="l">Snitt piler</div></div>
+        <div class="stat"><div class="v num" id="dCount">0</div><div class="l">Runder</div></div>
+      </div>
+      <div class="card">
+        <ul class="hist" id="dblHist"></ul>
+        <div class="empty" id="dblEmpty">Ingen dobbelrunder ennå.</div>
+      </div>
+
+      <h2 class="sec">Måltrening</h2>
+      <div class="card">
+        <ul class="hist" id="tpHist"></ul>
+        <div class="empty" id="tpEmpty">Ingen økter ennå.</div>
+      </div>
+
+      <h2 class="sec">Checkout-trening</h2>
+      <div class="statrow">
+        <div class="stat"><div class="v num" id="cAtt">0</div><div class="l">Forsøk</div></div>
+        <div class="stat"><div class="v num" id="cSucc">–</div><div class="l">Suksess</div></div>
+        <div class="stat"><div class="v num" id="cAvgD">–</div><div class="l">Snitt piler ut</div></div>
+      </div>
+      <div class="card">
+        <ul class="hist" id="coHist"></ul>
+        <div class="empty" id="coEmpty">Ingen forsøk ennå.</div>
+      </div>
+
+      <h2 class="sec">Dartquiz</h2>
+      <div class="card">
+        <div id="quizBestBox" style="font-size:14px;font-weight:700"></div>
+        <ul class="hist" id="quizHist"></ul>
+        <div class="empty" id="quizEmpty">Ingen quizrunder ennå.</div>
+      </div>
+
       <h2 class="sec">Spill (301/501/701)</h2>
       <div class="card">
+        <div class="eyebrow" style="margin-bottom:4px">Seiere</div>
+        <ul class="hist" id="playerStats"></ul>
+        <div class="eyebrow" style="margin:14px 0 4px">Siste spill</div>
         <ul class="hist" id="gameHist"></ul>
         <div class="empty" id="gameHistEmpty">Ingen fullførte spill ennå.</div>
+      </div>
+
+      <h2 class="sec">Verktøy</h2>
+      <div class="card">
+        <div class="toggle-row" style="padding-bottom:10px">
+          <label for="soundToggle">Lydeffekter (klapping)</label>
+          <input type="checkbox" id="soundToggle">
+        </div>
+        <div class="rowbtns">
+          <button class="ghost" id="btnExport">Eksporter backup</button>
+          <button class="ghost" id="btnImport">Importer backup</button>
+        </div>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+        <div class="empty" id="toolMsg" style="padding:8px 0 0;display:none"></div>
       </div>
 
       <button class="danger" id="btnWipe">Slett all statistikk</button>
@@ -456,19 +708,30 @@ const LS = {
   hist: "dart_training_history",
   cur:  "dart_training_current",
   games:"dart_game_history",
-  nums: "dart_number_stats"
+  nums: "dart_number_stats",
+  dhist:"dart_double_history",
+  dcur: "dart_double_current",
+  dnums:"dart_double_stats",
+  tph:  "dart_tp_history",
+  tpcur:"dart_tp_current",
+  coh:  "dart_checkout_history",
+  quiz: "dart_quiz_history",
+  qbest:"dart_quiz_best",
+  set:  "dart_settings"
 };
 const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch(e){ return fb; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
 const fmtDate = ts => new Date(ts).toLocaleDateString("nb-NO",{day:"numeric",month:"short"}) + " " +
                       new Date(ts).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+let SET = load(LS.set,{sound:true,coDiff:"alle"});
+function saveSet(){ save(LS.set,SET); }
 
 // registrer på pointerdown: trykket telles i det fingeren treffer skjermen,
 // før nettleseren rekker å tolke bevegelsen som scroll
 function onTap(el, fn){
   el.addEventListener("pointerdown", e=>{
     if(el.disabled) return;
-    e.preventDefault(); // dropp påfølgende klikk-event så det ikke fyrer dobbelt
+    e.preventDefault();
     fn();
   });
 }
@@ -486,12 +749,12 @@ function armConfirm(btn, action){
   });
 }
 
-/* ====== trykk-tilbakemelding: blink + vibrasjon på alle knapper ====== */
+/* ====== trykk-tilbakemelding: blink + vibrasjon ====== */
 document.addEventListener("pointerdown", e=>{
   const b = e.target.closest("button");
   if(!b || b.disabled) return;
   b.classList.remove("flash");
-  void b.offsetWidth; // restart animasjonen ved raske trykk
+  void b.offsetWidth;
   b.classList.add("flash");
   setTimeout(()=>b.classList.remove("flash"), 400);
   if(navigator.vibrate) navigator.vibrate(18);
@@ -503,37 +766,21 @@ document.querySelectorAll("nav.tabs button").forEach(b=>{
     document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("active",x===b));
     document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
     $("view-"+b.dataset.v).classList.add("active");
+    stopQuiz();
     if(b.dataset.v==="stats") renderStats();
   });
 });
 
-/* ================= TRENING: RUNDT BRETTET =================
-   Rundebasert: kast 3 piler, tapp treffene (Enkel/Dobbel/Trippel),
-   og registrer runden med ett trykk. 3 tapp = auto-registrert.   */
-const SEQ = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25];
-let T = null; // {idx,darts,miss,s,d,t,turnHits:[],undo:[snapshots],done}
-
-function freshRound(){ return {idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],done:false}; }
-function snapshot(){
-  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,
-               turnHits:[...T.turnHits],num:JSON.parse(JSON.stringify(T.num))});
-  if(T.undo.length>200) T.undo.shift();
-}
-// per-tall logg (samles i runden, flyttes til global statistikk når runden fullføres)
-function numHit(tgt, kind){
-  const o = T.num[tgt] || (T.num[tgt]={att:0,s:0,d:0,t:0});
-  o.att++;
-  if(kind===1)o.s++; else if(kind===2)o.d++; else o.t++;
-}
-function numMiss(tgt, n){
-  if(n<=0) return;
-  const o = T.num[tgt] || (T.num[tgt]={att:0,s:0,d:0,t:0});
-  o.att += n;
-}
-
-/* ---- humørfjes, konfetti og klappelyd ---- */
-function showRoundFace(pts){
-  const face = pts===0?"😠": pts===1?"😐": pts===2?"🙂": pts===3?"😄": pts<9?"😎":"🤩";
+/* ================= HUMØRFJES, KONFETTI, LYD ================= */
+function showRoundFace(pts, mode){
+  let face;
+  if(mode==="dbl"){ // maks 3 poeng (3 dobler) i dobbeltrening
+    face = pts===0?"😠": pts===1?"🙂": pts===2?"😎":"🤩";
+    if(pts>=3){ confetti(); applause(); }
+  } else {
+    face = pts===0?"😠": pts===1?"😐": pts===2?"🙂": pts===3?"😄": pts<9?"😎":"🤩";
+    if(pts>=9){ confetti(); applause(); }
+  }
   const fx=$("faceFx");
   fx.querySelector("span").textContent=face;
   fx.style.display="grid";
@@ -541,7 +788,6 @@ function showRoundFace(pts){
   sp.style.animation="none"; void sp.offsetWidth; sp.style.animation="";
   clearTimeout(fx._t);
   fx._t=setTimeout(()=>{fx.style.display="none";},1150);
-  if(pts>=9){ confetti(); applause(); }
 }
 function confetti(){
   if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -559,7 +805,8 @@ function confetti(){
   }
 }
 let AC=null;
-function applause(){ // syntetisert klapping med WebAudio (ingen lydfil trengs)
+function applause(){
+  if(!SET.sound) return;
   try{
     AC = AC || new (window.AudioContext||window.webkitAudioContext)();
     if(AC.state==="suspended") AC.resume();
@@ -578,21 +825,85 @@ function applause(){ // syntetisert klapping med WebAudio (ingen lydfil trengs)
     }
   }catch(e){}
 }
-function bestScore(){
-  const h = load(LS.hist,[]);
+
+/* ================= TRENINGSNAVIGASJON ================= */
+const TVIEWS=["modePicker","boardTraining","tpView","coView","quizView"];
+function showTView(id){
+  TVIEWS.forEach(v=>$(v).style.display = v===id?"block":"none");
+  if(id==="modePicker") updateResume();
+}
+function updateResume(){
+  const act = c => c && !c.done && (c.darts>0 || (Array.isArray(c.turnHits) && c.turnHits.length>0));
+  $("resumeRtb").textContent = act(load(LS.cur,null))  ? "▶ Pågående runde — fortsett" : "";
+  $("resumeDbl").textContent = act(load(LS.dcur,null)) ? "▶ Pågående runde — fortsett" : "";
+}
+document.querySelectorAll(".modecard").forEach(c=>{
+  onTap(c,()=>{
+    const m=c.dataset.tmode;
+    if(m==="rtb"||m==="dbl") enterBoard(m);
+    else if(m==="tp") enterTp();
+    else if(m==="co") enterCo();
+    else if(m==="quiz") enterQuiz();
+  });
+});
+document.querySelectorAll("[data-back]").forEach(b=>{
+  onTap(b,()=>{ stopQuiz(); showTView("modePicker"); $("hdrInfo").textContent=""; });
+});
+
+/* ================= RUNDT BRETTET + DOBBELTRENING ================= */
+const SEQ = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,25];
+const MODECFG = {
+  rtb:{hist:LS.hist, cur:LS.cur, nums:LS.nums, name:"Rundt brettet",
+       label:n=>n===25?"BULL":String(n)},
+  dbl:{hist:LS.dhist, cur:LS.dcur, nums:LS.dnums, name:"Dobbeltrening",
+       label:n=>n===25?"BULLSEYE":"D"+n}
+};
+let T = null; // {mode,idx,darts,miss,s,d,t,turnHits:[],num:{},undo:[],done}
+
+function cfg(){ return MODECFG[T.mode]; }
+function freshRound(mode){ return {mode,idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],done:false}; }
+function snapshot(){
+  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,
+               turnHits:[...T.turnHits],num:JSON.parse(JSON.stringify(T.num))});
+  if(T.undo.length>200) T.undo.shift();
+}
+function numHit(tgt, kind){
+  const o = T.num[tgt] || (T.num[tgt]={att:0,s:0,d:0,t:0});
+  o.att++;
+  if(kind===1)o.s++; else if(kind===2)o.d++; else o.t++;
+}
+function numMiss(tgt, n){
+  if(n<=0) return;
+  const o = T.num[tgt] || (T.num[tgt]={att:0,s:0,d:0,t:0});
+  o.att += n;
+}
+function bestScore(mode){
+  const h = load(MODECFG[mode].hist,[]);
   return h.length ? Math.min(...h.map(r=>r.darts)) : null;
 }
-function saveCur(){ save(LS.cur, T); }
+function saveCur(){ save(cfg().cur, T); }
+
+function enterBoard(mode){
+  let saved = load(MODECFG[mode].cur, null);
+  if(!saved || saved.done || !Array.isArray(saved.undo) || !Array.isArray(saved.turnHits) || typeof saved.num!=="object" || !saved.num){
+    saved = freshRound(mode);
+  }
+  saved.mode = mode;
+  T = saved;
+  $("btModeName").textContent = MODECFG[mode].name;
+  showTView("boardTraining");
+  renderTraining();
+}
 
 function renderTraining(){
-  const best = bestScore();
+  const best = bestScore(T.mode);
   $("tBest").textContent = best ?? "–";
-  const effDarts = T.darts + T.turnHits.length; // inkluder tapp som ikke er registrert ennå
+  const effDarts = T.darts + T.turnHits.length;
   $("tDarts").textContent = effDarts;
   const hits = T.s+T.d+T.t;
   $("tPct").textContent = effDarts ? Math.round(100*hits/effDarts)+"%" : "–";
   $("tPpd").textContent = effDarts ? (T.idx/effDarts).toFixed(2) : "–";
-  $("tRound").textContent = Math.floor(T.darts/3) + 1; // runde 1 = de første 3 pilene
+  $("tRound").textContent = Math.floor(T.darts/3) + 1;
   $("hdrInfo").textContent = best ? "Rekord: "+best+" piler" : "";
 
   if(T.done){
@@ -604,16 +915,32 @@ function renderTraining(){
   $("doneArea").style.display="none";
 
   const tgt = SEQ[T.idx];
-  $("targetNum").textContent = tgt===25 ? "BULL" : tgt;
-  $("targetNum").classList.toggle("bull", tgt===25);
+  const isBull = tgt===25;
+  $("targetNum").textContent = cfg().label(tgt);
+  $("targetNum").classList.toggle("bull", isBull);
 
-  // on bull: no triple, and double = 50
-  $("btnT").style.display = tgt===25 ? "none" : "";
-  $("btnS").querySelector("small").textContent = tgt===25 ? "25" : "+1 tall";
-  $("btnD").querySelector("small").textContent = tgt===25 ? "Bullseye 50" : "hopper over 1";
+  if(T.mode==="dbl"){
+    $("btnS").innerHTML = isBull ? "Bullseye<small>50</small>" : "Treff<small>dobbel</small>";
+    $("btnD").style.display="none";
+    $("btnT").style.display="none";
+  } else {
+    $("btnS").innerHTML = isBull ? "Enkel<small>25</small>" : "Enkel<small>+1 tall</small>";
+    $("btnD").innerHTML = isBull ? "Dobbel<small>Bullseye 50</small>" : "Dobbel<small>hopper over 1</small>";
+    $("btnT").innerHTML = "Trippel<small>hopper over 2</small>";
+    $("btnD").style.display="";
+    $("btnT").style.display = isBull ? "none" : "";
+  }
   $("btnUndo").disabled = T.undo.length===0;
 
-  // current-turn taps + confirm label
+  const c = $("chips"); c.innerHTML="";
+  SEQ.forEach((n,i)=>{
+    const sp=document.createElement("span");
+    sp.textContent = n===25?"B":n;
+    if(i<T.idx) sp.classList.add("done");
+    else if(i===T.idx) sp.classList.add("cur");
+    c.appendChild(sp);
+  });
+
   const taps=$("turnTaps"); taps.innerHTML="";
   if(T.turnHits.length===0){
     taps.textContent="Tapp pilene i rekkefølge";
@@ -621,6 +948,7 @@ function renderTraining(){
     T.turnHits.forEach(k=>{
       const b=document.createElement("b");
       b.textContent = k===0?"B":k===1?"E":k===2?"D":"T";
+      if(T.mode==="dbl" && k===1) b.textContent="D";
       if(k===0) b.classList.add("miss");
       taps.appendChild(b);
     });
@@ -633,43 +961,33 @@ function renderTraining(){
     : hitsN+" treff — registrer, "+rest+" bom";
   $("btnConfirm").classList.toggle("zero", hitsN===0);
   $("btnConfirm").classList.toggle("hits", hitsN>0);
-
-  const c = $("chips"); c.innerHTML="";
-  SEQ.forEach((n,i)=>{
-    const sp=document.createElement("span");
-    sp.textContent = n===25?"B":n;
-    if(i<T.idx) sp.classList.add("done");
-    else if(i===T.idx) sp.classList.add("cur");
-    c.appendChild(sp);
-  });
 }
 
-function tapDart(kind){ // én pil: 0 bom, 1 enkel, 2 dobbel, 3 trippel
+function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
   if(T.done || T.turnHits.length>=3) return;
   snapshot();
   T.turnHits.push(kind);
   if(kind===0){
     T.miss++;
-    numMiss(SEQ[T.idx], 1); // bommen logges på målet man faktisk sto på
+    numMiss(SEQ[T.idx], 1);
   } else {
     numHit(SEQ[T.idx], kind);
     if(kind===1)T.s++; else if(kind===2)T.d++; else T.t++;
     const onBull = T.idx === SEQ.length-1;
-    T.idx += kind;
+    T.idx += (T.mode==="dbl") ? 1 : kind;
     // bull kan aldri hoppes over: dobbel/trippel på 19-20 stopper på bull
     if(!onBull && T.idx > SEQ.length-1) T.idx = SEQ.length-1;
     if(T.idx >= SEQ.length){
-      // treff på bull avslutter — pilantallet er nøyaktig siden hver pil tastes
       const pts = T.turnHits.reduce((a,k)=>a+k,0);
       T.darts += T.turnHits.length;
       T.turnHits = [];
       finishRound();
       renderTraining();
-      showRoundFace(pts);
+      showRoundFace(pts, T.mode);
       return;
     }
   }
-  if(T.turnHits.length===3){ confirmTurn(false); return; } // runden full — auto-registrer
+  if(T.turnHits.length===3){ confirmTurn(false); return; }
   saveCur(); renderTraining();
 }
 
@@ -683,27 +1001,30 @@ function confirmTurn(snap){ // registrer runden; utastede piler telles som bom
   T.darts += 3;
   T.turnHits = [];
   saveCur(); renderTraining();
-  showRoundFace(pts);
+  showRoundFace(pts, T.mode);
 }
 
+let lastShare = null;
 function finishRound(){
   T.done = true;
   const hits = T.s+T.d+T.t;
-  const prevBest = bestScore();
+  const prevBest = bestScore(T.mode);
+  const isRec = prevBest===null || T.darts < prevBest;
   const rec = {ts:Date.now(), darts:T.darts, miss:T.miss, s:T.s, d:T.d, t:T.t,
-               co: T.num[25] ? T.num[25].att : 1}; // kast brukt på checkout (bull)
-  const h = load(LS.hist,[]); h.push(rec); save(LS.hist,h);
-  // flytt rundens per-tall-logg inn i den globale statistikken
-  const g = load(LS.nums,{});
+               co: T.num[25] ? T.num[25].att : 1};
+  const h = load(cfg().hist,[]); h.push(rec); save(cfg().hist,h);
+  const g = load(cfg().nums,{});
   for(const k in T.num){
     const o = g[k] || (g[k]={att:0,s:0,d:0,t:0});
     o.att+=T.num[k].att; o.s+=T.num[k].s; o.d+=T.num[k].d; o.t+=T.num[k].t;
   }
-  save(LS.nums,g);
+  save(cfg().nums,g);
+  const pct = Math.round(100*hits/T.darts);
   $("doneDarts").textContent = T.darts;
-  $("donePct").textContent = Math.round(100*hits/T.darts)+"% · "+T.d+" D · "+T.t+" T";
-  $("doneHs").style.display = (prevBest===null || T.darts < prevBest) ? "block" : "none";
-  localStorage.removeItem(LS.cur);
+  $("donePct").textContent = pct+"% · "+T.d+" D · "+T.t+" T";
+  $("doneHs").style.display = isRec ? "block" : "none";
+  lastShare = "🎯 Dartloggen — "+cfg().name+": "+T.darts+" piler, "+pct+"% treff ("+T.d+" D, "+T.t+" T)"+(isRec?" — NY REKORD! ⭐":"");
+  localStorage.removeItem(cfg().cur);
 }
 
 onTap($("btnMiss"),()=>tapDart(0));
@@ -717,12 +1038,366 @@ onTap($("btnUndo"),()=>{
   T.turnHits=u.turnHits; T.num=u.num;
   saveCur(); renderTraining();
 });
-armConfirm($("btnReset"),()=>{ T = freshRound(); saveCur(); renderTraining(); });
-onTap($("btnNew"),()=>{ T = freshRound(); saveCur(); renderTraining(); });
+armConfirm($("btnReset"),()=>{ T = freshRound(T.mode); saveCur(); renderTraining(); });
+onTap($("btnNew"),()=>{ T = freshRound(T.mode); saveCur(); renderTraining(); });
+onTap($("btnShare"),()=>{
+  if(!lastShare) return;
+  if(navigator.share){ navigator.share({text:lastShare}).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(lastShare); gameToast("Kopiert til utklippstavlen"); }
+});
+function gameToast(t){
+  const el=$("hdrInfo"); const old=el.textContent;
+  el.textContent=t; setTimeout(()=>{ if(el.textContent===t) el.textContent=old; },2000);
+}
+
+/* ================= MÅLTRENING ================= */
+let TP = null; // {n,total,left,hits,s,d,t,undo:[]}
+function enterTp(preselect){
+  showTView("tpView");
+  const saved = load(LS.tpcur,null);
+  if(saved && saved.left>0 && !preselect){
+    TP=saved; showTpPlay();
+  } else {
+    TP=null;
+    if(preselect) tpSel = preselect;
+    renderTpSetup();
+    $("tpSetup").style.display="block"; $("tpPlay").style.display="none"; $("tpDone").style.display="none";
+  }
+}
+let tpSel = null;
+function renderTpSetup(){
+  const g=$("tpNums");
+  if(!g.children.length){
+    SEQ.forEach(n=>{
+      const b=document.createElement("button");
+      b.textContent = n===25?"Bull":n;
+      b.dataset.n=n;
+      onTap(b,()=>{ tpSel=n; renderTpSetup(); });
+      g.appendChild(b);
+    });
+  }
+  [...g.children].forEach(b=>b.classList.toggle("active", +b.dataset.n===tpSel));
+  $("tpStart").disabled = !tpSel;
+  $("tpStart").textContent = tpSel ? "Start — "+(tpSel===25?"Bull":tpSel) : "Velg et tall først";
+}
+$("tpCount").querySelectorAll("button").forEach(b=>{
+  onTap(b,()=>$("tpCount").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b)));
+});
+onTap($("tpStart"),()=>{
+  if(!tpSel) return;
+  const total=+$("tpCount").querySelector(".active").dataset.c;
+  TP={n:tpSel,total,left:total,hits:0,s:0,d:0,t:0,undo:[]};
+  save(LS.tpcur,TP);
+  showTpPlay();
+});
+function showTpPlay(){
+  $("tpSetup").style.display="none"; $("tpDone").style.display="none"; $("tpPlay").style.display="block";
+  renderTp();
+}
+function renderTp(){
+  $("tpLeft").textContent=TP.left;
+  $("tpHits").textContent=TP.hits;
+  const thrown=TP.total-TP.left;
+  $("tpPct").textContent = thrown? Math.round(100*TP.hits/thrown)+"%" : "–";
+  $("tpTargetNum").textContent = TP.n===25?"BULL":TP.n;
+  $("tpTargetNum").classList.toggle("bull",TP.n===25);
+  $("tpT").style.display = TP.n===25?"none":"";
+  $("tpUndo").disabled = TP.undo.length===0;
+}
+function tpDartTap(kind){
+  if(!TP || TP.left<=0) return;
+  TP.undo.push({left:TP.left,hits:TP.hits,s:TP.s,d:TP.d,t:TP.t});
+  if(TP.undo.length>100) TP.undo.shift();
+  TP.left--;
+  if(kind>0){ TP.hits++; if(kind===1)TP.s++; else if(kind===2)TP.d++; else TP.t++; }
+  save(LS.tpcur,TP);
+  if(TP.left===0){ tpFinish(); return; }
+  renderTp();
+}
+function tpFinish(){
+  const h=load(LS.tph,[]);
+  h.push({ts:Date.now(),n:TP.n,total:TP.total,hits:TP.hits,s:TP.s,d:TP.d,t:TP.t});
+  save(LS.tph,h);
+  // mat den globale per-tall-statistikken
+  const g=load(LS.nums,{});
+  const o=g[TP.n]||(g[TP.n]={att:0,s:0,d:0,t:0});
+  o.att+=TP.total; o.s+=TP.s; o.d+=TP.d; o.t+=TP.t;
+  save(LS.nums,g);
+  localStorage.removeItem(LS.tpcur);
+  const pct=Math.round(100*TP.hits/TP.total);
+  $("tpDonePct").textContent=pct+"%";
+  $("tpDoneInfo").textContent=TP.hits+" av "+TP.total+" på "+(TP.n===25?"Bull":TP.n)+" · "+TP.d+" D · "+TP.t+" T";
+  $("tpPlay").style.display="none"; $("tpDone").style.display="block";
+  showRoundFace(pct>=50?(pct>=70?9:4):(pct>=30?2:1),"rtb");
+}
+onTap($("tpMiss"),()=>tpDartTap(0));
+onTap($("tpS"),()=>tpDartTap(1));
+onTap($("tpD"),()=>tpDartTap(2));
+onTap($("tpT"),()=>tpDartTap(3));
+onTap($("tpUndo"),()=>{
+  const u=TP.undo.pop(); if(!u) return;
+  TP.left=u.left; TP.hits=u.hits; TP.s=u.s; TP.d=u.d; TP.t=u.t;
+  save(LS.tpcur,TP); renderTp();
+});
+armConfirm($("tpQuit"),()=>{
+  localStorage.removeItem(LS.tpcur); TP=null;
+  $("tpPlay").style.display="none"; $("tpSetup").style.display="block"; renderTpSetup();
+});
+onTap($("tpAgain"),()=>{
+  TP={n:TP.n,total:TP.total,left:TP.total,hits:0,s:0,d:0,t:0,undo:[]};
+  save(LS.tpcur,TP); showTpPlay();
+});
+onTap($("tpNewNum"),()=>{ tpSel=null; $("tpDone").style.display="none"; $("tpSetup").style.display="block"; renderTpSetup(); });
+function goTargetPractice(n){
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.classList.toggle("active",x.dataset.v==="trening"));
+  document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
+  $("view-trening").classList.add("active");
+  localStorage.removeItem(LS.tpcur);
+  enterTp(n);
+}
+
+/* ================= CHECKOUT-LOGIKK (deles av trening + spill) ================= */
+const IMPOSSIBLE_CO = new Set([159,162,163,165,166,168,169]);
+const SGL=[], DBL=[], TRP=[];
+for(let i=1;i<=20;i++){ SGL.push({l:""+i,v:i}); DBL.push({l:"D"+i,v:2*i}); TRP.push({l:"T"+i,v:3*i}); }
+SGL.push({l:"25",v:25}); DBL.push({l:"Bull",v:50});
+const ALLD = [...TRP,...SGL].sort((a,b)=>b.v-a.v);
+const DBLP = [...DBL].sort((a,b)=>b.v-a.v).filter(d=>d.v!==50).concat([{l:"Bull",v:50}]);
+const SUGMEMO = {};
+function suggest(rem){
+  if(rem<2 || rem>170 || IMPOSSIBLE_CO.has(rem)) return null;
+  if(SUGMEMO[rem]!==undefined) return SUGMEMO[rem];
+  let res=null;
+  for(const d of DBL) if(d.v===rem){ res=[d.l]; break; }
+  if(!res) outer2:
+  for(const a of ALLD) for(const d of DBLP) if(a.v+d.v===rem){ res=[a.l,d.l]; break outer2; }
+  if(!res) outer3:
+  for(const a of ALLD) for(const b of ALLD) for(const d of DBLP)
+    if(a.v+b.v+d.v===rem){ res=[a.l,b.l,d.l]; break outer3; }
+  SUGMEMO[rem]=res;
+  return res;
+}
+function coPossible(rem,k){
+  if(rem<2||rem>170||IMPOSSIBLE_CO.has(rem)) return false;
+  if(k===1) return DBL.some(d=>d.v===rem);
+  if(k===2){
+    if(coPossible(rem,1)) return true;
+    for(const a of ALLD) for(const d of DBLP) if(a.v+d.v===rem) return true;
+    return false;
+  }
+  return true;
+}
+
+/* ================= CHECKOUT-TRENING ================= */
+const CO = {target:null, session:{att:0,ok:0}};
+const CO_RANGE = {lett:[2,60], mid:[61,100], hard:[101,170], alle:[2,170]};
+function enterCo(){
+  showTView("coView");
+  $("coDiff").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x.dataset.d===(SET.coDiff||"alle")));
+  if(!CO.target) newCoTarget();
+  renderCo();
+}
+function newCoTarget(){
+  const r=CO_RANGE[SET.coDiff||"alle"];
+  let t;
+  do{ t = r[0] + Math.floor(Math.random()*(r[1]-r[0]+1)); }while(IMPOSSIBLE_CO.has(t));
+  CO.target=t;
+  renderCo();
+}
+function renderCo(){
+  $("coTargetNum").textContent=CO.target;
+  $("coSug").textContent="";
+  $("coOut1").disabled = !coPossible(CO.target,1);
+  $("coOut2").disabled = !coPossible(CO.target,2);
+  $("coOut1").style.opacity = $("coOut1").disabled? .35:1;
+  $("coOut2").style.opacity = $("coOut2").disabled? .35:1;
+  const s=CO.session;
+  $("coSession").textContent = s.att? s.ok+" av "+s.att+" utganger" : "Kast 3 piler, logg resultatet";
+}
+$("coDiff").querySelectorAll("button").forEach(b=>{
+  onTap(b,()=>{
+    SET.coDiff=b.dataset.d; saveSet();
+    $("coDiff").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    newCoTarget();
+  });
+});
+onTap($("coShow"),()=>{
+  const s=suggest(CO.target);
+  $("coSug").textContent = s? s.join(" · ") : "";
+});
+function coResult(o){ // o: 0 bom, 1-3 = ut på o piler
+  const h=load(LS.coh,[]);
+  h.push({ts:Date.now(), t:CO.target, o});
+  save(LS.coh,h);
+  CO.session.att++;
+  if(o>0){ CO.session.ok++; showRoundFace(o===1?9:(o===2?4:3),"rtb"); }
+  else showRoundFace(0,"rtb");
+  newCoTarget();
+}
+onTap($("coOut1"),()=>coResult(1));
+onTap($("coOut2"),()=>coResult(2));
+onTap($("coOut3"),()=>coResult(3));
+onTap($("coFail"),()=>coResult(0));
+
+/* ================= DARTQUIZ ================= */
+const ORDER=[20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
+const QZ={on:false, mode:"find", timed:60, score:0, err:0, cur:null, left:60, iv:null};
+function buildBoard(){
+  const wrap=$("quizBoardWrap");
+  if(wrap.querySelector("svg")) return;
+  const ns="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(ns,"svg");
+  svg.setAttribute("viewBox","0 0 300 300");
+  const P=(r,aDeg)=>{const a=aDeg*Math.PI/180; return (150+r*Math.cos(a)).toFixed(1)+" "+(150+r*Math.sin(a)).toFixed(1);};
+  const r0=26, r1=142;
+  ORDER.forEach((n,i)=>{
+    const c=-90+i*18, a0=c-9, a1=c+9;
+    const p=document.createElementNS(ns,"path");
+    p.setAttribute("d","M "+P(r0,a0)+" L "+P(r1,a0)+" A "+r1+" "+r1+" 0 0 1 "+P(r1,a1)+" L "+P(r0,a1)+" A "+r0+" "+r0+" 0 0 0 "+P(r0,a0)+" Z");
+    p.setAttribute("fill", i%2===0 ? "#1A1714" : "#EFE7D7");
+    p.setAttribute("stroke","#4A4238");
+    p.setAttribute("stroke-width","0.8");
+    p.dataset.n=n;
+    p.addEventListener("pointerdown",e=>{ e.preventDefault(); quizBoardTap(n,p); });
+    svg.appendChild(p);
+  });
+  const ring=document.createElementNS(ns,"circle");
+  ring.setAttribute("cx",150);ring.setAttribute("cy",150);ring.setAttribute("r",144.5);
+  ring.setAttribute("fill","none");ring.setAttribute("stroke","#4A4238");ring.setAttribute("stroke-width","3");
+  svg.appendChild(ring);
+  const ob=document.createElementNS(ns,"circle");
+  ob.setAttribute("cx",150);ob.setAttribute("cy",150);ob.setAttribute("r",16);
+  ob.setAttribute("fill","#2E7D4F");
+  svg.appendChild(ob);
+  const ib=document.createElementNS(ns,"circle");
+  ib.setAttribute("cx",150);ib.setAttribute("cy",150);ib.setAttribute("r",7);
+  ib.setAttribute("fill","#C0392B");
+  svg.appendChild(ib);
+  wrap.appendChild(svg);
+
+  const g=$("quizNums");
+  for(let n=1;n<=20;n++){
+    const b=document.createElement("button");
+    b.textContent=n;
+    onTap(b,()=>quizNumTap(n,b));
+    g.appendChild(b);
+  }
+}
+function enterQuiz(){
+  buildBoard();
+  showTView("quizView");
+  $("quizResult").style.display="none";
+  quizIdle();
+}
+function quizIdle(){
+  QZ.on=false;
+  $("quizPrompt").textContent="–";
+  $("quizScore").textContent="Trykk start";
+  $("quizClock").textContent="";
+  $("quizStart").textContent="Start";
+  $("quizNums").style.display = QZ.mode==="inv" ? "grid":"none";
+  clearHl();
+}
+$("quizMode").querySelectorAll("button").forEach(b=>{
+  onTap(b,()=>{
+    if(QZ.on) return;
+    QZ.mode=b.dataset.q;
+    $("quizMode").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    quizIdle();
+  });
+});
+$("quizTime").querySelectorAll("button").forEach(b=>{
+  onTap(b,()=>{
+    if(QZ.on) return;
+    QZ.timed=+b.dataset.t;
+    $("quizTime").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+  });
+});
+onTap($("quizStart"),()=>{ QZ.on ? endQuiz() : startQuiz(); });
+function startQuiz(){
+  QZ.on=true; QZ.score=0; QZ.err=0; QZ.left=QZ.timed;
+  $("quizResult").style.display="none";
+  $("quizStart").textContent="Avslutt";
+  $("quizNums").style.display = QZ.mode==="inv" ? "grid":"none";
+  nextQuiz();
+  updateQuizBar();
+  if(QZ.timed>0){
+    QZ.iv=setInterval(()=>{
+      QZ.left--;
+      updateQuizBar();
+      if(QZ.left<=0) endQuiz();
+    },1000);
+  }
+}
+function stopQuiz(){ if(QZ.on) endQuiz(true); }
+function endQuiz(silent){
+  QZ.on=false;
+  clearInterval(QZ.iv); QZ.iv=null;
+  clearHl();
+  if(silent){ quizIdle(); return; }
+  if(QZ.timed>0){
+    const key = QZ.mode;
+    const best = load(LS.qbest,{});
+    const isBest = !(best[key]>=QZ.score);
+    if(isBest){ best[key]=QZ.score; save(LS.qbest,best); }
+    const h=load(LS.quiz,[]);
+    h.push({ts:Date.now(),mode:QZ.mode,score:QZ.score,err:QZ.err});
+    save(LS.quiz,h);
+    $("qrScore").textContent=QZ.score;
+    $("qrInfo").textContent="riktige på 1 minutt · "+QZ.err+" feil";
+    $("qrBest").style.display=isBest?"block":"none";
+    $("quizResult").style.display="block";
+    if(isBest && QZ.score>0){ confetti(); applause(); }
+  }
+  quizIdle();
+}
+function updateQuizBar(){
+  $("quizScore").textContent="Riktig: "+QZ.score+" · Feil: "+QZ.err;
+  $("quizClock").textContent = QZ.timed>0 ? QZ.left+" s" : "";
+}
+function nextQuiz(){
+  let n;
+  do{ n=1+Math.floor(Math.random()*20); }while(n===QZ.cur);
+  QZ.cur=n;
+  clearHl();
+  if(QZ.mode==="find"){
+    $("quizPrompt").textContent=n;
+  } else {
+    $("quizPrompt").textContent="?";
+    const p=[...document.querySelectorAll("#quizBoardWrap path")].find(x=>+x.dataset.n===n);
+    if(p) p.classList.add("qz-hl");
+  }
+}
+function clearHl(){
+  document.querySelectorAll("#quizBoardWrap path").forEach(p=>p.classList.remove("qz-hl","qz-good","qz-bad"));
+}
+function quizBoardTap(n,p){
+  if(!QZ.on || QZ.mode!=="find") return;
+  if(n===QZ.cur){
+    QZ.score++;
+    p.classList.add("qz-good");
+    setTimeout(()=>{ p.classList.remove("qz-good"); nextQuiz(); updateQuizBar(); },180);
+  } else {
+    QZ.err++;
+    p.classList.add("qz-bad");
+    setTimeout(()=>p.classList.remove("qz-bad"),300);
+    updateQuizBar();
+  }
+}
+function quizNumTap(n,btn){
+  if(!QZ.on || QZ.mode!=="inv") return;
+  if(n===QZ.cur){
+    QZ.score++;
+    nextQuiz(); updateQuizBar();
+  } else {
+    QZ.err++;
+    updateQuizBar();
+  }
+}
 
 /* ================= X01 ================= */
 const IMPOSSIBLE = new Set([163,166,169,172,173,175,176,178,179]);
-let G = null; // {mode,dblOut,players:[{name,score,darts,scored}],turn,history:[],over}
+let G = null;
 let entry = "";
 let pendingWinEntry = null;
 
@@ -748,15 +1423,21 @@ $("modeSeg").querySelectorAll("button").forEach(b=>{
     $("modeSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
   });
 });
+$("legSeg").querySelectorAll("button").forEach(b=>{
+  onTap(b,()=>{
+    $("legSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+  });
+});
 
 onTap($("btnStart"),()=>{
   const mode = +$("modeSeg").querySelector(".active").dataset.m;
+  const legsTarget = +$("legSeg").querySelector(".active").dataset.l;
   const names = [...$("playersList").querySelectorAll("input")]
     .map((i,ix)=> i.value.trim() || "Spiller "+(ix+1));
   G = {
-    mode, dblOut: $("dblOut").checked,
-    players: names.map(n=>({name:n, score:mode, darts:0, scored:0})),
-    turn:0, history:[], over:false
+    mode, dblOut: $("dblOut").checked, legsTarget,
+    players: names.map(n=>({name:n, score:mode, darts:0, scored:0, legs:0})),
+    turn:0, legStart:0, history:[], over:false
   };
   entry=""; pendingWinEntry=null;
   $("gameSetup").style.display="none"; $("gameOver").style.display="none";
@@ -770,11 +1451,15 @@ function renderGame(){
     const div=document.createElement("div");
     div.className="pcard"+(i===G.turn && !G.over ? " turn":"");
     const avg = p.darts ? (p.scored/p.darts*3).toFixed(1) : "–";
-    div.innerHTML = '<div><div class="nm"></div><div class="avg num">Snitt: '+avg+' · '+p.darts+' piler</div></div>'+
+    const legTxt = G.legsTarget>1 ? "Legs "+p.legs+" · " : "";
+    div.innerHTML = '<div><div class="nm"></div><div class="avg num">'+legTxt+'Snitt: '+avg+' · '+p.darts+' piler</div></div>'+
                     '<div class="rest num">'+p.score+'</div>';
     div.querySelector(".nm").textContent = p.name;
     sb.appendChild(div);
   });
+  const cur=G.players[G.turn];
+  const sug = (!G.over) ? suggest(cur.score) : null;
+  $("coHint").textContent = sug ? "Utgang: "+sug.join(" · ") : "";
   const eb=$("entryBox");
   eb.innerHTML = entry ? '<span class="num">'+entry+'</span>'
                        : '<span class="ph">Skriv rundens poengsum (3 piler)</span>';
@@ -799,10 +1484,9 @@ function submitTurn(){
   if(v>180 || IMPOSSIBLE.has(v)){ gameMsg("Umulig poengsum med 3 piler."); entry=""; renderGame(); return; }
   const p = G.players[G.turn];
   const rem = p.score - v;
-  const bust = rem<0 || (G.dblOut && rem===1) || (G.dblOut && rem===0 && v===0);
+  const bust = rem<0 || (G.dblOut && rem===1);
 
   if(rem===0 && !bust){
-    // winner — ask darts used on final turn
     pendingWinEntry = v;
     $("coModal").classList.add("open");
     return;
@@ -820,27 +1504,35 @@ $("coModal").querySelectorAll(".opts button").forEach(b=>{
     $("coModal").classList.remove("open");
     const n=+b.dataset.n, v=pendingWinEntry, p=G.players[G.turn];
     pendingWinEntry=null;
-    G.history.push({turn:G.turn, prevScore:p.score, prevDarts:p.darts, prevScored:p.scored});
     p.darts += n; p.scored += v; p.score = 0;
-    G.over = true; entry="";
-    const avg=(p.scored/p.darts*3).toFixed(1);
-    $("winName").textContent = p.name;
-    $("winInfo").textContent = G.mode+(G.dblOut?" · dobbel ut":"")+" · "+p.darts+" piler · snitt "+avg;
-    const gh=load(LS.games,[]);
-    gh.push({ts:Date.now(), mode:G.mode, winner:p.name, darts:p.darts, avg:+avg,
-             players:G.players.map(x=>x.name)});
-    save(LS.games,gh);
-    $("gamePlay").style.display="none"; $("gameOver").style.display="block";
+    p.legs++;
+    entry="";
+    if(p.legs >= G.legsTarget){
+      G.over = true;
+      const avg=(p.scored/p.darts*3).toFixed(1);
+      $("winName").textContent = p.name;
+      $("winInfo").textContent = G.mode+(G.dblOut?" · dobbel ut":"")+
+        (G.legsTarget>1 ? " · "+p.legs+" legs" : "")+" · "+p.darts+" piler · snitt "+avg;
+      const gh=load(LS.games,[]);
+      gh.push({ts:Date.now(), mode:G.mode, winner:p.name, darts:p.darts, avg:+avg,
+               legs:G.legsTarget, players:G.players.map(x=>x.name)});
+      save(LS.games,gh);
+      $("gamePlay").style.display="none"; $("gameOver").style.display="block";
+      confetti(); applause();
+    } else {
+      gameMsg(p.name+" tok leget!");
+      G.players.forEach(x=>x.score=G.mode);
+      G.legStart=(G.legStart+1)%G.players.length;
+      G.turn=G.legStart;
+      G.history=[];
+      renderGame();
+    }
   });
 });
 
 onTap($("btnGameUndo"),()=>{
   const h=G.history.pop(); if(!h) return;
-  if(G.over){ G.over=false; $("gameOver").style.display="none"; $("gamePlay").style.display="block";
-    const gh=load(LS.games,[]); gh.pop(); save(LS.games,gh); G.turn=h.turn;
-  } else {
-    G.turn = h.turn;
-  }
+  G.turn = h.turn;
   const p=G.players[h.turn];
   p.score=h.prevScore; p.darts=h.prevDarts; p.scored=h.prevScored;
   entry=""; renderGame();
@@ -862,7 +1554,20 @@ function renderStats(){
   const withCo = h.filter(r=>typeof r.co==="number");
   $("sCo").textContent = withCo.length ? (withCo.reduce((a,r)=>a+r.co,0)/withCo.length).toFixed(1) : "–";
   renderChart(h);
+  renderTrend(h);
+  renderPb(h);
+  renderWeak();
+  renderHistList(h);
+  renderNumStats();
+  renderDblStats();
+  renderTpStats();
+  renderCoStats();
+  renderQuizStats();
+  renderGameStats();
+  $("soundToggle").checked = SET.sound!==false;
+}
 
+function renderHistList(h){
   const ul=$("histList"); ul.innerHTML="";
   $("histEmpty").style.display = h.length? "none":"block";
   const best = h.length? Math.min(...h.map(r=>r.darts)) : null;
@@ -876,38 +1581,188 @@ function renderStats(){
     li.querySelector(".d").textContent = fmtDate(r.ts);
     ul.appendChild(li);
   });
+}
 
-  // per-tall statistikk
+function weekKey(ts){
+  const d=new Date(ts);
+  const day=(d.getDay()+6)%7;
+  const mon=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);
+  return mon.getTime();
+}
+function renderTrend(h){
+  const box=$("trendBox"); box.innerHTML="";
+  const weeks={};
+  h.forEach(r=>{
+    const k=weekKey(r.ts);
+    (weeks[k]=weeks[k]||[]).push(r.darts);
+  });
+  const keys=Object.keys(weeks).map(Number).sort((a,b)=>b-a).slice(0,4);
+  $("trendEmpty").style.display = keys.length<2 ? "block":"none";
+  if(keys.length<2) return;
+  if(keys.length>=2){
+    const now=(weeks[keys[0]].reduce((a,b)=>a+b,0)/weeks[keys[0]].length);
+    const prev=(weeks[keys[1]].reduce((a,b)=>a+b,0)/weeks[keys[1]].length);
+    const diff=now-prev;
+    const head=document.createElement("div");
+    head.className="trendrow";
+    head.innerHTML='<span style="font-weight:800">'+(diff<=0?"📉 Fremgang":"📈 Litt tyngre uke")+'</span>'+
+      '<span class="num" style="font-weight:800;color:'+(diff<=0?"var(--green)":"var(--red)")+'">'+
+      (diff<=0?"":"+")+diff.toFixed(1)+' piler/runde</span>';
+    box.appendChild(head);
+  }
+  keys.forEach(k=>{
+    const arr=weeks[k];
+    const row=document.createElement("div"); row.className="trendrow";
+    const from=new Date(k).toLocaleDateString("nb-NO",{day:"numeric",month:"short"});
+    row.innerHTML='<span class="d">Uke fra '+from+'</span>'+
+      '<span class="num">'+arr.length+' runder · snitt '+(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1)+'</span>';
+    box.appendChild(row);
+  });
+}
+
+function renderPb(h){
+  const ul=$("pbList"); ul.innerHTML="";
+  const pbs=[];
+  let best=Infinity;
+  h.forEach(r=>{ if(r.darts<best){ best=r.darts; pbs.push(r); } });
+  $("pbEmpty").style.display = pbs.length? "none":"block";
+  [...pbs].reverse().slice(0,6).forEach((r,i)=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span class="d"></span><span></span>'+
+      '<span class="num best" style="font-weight:800">'+r.darts+' piler'+(i===0?" ★":"")+'</span>';
+    li.querySelector(".d").textContent = fmtDate(r.ts);
+    ul.appendChild(li);
+  });
+}
+
+function renderWeak(){
+  const nums=load(LS.nums,{});
+  const box=$("weakChips"); box.innerHTML="";
+  const cands=SEQ.filter(n=>nums[n] && nums[n].att>=6)
+    .map(n=>({n, p:(nums[n].s+nums[n].d+nums[n].t)/nums[n].att}))
+    .sort((a,b)=>a.p-b.p).slice(0,3);
+  $("weakEmpty").style.display = cands.length? "none":"block";
+  cands.forEach(c=>{
+    const b=document.createElement("button");
+    b.textContent=(c.n===25?"Bull":c.n)+" · "+Math.round(100*c.p)+"%";
+    onTap(b,()=>goTargetPractice(c.n));
+    box.appendChild(b);
+  });
+}
+
+function renderNumStats(){
   const nums = load(LS.nums,{});
   const wrapN=$("numStats"); wrapN.innerHTML="";
   const anyNums = Object.keys(nums).some(k=>nums[k].att>0);
   $("numEmpty").style.display = anyNums ? "none":"block";
-  if(anyNums){
-    SEQ.forEach(n=>{
-      const o = nums[n];
-      const row=document.createElement("div"); row.className="nrow";
-      if(o && o.att>0){
-        const hitP = Math.round(100*(o.s+o.d+o.t)/o.att);
-        const dP = Math.round(100*o.d/o.att), tP = Math.round(100*o.t/o.att);
-        row.innerHTML='<span class="nlab"></span>'+
-          '<div class="nbar"><i style="width:'+hitP+'%"></i></div>'+
-          '<span class="npct num">'+hitP+'%</span>'+
-          '<span class="ndt num">D '+dP+'% · T '+tP+'% · '+o.att+' kast</span>';
-      } else {
-        row.innerHTML='<span class="nlab"></span>'+
-          '<div class="nbar"></div><span class="npct">–</span><span class="ndt">ingen kast</span>';
-      }
-      row.querySelector(".nlab").textContent = n===25?"Bull":n;
-      wrapN.appendChild(row);
-    });
-  }
+  if(!anyNums) return;
+  SEQ.forEach(n=>{
+    const o = nums[n];
+    const row=document.createElement("div"); row.className="nrow";
+    if(o && o.att>0){
+      const hitP = Math.round(100*(o.s+o.d+o.t)/o.att);
+      const dP = Math.round(100*o.d/o.att), tP = Math.round(100*o.t/o.att);
+      row.innerHTML='<span class="nlab"></span>'+
+        '<div class="nbar"><i style="width:'+hitP+'%"></i></div>'+
+        '<span class="npct num">'+hitP+'%</span>'+
+        '<span class="ndt num">D '+dP+'% · T '+tP+'% · '+o.att+' kast</span>';
+    } else {
+      row.innerHTML='<span class="nlab"></span>'+
+        '<div class="nbar"></div><span class="npct">–</span><span class="ndt">ingen kast</span>';
+    }
+    row.querySelector(".nlab").textContent = n===25?"Bull":n;
+    wrapN.appendChild(row);
+  });
+}
 
+function renderDblStats(){
+  const h=load(LS.dhist,[]);
+  $("dCount").textContent=h.length;
+  $("dBest").textContent=h.length? Math.min(...h.map(r=>r.darts)):"–";
+  $("dAvg").textContent=h.length? (h.reduce((a,r)=>a+r.darts,0)/h.length).toFixed(1):"–";
+  const ul=$("dblHist"); ul.innerHTML="";
+  $("dblEmpty").style.display=h.length?"none":"block";
+  const best=h.length? Math.min(...h.map(r=>r.darts)):null;
+  [...h].reverse().slice(0,15).forEach(r=>{
+    const li=document.createElement("li");
+    const pct=Math.round(100*(r.s+r.d+r.t)/r.darts);
+    li.innerHTML='<span class="d"></span><span class="num" style="color:var(--ink2);font-size:13px">'+pct+'% treff</span>'+
+      '<span class="num '+(r.darts===best?"best":"")+'" style="font-weight:800">'+r.darts+' piler'+(r.darts===best?" ★":"")+'</span>';
+    li.querySelector(".d").textContent=fmtDate(r.ts);
+    ul.appendChild(li);
+  });
+}
+
+function renderTpStats(){
+  const h=load(LS.tph,[]);
+  const ul=$("tpHist"); ul.innerHTML="";
+  $("tpEmpty").style.display=h.length?"none":"block";
+  [...h].reverse().slice(0,15).forEach(r=>{
+    const li=document.createElement("li");
+    const pct=Math.round(100*r.hits/r.total);
+    li.innerHTML='<span class="d"></span><span style="font-weight:700">'+(r.n===25?"Bull":r.n)+'</span>'+
+      '<span class="num" style="font-weight:800">'+r.hits+'/'+r.total+' · '+pct+'%</span>';
+    li.querySelector(".d").textContent=fmtDate(r.ts);
+    ul.appendChild(li);
+  });
+}
+
+function renderCoStats(){
+  const h=load(LS.coh,[]);
+  $("cAtt").textContent=h.length;
+  const ok=h.filter(r=>r.o>0);
+  $("cSucc").textContent=h.length? Math.round(100*ok.length/h.length)+"%":"–";
+  $("cAvgD").textContent=ok.length? (ok.reduce((a,r)=>a+r.o,0)/ok.length).toFixed(1):"–";
+  const ul=$("coHist"); ul.innerHTML="";
+  $("coEmpty").style.display=h.length?"none":"block";
+  [...h].reverse().slice(0,12).forEach(r=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span class="d"></span><span class="num" style="font-weight:800">'+r.t+'</span>'+
+      '<span class="num" style="font-weight:700;color:'+(r.o>0?"var(--green)":"var(--red)")+'">'+
+      (r.o>0? "ut på "+r.o : "bom")+'</span>';
+    li.querySelector(".d").textContent=fmtDate(r.ts);
+    ul.appendChild(li);
+  });
+}
+
+function renderQuizStats(){
+  const best=load(LS.qbest,{});
+  $("quizBestBox").innerHTML =
+    'Beste på 1 min — Finn feltet: <span class="num" style="color:var(--gold)">'+(best.find??"–")+
+    '</span> · Finn tallet: <span class="num" style="color:var(--gold)">'+(best.inv??"–")+'</span>';
+  const h=load(LS.quiz,[]);
+  const ul=$("quizHist"); ul.innerHTML="";
+  $("quizEmpty").style.display=h.length?"none":"block";
+  [...h].reverse().slice(0,10).forEach(r=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span class="d"></span><span>'+(r.mode==="find"?"Finn feltet":"Finn tallet")+'</span>'+
+      '<span class="num" style="font-weight:800">'+r.score+' riktige · '+r.err+' feil</span>';
+    li.querySelector(".d").textContent=fmtDate(r.ts);
+    ul.appendChild(li);
+  });
+}
+
+function renderGameStats(){
   const gh=load(LS.games,[]);
+  const ps=$("playerStats"); ps.innerHTML="";
+  const wins={}, played={};
+  gh.forEach(g=>{
+    wins[g.winner]=(wins[g.winner]||0)+1;
+    (g.players||[]).forEach(n=>played[n]=(played[n]||0)+1);
+  });
+  Object.keys(played).sort((a,b)=>(wins[b]||0)-(wins[a]||0)).forEach(n=>{
+    const li=document.createElement("li");
+    li.innerHTML='<span style="font-weight:700"></span><span></span>'+
+      '<span class="num" style="font-weight:800">'+(wins[n]||0)+' av '+played[n]+' spill</span>';
+    li.children[0].textContent=n;
+    ps.appendChild(li);
+  });
   const gul=$("gameHist"); gul.innerHTML="";
   $("gameHistEmpty").style.display = gh.length? "none":"block";
-  [...gh].reverse().slice(0,20).forEach(g=>{
+  [...gh].reverse().slice(0,15).forEach(g=>{
     const li=document.createElement("li");
-    li.innerHTML='<span class="d"></span><span></span><span class="num">'+g.mode+' · '+g.darts+' piler · snitt '+g.avg+'</span>';
+    li.innerHTML='<span class="d"></span><span></span><span class="num">'+g.mode+
+      (g.legs>1?' · '+g.legs+' legs':'')+' · snitt '+g.avg+'</span>';
     li.querySelector(".d").textContent = fmtDate(g.ts);
     li.children[1].textContent = g.winner;
     li.children[1].style.fontWeight="700";
@@ -934,7 +1789,6 @@ function renderChart(h){
   svg.setAttribute("role","img");
   svg.setAttribute("aria-label","Linjediagram over piler brukt per runde");
 
-  // grid + y labels
   const steps=4;
   for(let i=0;i<=steps;i++){
     const v=Math.round(lo + i*(hi-lo)/steps), y=Y(v);
@@ -951,7 +1805,6 @@ function renderChart(h){
     tx.textContent=v; svg.appendChild(tx);
   }
 
-  // area fill
   const pts=data.map((v,i)=>X(i)+","+Y(v)).join(" ");
   const area=document.createElementNS(ns,"polygon");
   area.setAttribute("points", padL+","+Y(lo)+" "+pts+" "+X(data.length-1)+","+Y(lo));
@@ -974,7 +1827,6 @@ function renderChart(h){
     c.setAttribute("r", isBest||isLast ? 5 : 3.5);
     c.setAttribute("fill", isBest ? "var(--gold)" : "var(--green)");
     c.setAttribute("stroke","var(--surface)");c.setAttribute("stroke-width","1.5");
-    // big invisible hit target
     const hitC=document.createElementNS(ns,"circle");
     hitC.setAttribute("cx",X(i));hitC.setAttribute("cy",Y(v));hitC.setAttribute("r","14");
     hitC.setAttribute("fill","transparent");hitC.style.cursor="pointer";
@@ -992,19 +1844,57 @@ function renderChart(h){
   wrap.appendChild(svg); wrap.appendChild(tip);
 }
 
+/* ---- verktøy: lyd, eksport, import, slett ---- */
+$("soundToggle").addEventListener("change",()=>{ SET.sound=$("soundToggle").checked; saveSet(); });
+function toolMsg(t){
+  const el=$("toolMsg"); el.textContent=t; el.style.display="block";
+  setTimeout(()=>{ el.style.display="none"; },4000);
+}
+onTap($("btnExport"),()=>{
+  const data={};
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k && k.startsWith("dart_")) data[k]=localStorage.getItem(k);
+  }
+  const blob=new Blob([JSON.stringify({app:"dartloggen",ver:1,ts:Date.now(),data},null,1)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="dartloggen-backup-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  toolMsg("Backup lastet ned. Ta vare på filen!");
+});
+onTap($("btnImport"),()=>$("importFile").click());
+$("importFile").addEventListener("change",e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const obj=JSON.parse(rd.result);
+      if(obj.app!=="dartloggen" || !obj.data) throw 0;
+      for(const k in obj.data) if(k.startsWith("dart_")) localStorage.setItem(k,obj.data[k]);
+      toolMsg("Backup importert! Laster på nytt …");
+      setTimeout(()=>location.reload(),800);
+    }catch(err){ toolMsg("Kunne ikke lese filen — er det en Dartloggen-backup?"); }
+  };
+  rd.readAsText(f);
+});
 armConfirm($("btnWipe"),()=>{
-  localStorage.removeItem(LS.hist);
-  localStorage.removeItem(LS.games);
-  localStorage.removeItem(LS.cur);
-  localStorage.removeItem(LS.nums);
-  T=freshRound(); renderTraining(); renderStats();
+  const keys=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i);
+    if(k && k.startsWith("dart_")) keys.push(k);
+  }
+  keys.forEach(k=>localStorage.removeItem(k));
+  SET={sound:true,coDiff:"alle"};
+  T=freshRound("rtb");
+  renderStats(); updateResume();
 });
 
 /* ================= INIT ================= */
-T = load(LS.cur, null);
-if(!T || T.done || !Array.isArray(T.undo) || !Array.isArray(T.turnHits) || typeof T.num!=="object" || !T.num) T = freshRound();
 setupPlayersUI(["",""]);
-renderTraining();
+T = freshRound("rtb");
+showTView("modePicker");
 </script>
 
 <script>

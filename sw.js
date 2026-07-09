@@ -1,5 +1,5 @@
 // Dartloggen service worker — gjør appen tilgjengelig uten nett
-const CACHE = "dartloggen-v1";
+const CACHE = "dartloggen-v2";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", e => {
