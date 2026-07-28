@@ -321,6 +321,59 @@
   .trendrow:first-of-type{border-top:0}
   .trendrow .d{color:var(--ink2)}
 
+  /* ---------- statistikkfilter ---------- */
+  .filtcard{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    padding:12px;box-shadow:var(--shadow);margin-bottom:14px;
+    position:sticky;top:0;z-index:15;
+    max-height:78vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  }
+  .fchips{display:flex;flex-wrap:wrap;gap:6px}
+  .fchips button{
+    border:1px solid var(--line);background:var(--surface2);color:var(--ink2);
+    font:inherit;font-size:12px;font-weight:700;padding:7px 11px;border-radius:18px;cursor:pointer;
+  }
+  .fchips button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+  .fchips button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .flabel{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink2);margin:14px 0 6px}
+  .flabel:first-child{margin-top:0}
+  .fhead{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+    border:0;background:none;color:var(--ink);font:inherit;padding:8px 0 0;cursor:pointer;
+    border-top:1px solid var(--line);margin-top:12px;
+  }
+  .fhead .fsum{font-size:11.5px;font-weight:700;color:var(--green)}
+  .frange{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .frange input{
+    flex:1;min-width:0;font:inherit;font-size:13px;padding:9px 10px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  }
+  .periodtag{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:none;color:var(--green)}
+  .sect{display:block}
+  .sect.off{display:none}
+  .note{font-size:11.5px;color:var(--ink2);margin-top:8px;line-height:1.4}
+
+  /* ---------- nøkkeltall-grid ---------- */
+  .kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .kgrid .k{background:var(--surface2);border-radius:12px;padding:9px 5px;text-align:center;min-width:0}
+  .kgrid .k b{display:block;font-size:17px;font-weight:800;line-height:1.15;overflow:hidden;text-overflow:ellipsis}
+  .kgrid .k span{display:block;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-top:3px;line-height:1.25}
+  .kgrid .k.gold b{color:var(--gold)}
+  .kgrid .k.green b{color:var(--green)}
+
+  /* ---------- utsjekk / rundeoppsummering ---------- */
+  .sum-card{text-align:center;padding:20px 14px 18px}
+  .sum-kicker{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--green)}
+  .sum-big{font-size:clamp(58px,19vw,78px);font-weight:800;line-height:1;margin-top:2px}
+  .sum-sub{color:var(--ink2);font-size:13px;margin-top:4px}
+  .sum-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:16px}
+  .sum-grid .sg{background:var(--surface2);border-radius:12px;padding:10px 5px}
+  .sum-grid .sg b{display:block;font-size:19px;font-weight:800;line-height:1.15}
+  .sum-grid .sg span{display:block;font-size:8.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-top:3px;line-height:1.25}
+  .sum-vs{margin-top:14px;font-size:13px;font-weight:700;line-height:1.5}
+  .sum-vs .muted{color:var(--ink2);font-weight:600}
+  #btnFinishRound{min-height:64px;font-size:17px}
+
   /* ---------- humørfjes + konfetti ---------- */
   #faceFx{position:fixed;inset:0;display:none;place-items:center;z-index:60;pointer-events:none}
   #faceFx span{font-size:150px;line-height:1;animation:facepop 1.15s ease-out forwards}
@@ -409,13 +462,24 @@
           </div>
         </div>
 
-        <div id="doneArea" style="display:none">
-          <div class="card done-card">
-            <div class="eyebrow">Runden fullført</div>
-            <div class="big num" id="doneDarts">0</div>
-            <div style="color:var(--ink2);font-size:13px;margin-top:2px">piler brukt · <span id="donePct"></span></div>
-            <div class="hs" id="doneHs" style="display:none">★ Ny rekord!</div>
-            <div style="margin-top:20px"><button class="primary" id="btnNew">Ny runde</button></div>
+        <div id="btSummary" style="display:none">
+          <div class="card sum-card">
+            <div class="sum-kicker" id="sumKicker">Sjekket ut</div>
+            <div class="eyebrow" id="sumEyebrow">Godkjenn resultatet</div>
+            <div class="sum-big num" id="sumDarts">0</div>
+            <div class="sum-sub">piler brukt · <span id="sumPct"></span></div>
+            <div class="hs" id="sumRec" style="display:none">★ Ny rekord!</div>
+            <div class="sum-grid" id="sumGrid"></div>
+            <div class="sum-vs" id="sumVs"></div>
+          </div>
+          <div id="sumPending" style="margin-top:12px">
+            <button class="primary" id="btnFinishRound">✓ Fullfør runden</button>
+            <div class="rowbtns" style="margin-top:10px">
+              <button class="ghost" id="btnUndoCo">↩ Angre siste pil — kom bare borti</button>
+            </div>
+          </div>
+          <div id="sumDone" style="display:none;margin-top:12px">
+            <button class="primary" id="btnNew">Ny runde</button>
             <div class="rowbtns" style="margin-top:10px"><button class="ghost" id="btnShare">Del resultat</button></div>
           </div>
         </div>
@@ -578,91 +642,248 @@
 
     <!-- ============ STATISTIKK ============ -->
     <section id="view-stats">
-      <h2 class="sec">Rundt brettet</h2>
-      <div class="statrow">
-        <div class="stat"><div class="v num" id="sBest" style="color:var(--gold)">–</div><div class="l">Rekord</div></div>
-        <div class="stat"><div class="v num" id="sAvg">–</div><div class="l">Snitt piler</div></div>
-        <div class="stat"><div class="v num" id="sCo">–</div><div class="l">Snitt checkout</div></div>
-        <div class="stat"><div class="v num" id="sCount">0</div><div class="l">Runder</div></div>
+      <!-- ---------- FILTER ---------- -->
+      <div class="filtcard" id="statFilter">
+        <div class="flabel">Tidsperiode</div>
+        <div class="fchips" id="fPeriod">
+          <button data-p="7">7 dager</button>
+          <button data-p="30">30 dager</button>
+          <button data-p="90">90 dager</button>
+          <button data-p="365">Siste år</button>
+          <button data-p="all" class="active">Alt</button>
+          <button data-p="custom">Egendefinert</button>
+        </div>
+        <div class="frange" id="fRange" style="display:none">
+          <input type="date" id="fFrom" aria-label="Fra dato">
+          <span style="color:var(--ink2);font-weight:700">–</span>
+          <input type="date" id="fTo" aria-label="Til dato">
+        </div>
+
+        <button class="fhead" id="filtToggle">
+          <span class="eyebrow">Flere filtre</span>
+          <span class="fsum" id="filtSummary">Ingen aktive ▾</span>
+        </button>
+        <div id="filtBody" style="display:none">
+          <div class="flabel">Ukedager</div>
+          <div class="fchips" id="fDays">
+            <button data-d="all" class="active">Alle dager</button>
+            <button data-d="week">Hverdag</button>
+            <button data-d="weekend">Helg</button>
+          </div>
+
+          <div class="flabel">Tid på døgnet</div>
+          <div class="fchips" id="fHours">
+            <button data-h="all" class="active">Hele døgnet</button>
+            <button data-h="morn">Morgen 05–12</button>
+            <button data-h="day">Dag 12–17</button>
+            <button data-h="eve">Kveld 17–24</button>
+            <button data-h="night">Natt 00–05</button>
+          </div>
+
+          <div class="flabel">Vis seksjoner</div>
+          <div class="fchips" id="fSections">
+            <button data-s="rtb" class="active">Rundt brettet</button>
+            <button data-s="num" class="active">Treff per tall</button>
+            <button data-s="dbl" class="active">Dobbel</button>
+            <button data-s="tp" class="active">Måltrening</button>
+            <button data-s="co" class="active">Checkout</button>
+            <button data-s="quiz" class="active">Quiz</button>
+            <button data-s="game" class="active">Spill</button>
+          </div>
+
+          <div class="flabel">Historikklister</div>
+          <div class="fchips" id="fHistSort">
+            <button data-hs="new" class="active">Nyeste først</button>
+            <button data-hs="best">Beste først</button>
+          </div>
+          <div class="fchips" id="fHistN" style="margin-top:6px">
+            <button data-hn="15">15</button>
+            <button data-hn="30" class="active">30</button>
+            <button data-hn="100">100</button>
+            <button data-hn="0">Alle</button>
+          </div>
+
+          <div class="flabel">Treff per tall — sortering</div>
+          <div class="fchips" id="fNumSort">
+            <button data-ns="seq" class="active">Rekkefølge</button>
+            <button data-ns="best">Beste først</button>
+            <button data-ns="worst">Svakeste først</button>
+          </div>
+          <div class="fchips" id="fNumMin" style="margin-top:6px">
+            <button data-nm="0" class="active">Vis alle</button>
+            <button data-nm="6">Min. 6 kast</button>
+            <button data-nm="20">Min. 20 kast</button>
+          </div>
+
+          <div class="flabel">Måltrening — mål</div>
+          <div class="fchips" id="fTpNum"></div>
+
+          <div class="flabel">Checkout — utgang</div>
+          <div class="fchips" id="fCoRange">
+            <button data-cr="all" class="active">Alle</button>
+            <button data-cr="lett">2–60</button>
+            <button data-cr="mid">61–100</button>
+            <button data-cr="hard">101–170</button>
+          </div>
+          <div class="fchips" id="fCoRes" style="margin-top:6px">
+            <button data-cx="all" class="active">Alle forsøk</button>
+            <button data-cx="ok">Kun utganger</button>
+            <button data-cx="fail">Kun bom</button>
+          </div>
+
+          <div class="flabel">Quiz — modus</div>
+          <div class="fchips" id="fQuizMode">
+            <button data-qm="all" class="active">Begge</button>
+            <button data-qm="find">Finn feltet</button>
+            <button data-qm="inv">Finn tallet</button>
+          </div>
+
+          <div class="flabel">Spill — type</div>
+          <div class="fchips" id="fGameMode">
+            <button data-gm="all" class="active">Alle</button>
+            <button data-gm="301">301</button>
+            <button data-gm="501">501</button>
+            <button data-gm="701">701</button>
+          </div>
+          <div class="flabel">Spill — spiller</div>
+          <div class="fchips" id="fGamePlayer"></div>
+
+          <button class="ghost" id="filtReset" style="width:100%;margin-top:16px">Nullstill alle filtre</button>
+        </div>
       </div>
+
+      <!-- ---------- TOTALT ---------- -->
+      <h2 class="sec">Totalt <span class="periodtag" id="perTag"></span></h2>
       <div class="card">
-        <div class="eyebrow">Piler per runde — lavere er bedre</div>
-        <div class="chartwrap" id="chartWrap"><div class="empty" id="chartEmpty">Fullfør en runde, så tegnes grafen her.</div></div>
+        <div class="kgrid" id="totGrid"></div>
+        <div class="empty" id="totEmpty" style="display:none">Ingen aktivitet i valgt periode.</div>
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="eyebrow">Ukestrend</div>
-        <div id="trendBox"></div>
-        <div class="empty" id="trendEmpty">Spill i minst to uker for å se trenden.</div>
+      <!-- ---------- RUNDT BRETTET ---------- -->
+      <div class="sect" data-sect="rtb">
+        <h2 class="sec">Rundt brettet</h2>
+        <div class="card">
+          <div class="kgrid" id="rtbGrid"></div>
+          <div class="empty" id="rtbEmpty" style="display:none">Ingen runder i valgt periode.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Piler per runde — lavere er bedre</div>
+          <div class="chartwrap" id="chartWrap"><div class="empty" id="chartEmpty">Fullfør en runde, så tegnes grafen her.</div></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Ukestrend — snitt piler per runde</div>
+          <div class="chartwrap" id="weekWrap"><div class="empty" id="weekEmpty">Spill i minst to uker for å se trenden.</div></div>
+          <div id="trendBox" style="margin-top:8px"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Rekordutvikling</div>
+          <ul class="hist" id="pbList"></ul>
+          <div class="empty" id="pbEmpty">Ingen rekorder ennå.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Tren på disse — dine svakeste tall</div>
+          <div class="weakchips" id="weakChips"></div>
+          <div class="empty" id="weakEmpty">Trenger flere kast per tall før dette kan beregnes.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Historikk</div>
+          <ul class="hist" id="histList"></ul>
+          <div class="empty" id="histEmpty">Ingen runder ennå.</div>
+        </div>
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="eyebrow">Rekordutvikling</div>
-        <ul class="hist" id="pbList"></ul>
-        <div class="empty" id="pbEmpty">Ingen rekorder ennå.</div>
+      <!-- ---------- TREFF PER TALL ---------- -->
+      <div class="sect" data-sect="num">
+        <h2 class="sec">Treff per tall</h2>
+        <div class="card">
+          <div class="eyebrow" style="margin-bottom:6px">Treff&nbsp;% per mål · D og T viser dobbel-/trippelandel av kastene</div>
+          <div id="numStats"></div>
+          <div class="empty" id="numEmpty">Spill noen runder, så bygges statistikken per tall her.</div>
+          <div class="note" id="numNote" style="display:none"></div>
+        </div>
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="eyebrow">Tren på disse — dine svakeste tall</div>
-        <div class="weakchips" id="weakChips"></div>
-        <div class="empty" id="weakEmpty">Trenger flere kast per tall før dette kan beregnes.</div>
+      <!-- ---------- DOBBELTRENING ---------- -->
+      <div class="sect" data-sect="dbl">
+        <h2 class="sec">Dobbeltrening</h2>
+        <div class="card">
+          <div class="kgrid" id="dblGrid"></div>
+          <div class="empty" id="dblGridEmpty" style="display:none">Ingen dobbelrunder i valgt periode.</div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Historikk</div>
+          <ul class="hist" id="dblHist"></ul>
+          <div class="empty" id="dblEmpty">Ingen dobbelrunder ennå.</div>
+        </div>
       </div>
 
-      <div class="card" style="margin-top:12px">
-        <div class="eyebrow">Historikk</div>
-        <ul class="hist" id="histList"></ul>
-        <div class="empty" id="histEmpty">Ingen runder ennå.</div>
+      <!-- ---------- MÅLTRENING ---------- -->
+      <div class="sect" data-sect="tp">
+        <h2 class="sec">Måltrening</h2>
+        <div class="card">
+          <div class="kgrid" id="tpGrid"></div>
+          <div class="empty" id="tpGridEmpty" style="display:none">Ingen økter i valgt periode.</div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow" style="margin-bottom:6px">Treff&nbsp;% per mål i måltrening</div>
+          <div id="tpNumBreak"></div>
+          <div class="empty" id="tpBreakEmpty">Ingen økter ennå.</div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Historikk</div>
+          <ul class="hist" id="tpHist"></ul>
+          <div class="empty" id="tpEmpty">Ingen økter ennå.</div>
+        </div>
       </div>
 
-      <h2 class="sec">Treff per tall</h2>
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:6px">Treff&nbsp;% per mål · D og T viser dobbel-/trippelandel av kastene</div>
-        <div id="numStats"></div>
-        <div class="empty" id="numEmpty">Spill noen runder, så bygges statistikken per tall her.</div>
+      <!-- ---------- CHECKOUT ---------- -->
+      <div class="sect" data-sect="co">
+        <h2 class="sec">Checkout-trening</h2>
+        <div class="card">
+          <div class="kgrid" id="coGrid"></div>
+          <div class="empty" id="coGridEmpty" style="display:none">Ingen forsøk i valgt periode.</div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow" style="margin-bottom:6px">Suksess per vanskelighetsgrad</div>
+          <div id="coRangeBreak"></div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Historikk</div>
+          <ul class="hist" id="coHist"></ul>
+          <div class="empty" id="coEmpty">Ingen forsøk ennå.</div>
+        </div>
       </div>
 
-      <h2 class="sec">Dobbeltrening</h2>
-      <div class="statrow">
-        <div class="stat"><div class="v num" id="dBest" style="color:var(--gold)">–</div><div class="l">Rekord</div></div>
-        <div class="stat"><div class="v num" id="dAvg">–</div><div class="l">Snitt piler</div></div>
-        <div class="stat"><div class="v num" id="dCount">0</div><div class="l">Runder</div></div>
-      </div>
-      <div class="card">
-        <ul class="hist" id="dblHist"></ul>
-        <div class="empty" id="dblEmpty">Ingen dobbelrunder ennå.</div>
-      </div>
-
-      <h2 class="sec">Måltrening</h2>
-      <div class="card">
-        <ul class="hist" id="tpHist"></ul>
-        <div class="empty" id="tpEmpty">Ingen økter ennå.</div>
+      <!-- ---------- QUIZ ---------- -->
+      <div class="sect" data-sect="quiz">
+        <h2 class="sec">Dartquiz</h2>
+        <div class="card">
+          <div class="kgrid" id="quizGrid"></div>
+          <div id="quizBestBox" style="font-size:13px;font-weight:700;margin-top:12px"></div>
+          <ul class="hist" id="quizHist"></ul>
+          <div class="empty" id="quizEmpty">Ingen quizrunder ennå.</div>
+        </div>
       </div>
 
-      <h2 class="sec">Checkout-trening</h2>
-      <div class="statrow">
-        <div class="stat"><div class="v num" id="cAtt">0</div><div class="l">Forsøk</div></div>
-        <div class="stat"><div class="v num" id="cSucc">–</div><div class="l">Suksess</div></div>
-        <div class="stat"><div class="v num" id="cAvgD">–</div><div class="l">Snitt piler ut</div></div>
-      </div>
-      <div class="card">
-        <ul class="hist" id="coHist"></ul>
-        <div class="empty" id="coEmpty">Ingen forsøk ennå.</div>
-      </div>
-
-      <h2 class="sec">Dartquiz</h2>
-      <div class="card">
-        <div id="quizBestBox" style="font-size:14px;font-weight:700"></div>
-        <ul class="hist" id="quizHist"></ul>
-        <div class="empty" id="quizEmpty">Ingen quizrunder ennå.</div>
-      </div>
-
-      <h2 class="sec">Spill (301/501/701)</h2>
-      <div class="card">
-        <div class="eyebrow" style="margin-bottom:4px">Seiere</div>
-        <ul class="hist" id="playerStats"></ul>
-        <div class="eyebrow" style="margin:14px 0 4px">Siste spill</div>
-        <ul class="hist" id="gameHist"></ul>
-        <div class="empty" id="gameHistEmpty">Ingen fullførte spill ennå.</div>
+      <!-- ---------- X01 ---------- -->
+      <div class="sect" data-sect="game">
+        <h2 class="sec">Spill (301/501/701)</h2>
+        <div class="card">
+          <div class="kgrid" id="gameGrid"></div>
+          <div class="empty" id="gameGridEmpty" style="display:none">Ingen spill i valgt periode.</div>
+        </div>
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow" style="margin-bottom:4px">Spillere</div>
+          <ul class="hist" id="playerStats"></ul>
+          <div class="eyebrow" style="margin:14px 0 4px">Siste spill</div>
+          <ul class="hist" id="gameHist"></ul>
+          <div class="empty" id="gameHistEmpty">Ingen fullførte spill ennå.</div>
+        </div>
       </div>
 
       <h2 class="sec">Verktøy</h2>
@@ -717,12 +938,24 @@ const LS = {
   coh:  "dart_checkout_history",
   quiz: "dart_quiz_history",
   qbest:"dart_quiz_best",
-  set:  "dart_settings"
+  set:  "dart_settings",
+  filt: "dart_stats_filter"
 };
 const load = (k, fb) => { try { return JSON.parse(localStorage.getItem(k)) ?? fb; } catch(e){ return fb; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} };
 const fmtDate = ts => new Date(ts).toLocaleDateString("nb-NO",{day:"numeric",month:"short"}) + " " +
                       new Date(ts).toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+const fmtDay = ts => new Date(ts).toLocaleDateString("nb-NO",{day:"numeric",month:"short"});
+function fmtDur(ms){
+  if(!ms || ms<0) return "–";
+  const s = Math.round(ms/1000);
+  if(s<60) return s+" s";
+  const m = Math.floor(s/60);
+  if(m<60) return m+":"+String(s%60).padStart(2,"0");
+  return Math.floor(m/60)+"t "+String(m%60).padStart(2,"0")+"m";
+}
+// lokal dato → heltall dagnummer (trygt over sommertid)
+const dayNum = ts => { const d=new Date(ts); return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000; };
 let SET = load(LS.set,{sound:true,coDiff:"alle"});
 function saveSet(){ save(LS.set,SET); }
 
@@ -833,9 +1066,13 @@ function showTView(id){
   if(id==="modePicker") updateResume();
 }
 function updateResume(){
-  const act = c => c && !c.done && (c.darts>0 || (Array.isArray(c.turnHits) && c.turnHits.length>0));
-  $("resumeRtb").textContent = act(load(LS.cur,null))  ? "▶ Pågående runde — fortsett" : "";
-  $("resumeDbl").textContent = act(load(LS.dcur,null)) ? "▶ Pågående runde — fortsett" : "";
+  const lbl = c => {
+    if(!c || c.done) return "";
+    if(c.pending) return "▶ Sjekket ut — godkjenn runden";
+    return (c.darts>0 || (Array.isArray(c.turnHits) && c.turnHits.length>0)) ? "▶ Pågående runde — fortsett" : "";
+  };
+  $("resumeRtb").textContent = lbl(load(LS.cur,null));
+  $("resumeDbl").textContent = lbl(load(LS.dcur,null));
 }
 document.querySelectorAll(".modecard").forEach(c=>{
   onTap(c,()=>{
@@ -858,10 +1095,13 @@ const MODECFG = {
   dbl:{hist:LS.dhist, cur:LS.dcur, nums:LS.dnums, name:"Dobbeltrening",
        label:n=>n===25?"BULLSEYE":"D"+n}
 };
-let T = null; // {mode,idx,darts,miss,s,d,t,turnHits:[],num:{},undo:[],done}
+let T = null; // {mode,idx,darts,miss,s,d,t,turnHits:[],num:{},undo:[],pending,done,start,prevBest}
 
 function cfg(){ return MODECFG[T.mode]; }
-function freshRound(mode){ return {mode,idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],done:false}; }
+function freshRound(mode){
+  return {mode,idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],
+          pending:false,done:false,start:null,prevBest:null};
+}
 function snapshot(){
   T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,
                turnHits:[...T.turnHits],num:JSON.parse(JSON.stringify(T.num))});
@@ -889,6 +1129,8 @@ function enterBoard(mode){
     saved = freshRound(mode);
   }
   saved.mode = mode;
+  saved.pending = !!saved.pending;
+  if(saved.start===undefined) saved.start = null;
   T = saved;
   $("btModeName").textContent = MODECFG[mode].name;
   showTView("boardTraining");
@@ -902,17 +1144,18 @@ function renderTraining(){
   $("tDarts").textContent = effDarts;
   const hits = T.s+T.d+T.t;
   $("tPct").textContent = effDarts ? Math.round(100*hits/effDarts)+"%" : "–";
-  $("tPpd").textContent = effDarts ? (T.idx/effDarts).toFixed(2) : "–";
+  $("tPpd").textContent = effDarts ? ((T.s+2*T.d+3*T.t)/effDarts).toFixed(2) : "–";
   $("tRound").textContent = Math.floor(T.darts/3) + 1;
   $("hdrInfo").textContent = best ? "Rekord: "+best+" piler" : "";
 
-  if(T.done){
+  if(T.pending || T.done){
     $("playArea").style.display="none";
-    $("doneArea").style.display="block";
+    $("btSummary").style.display="block";
+    renderSummary();
     return;
   }
   $("playArea").style.display="block";
-  $("doneArea").style.display="none";
+  $("btSummary").style.display="none";
 
   const tgt = SEQ[T.idx];
   const isBull = tgt===25;
@@ -964,7 +1207,8 @@ function renderTraining(){
 }
 
 function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
-  if(T.done || T.turnHits.length>=3) return;
+  if(T.done || T.pending || T.turnHits.length>=3) return;
+  if(!T.start) T.start = Date.now();
   snapshot();
   T.turnHits.push(kind);
   if(kind===0){
@@ -978,10 +1222,14 @@ function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
     // bull kan aldri hoppes over: dobbel/trippel på 19-20 stopper på bull
     if(!onBull && T.idx > SEQ.length-1) T.idx = SEQ.length-1;
     if(T.idx >= SEQ.length){
+      // sjekket ut — vis oppsummering og vent på godkjenning før noe lagres i historikken
       const pts = T.turnHits.reduce((a,k)=>a+k,0);
       T.darts += T.turnHits.length;
       T.turnHits = [];
-      finishRound();
+      T.pending = true;
+      T.prevBest = bestScore(T.mode);
+      T.endTs = Date.now();
+      saveCur();
       renderTraining();
       showRoundFace(pts, T.mode);
       return;
@@ -992,7 +1240,8 @@ function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
 }
 
 function confirmTurn(snap){ // registrer runden; utastede piler telles som bom
-  if(T.done) return;
+  if(T.done || T.pending) return;
+  if(!T.start) T.start = Date.now();
   if(snap) snapshot();
   const pts = T.turnHits.reduce((a,k)=>a+k,0);
   const fillN = 3 - T.turnHits.length;
@@ -1005,13 +1254,83 @@ function confirmTurn(snap){ // registrer runden; utastede piler telles som bom
 }
 
 let lastShare = null;
-function finishRound(){
+
+/* ---- oppsummeringsside: vises både før godkjenning (pending) og etter (done) ---- */
+function roundDur(){
+  if(!T.start) return 0;
+  return Math.max(0, (T.endTs || Date.now()) - T.start);
+}
+function renderSummary(){
+  const hits = T.s+T.d+T.t;
+  const pct  = T.darts ? Math.round(100*hits/T.darts) : 0;
+  const pts  = T.s + 2*T.d + 3*T.t;
+  const pend = T.pending && !T.done;
+
+  $("sumKicker").textContent = pend ? (T.mode==="dbl" ? "Bullseye!" : "Sjekket ut!") : "Runden lagret";
+  $("sumEyebrow").textContent = pend ? "Godkjenn resultatet" : "Runden fullført";
+  $("sumDarts").textContent = T.darts;
+  $("sumPct").textContent = pct+"% treff";
+  $("sumRec").style.display = (!pend && T.isRec) ? "block" : "none";
+
+  const tile = (v,l,cls)=>'<div class="sg'+(cls?" "+cls:"")+'"><b class="num">'+v+'</b><span>'+l+'</span></div>';
+  let g = "";
+  g += tile(pct+"%","Treff %");
+  g += tile(hits,"Treff");
+  g += tile(T.miss,"Bom");
+  if(T.mode==="dbl"){
+    g += tile(T.darts?(hits/T.darts*3).toFixed(2):"–","Dobler / runde");
+    g += tile(Math.ceil(T.darts/3),"Runder");
+    g += tile(fmtDur(roundDur()),"Tid");
+  } else {
+    g += tile(T.s,"Enkle");
+    g += tile(T.d,"Dobler");
+    g += tile(T.t,"Tripler");
+    g += tile(T.darts?(pts/T.darts).toFixed(2):"–","Poeng / pil");
+    g += tile(Math.ceil(T.darts/3),"Runder");
+    g += tile(fmtDur(roundDur()),"Tid");
+    g += tile(T.num[25]?T.num[25].att:"–","Piler på bull");
+    g += tile(T.darts?Math.round(100*T.d/T.darts)+"%":"–","Dobbelandel");
+    g += tile(T.darts?Math.round(100*T.t/T.darts)+"%":"–","Trippelandel");
+  }
+  $("sumGrid").innerHTML = g;
+
+  const pb = T.prevBest;
+  const hist = load(cfg().hist,[]).filter(r=>r && typeof r.darts==="number");
+  const prev = T.done ? hist.slice(0,-1) : hist;
+  const last5 = prev.slice(-5);
+  let vs = "";
+  if(pb===null || pb===undefined){
+    vs = '<span style="color:var(--gold)">★ Første fullførte runde — dette blir rekorden din!</span>';
+  } else if(T.darts < pb){
+    vs = '<span style="color:var(--gold)">★ '+(pb-T.darts)+' piler bedre enn rekorden ('+pb+')</span>';
+  } else if(T.darts === pb){
+    vs = '<span style="color:var(--green)">Tangerte rekorden ('+pb+' piler)</span>';
+  } else {
+    vs = '<span style="color:var(--ink2)">'+(T.darts-pb)+' piler bak rekorden ('+pb+')</span>';
+  }
+  if(last5.length){
+    const avg5 = last5.reduce((a,r)=>a+r.darts,0)/last5.length;
+    const diff = T.darts-avg5;
+    vs += '<br><span class="muted">Snitt siste '+last5.length+': '+avg5.toFixed(1)+' piler ('+
+          (diff<=0?"":"+")+diff.toFixed(1)+')</span>';
+  }
+  $("sumVs").innerHTML = vs;
+
+  $("sumPending").style.display = pend ? "block":"none";
+  $("sumDone").style.display    = pend ? "none":"block";
+}
+
+function commitRound(){ // godkjenn og lagre runden
+  T.pending = false;
   T.done = true;
   const hits = T.s+T.d+T.t;
-  const prevBest = bestScore(T.mode);
+  const prevBest = (T.prevBest===null||T.prevBest===undefined) ? bestScore(T.mode) : T.prevBest;
   const isRec = prevBest===null || T.darts < prevBest;
+  T.isRec = isRec;
   const rec = {ts:Date.now(), darts:T.darts, miss:T.miss, s:T.s, d:T.d, t:T.t,
-               co: T.num[25] ? T.num[25].att : 1};
+               co: T.num[25] ? T.num[25].att : 1,
+               dur: T.start ? roundDur() : null,
+               num: JSON.parse(JSON.stringify(T.num))};
   const h = load(cfg().hist,[]); h.push(rec); save(cfg().hist,h);
   const g = load(cfg().nums,{});
   for(const k in T.num){
@@ -1020,11 +1339,9 @@ function finishRound(){
   }
   save(cfg().nums,g);
   const pct = Math.round(100*hits/T.darts);
-  $("doneDarts").textContent = T.darts;
-  $("donePct").textContent = pct+"% · "+T.d+" D · "+T.t+" T";
-  $("doneHs").style.display = isRec ? "block" : "none";
   lastShare = "🎯 Dartloggen — "+cfg().name+": "+T.darts+" piler, "+pct+"% treff ("+T.d+" D, "+T.t+" T)"+(isRec?" — NY REKORD! ⭐":"");
   localStorage.removeItem(cfg().cur);
+  if(isRec){ confetti(); applause(); }
 }
 
 onTap($("btnMiss"),()=>tapDart(0));
@@ -1036,6 +1353,20 @@ onTap($("btnUndo"),()=>{
   const u = T.undo.pop(); if(!u) return;
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
   T.turnHits=u.turnHits; T.num=u.num;
+  saveCur(); renderTraining();
+});
+onTap($("btnFinishRound"),()=>{
+  if(!T.pending || T.done) return;
+  commitRound();
+  renderTraining();
+});
+onTap($("btnUndoCo"),()=>{ // «kom bare borti» — angre den siste pilen og fortsett runden
+  if(!T.pending || T.done) return;
+  const u = T.undo.pop();
+  if(!u){ T.pending=false; T.endTs=null; saveCur(); renderTraining(); return; }
+  T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
+  T.turnHits=u.turnHits; T.num=u.num;
+  T.pending=false; T.endTs=null; T.prevBest=null;
   saveCur(); renderTraining();
 });
 armConfirm($("btnReset"),()=>{ T = freshRound(T.mode); saveCur(); renderTraining(); });
@@ -1515,7 +1846,10 @@ $("coModal").querySelectorAll(".opts button").forEach(b=>{
         (G.legsTarget>1 ? " · "+p.legs+" legs" : "")+" · "+p.darts+" piler · snitt "+avg;
       const gh=load(LS.games,[]);
       gh.push({ts:Date.now(), mode:G.mode, winner:p.name, darts:p.darts, avg:+avg,
-               legs:G.legsTarget, players:G.players.map(x=>x.name)});
+               legs:G.legsTarget, players:G.players.map(x=>x.name),
+               dblOut:!!G.dblOut,
+               dartsAll:G.players.reduce((a,x)=>a+x.darts,0),
+               ps:G.players.map(x=>({n:x.name, darts:x.darts, scored:x.scored, legs:x.legs}))});
       save(LS.games,gh);
       $("gamePlay").style.display="none"; $("gameOver").style.display="block";
       confetti(); applause();
@@ -1546,37 +1880,295 @@ onTap($("btnRematch"),()=>{
 });
 
 /* ================= STATISTIKK ================= */
+/* ---- filtertilstand (egen lagringsnøkkel — rører ikke eksisterende data) ---- */
+const DEF_F = {
+  period:"all", from:"", to:"",
+  days:"all", hours:"all",
+  sect:{rtb:1,num:1,dbl:1,tp:1,co:1,quiz:1,game:1},
+  histSort:"new", histN:30,
+  numSort:"seq", numMin:0,
+  tpNum:"all",
+  coRange:"all", coRes:"all",
+  quizMode:"all",
+  gameMode:"all", gamePlayer:"all"
+};
+let F = Object.assign({}, DEF_F, load(LS.filt,{}) || {});
+F.sect = Object.assign({}, DEF_F.sect, F.sect || {});
+function saveF(){ save(LS.filt,F); }
+
+function inRange(ts){
+  if(typeof ts!=="number" || !isFinite(ts)) return false;
+  if(F.period==="custom"){
+    if(F.from){ const a=new Date(F.from+"T00:00:00").getTime(); if(isFinite(a) && ts<a) return false; }
+    if(F.to){ const b=new Date(F.to+"T00:00:00").getTime()+86400000; if(isFinite(b) && ts>=b) return false; }
+  } else if(F.period!=="all"){
+    if(ts < Date.now() - (+F.period)*86400000) return false;
+  }
+  const d=new Date(ts), wd=d.getDay(), h=d.getHours();
+  if(F.days==="week" && (wd===0||wd===6)) return false;
+  if(F.days==="weekend" && wd!==0 && wd!==6) return false;
+  if(F.hours==="morn"  && !(h>=5  && h<12)) return false;
+  if(F.hours==="day"   && !(h>=12 && h<17)) return false;
+  if(F.hours==="eve"   && !(h>=17)) return false;
+  if(F.hours==="night" && !(h<5)) return false;
+  return true;
+}
+function fh(key){ return load(key,[]).filter(r=>r && inRange(r.ts)); }
+function wideOpen(){ return F.period==="all" && F.days==="all" && F.hours==="all"; }
+function periodLabel(){
+  if(F.period==="custom"){
+    if(!F.from && !F.to) return "hele historikken";
+    return (F.from? fmtDay(new Date(F.from+"T00:00:00").getTime()) : "start")+" – "+
+           (F.to  ? fmtDay(new Date(F.to+"T00:00:00").getTime())   : "i dag");
+  }
+  if(F.period==="all") return "hele historikken";
+  if(F.period==="365") return "siste år";
+  return "siste "+F.period+" dager";
+}
+
+/* ---- småhjelpere ---- */
+const sumBy = (arr,fn)=>arr.reduce((a,r)=>a+(fn(r)||0),0);
+const nf = n => (typeof n==="number" ? n.toLocaleString("nb-NO") : n);
+function median(a){
+  if(!a.length) return null;
+  const s=[...a].sort((x,y)=>x-y), m=s.length>>1;
+  return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+}
+function ktile(v,l,cls){ return '<div class="k'+(cls?" "+cls:"")+'"><b class="num">'+v+'</b><span>'+l+'</span></div>'; }
+function streakInfo(tsList){
+  const days=[...new Set(tsList.map(dayNum))].sort((a,b)=>a-b);
+  let best=0, run=0, prev=null;
+  days.forEach(d=>{ run = (prev!==null && d-prev===1) ? run+1 : 1; prev=d; if(run>best) best=run; });
+  let cur=0;
+  if(days.length){
+    const today=dayNum(Date.now()), last=days[days.length-1];
+    if(last===today || last===today-1){
+      cur=1;
+      for(let i=days.length-2;i>=0;i--){ if(days[i+1]-days[i]===1) cur++; else break; }
+    }
+  }
+  return {days:days.length, best, cur};
+}
+function histSlice(arr, cmpBest){
+  const a=[...arr];
+  if(F.histSort==="best" && cmpBest) a.sort(cmpBest);
+  else a.sort((x,y)=>y.ts-x.ts);
+  return F.histN>0 ? a.slice(0,F.histN) : a;
+}
+
+/* ---- filter-UI ---- */
+// statistikkontroller bruker vanlig klikk (ikke pointerdown som spilleknappene):
+// filterpanelet kan scrolles, og en scroll-dragning skal ikke endre filteret
+function onPick(el, fn){ el.addEventListener("click", e=>{ e.preventDefault(); fn(); }); }
+let filtUIBuilt=false;
+function setActive(id,key,val){
+  const box=$(id); if(!box) return;
+  box.querySelectorAll("button").forEach(b=>b.classList.toggle("active", b.dataset[key]===val));
+}
+function bindChips(id,key,apply){
+  const box=$(id); if(!box) return;
+  box.querySelectorAll("button").forEach(b=>onPick(b,()=>{ apply(b.dataset[key]); saveF(); renderStats(); }));
+}
+function buildFilterUI(){
+  filtUIBuilt=true;
+  bindChips("fPeriod","p",v=>{ F.period=v; });
+  bindChips("fDays","d",v=>{ F.days=v; });
+  bindChips("fHours","h",v=>{ F.hours=v; });
+  $("fSections").querySelectorAll("button").forEach(b=>{
+    onPick(b,()=>{
+      const k=b.dataset.s;
+      F.sect[k] = F.sect[k] ? 0 : 1;
+      if(!Object.keys(F.sect).some(x=>F.sect[x])) F.sect[k]=1; // aldri skjul alt
+      saveF(); renderStats();
+    });
+  });
+  bindChips("fHistSort","hs",v=>{ F.histSort=v; });
+  bindChips("fHistN","hn",v=>{ F.histN=+v; });
+  bindChips("fNumSort","ns",v=>{ F.numSort=v; });
+  bindChips("fNumMin","nm",v=>{ F.numMin=+v; });
+  bindChips("fCoRange","cr",v=>{ F.coRange=v; });
+  bindChips("fCoRes","cx",v=>{ F.coRes=v; });
+  bindChips("fQuizMode","qm",v=>{ F.quizMode=v; });
+  bindChips("fGameMode","gm",v=>{ F.gameMode=v; });
+
+  const box=$("fTpNum"); box.innerHTML="";
+  const mkTp=(v,l)=>{
+    const b=document.createElement("button");
+    b.dataset.tn=String(v); b.textContent=l;
+    onPick(b,()=>{ F.tpNum=String(v); saveF(); renderStats(); });
+    box.appendChild(b);
+  };
+  mkTp("all","Alle"); SEQ.forEach(n=>mkTp(n, n===25?"Bull":n));
+
+  onPick($("filtToggle"),()=>{
+    const b=$("filtBody");
+    b.style.display = (b.style.display==="none") ? "block" : "none";
+    $("filtSummary").textContent = filterSummary();
+  });
+  onPick($("filtReset"),()=>{
+    F = JSON.parse(JSON.stringify(DEF_F));
+    saveF(); renderStats();
+  });
+  $("fFrom").addEventListener("change",()=>{ F.from=$("fFrom").value; F.period="custom"; saveF(); renderStats(); });
+  $("fTo").addEventListener("change",  ()=>{ F.to  =$("fTo").value;   F.period="custom"; saveF(); renderStats(); });
+}
+function buildPlayerChips(names){
+  const box=$("fGamePlayer");
+  const want = "all|"+names.join("|");
+  if(box.dataset.built===want){ setActive("fGamePlayer","gp",F.gamePlayer); return; }
+  box.dataset.built=want; box.innerHTML="";
+  const mk=(v,l)=>{
+    const b=document.createElement("button");
+    b.dataset.gp=v; b.textContent=l;
+    onPick(b,()=>{ F.gamePlayer=v; saveF(); renderStats(); });
+    box.appendChild(b);
+  };
+  mk("all","Alle spillere");
+  names.forEach(n=>mk(n,n));
+  setActive("fGamePlayer","gp",F.gamePlayer);
+}
+function filterSummary(){
+  let n=0;
+  if(F.days!=="all") n++;
+  if(F.hours!=="all") n++;
+  if(Object.keys(DEF_F.sect).some(k=>!F.sect[k])) n++;
+  if(F.histSort!=="new") n++;
+  if(F.histN!==30) n++;
+  if(F.numSort!=="seq") n++;
+  if(F.numMin!==0) n++;
+  if(F.tpNum!=="all") n++;
+  if(F.coRange!=="all") n++;
+  if(F.coRes!=="all") n++;
+  if(F.quizMode!=="all") n++;
+  if(F.gameMode!=="all") n++;
+  if(F.gamePlayer!=="all") n++;
+  const open = $("filtBody").style.display!=="none";
+  return (n ? n+" aktive" : "Ingen aktive")+(open ? " ▴" : " ▾");
+}
+function syncFilterUI(){
+  setActive("fPeriod","p",String(F.period));
+  $("fRange").style.display = F.period==="custom" ? "flex" : "none";
+  $("fFrom").value = F.from||"";
+  $("fTo").value   = F.to||"";
+  setActive("fDays","d",F.days);
+  setActive("fHours","h",F.hours);
+  $("fSections").querySelectorAll("button").forEach(b=>b.classList.toggle("active", !!F.sect[b.dataset.s]));
+  setActive("fHistSort","hs",F.histSort);
+  setActive("fHistN","hn",String(F.histN));
+  setActive("fNumSort","ns",F.numSort);
+  setActive("fNumMin","nm",String(F.numMin));
+  setActive("fTpNum","tn",String(F.tpNum));
+  setActive("fCoRange","cr",F.coRange);
+  setActive("fCoRes","cx",F.coRes);
+  setActive("fQuizMode","qm",F.quizMode);
+  setActive("fGameMode","gm",String(F.gameMode));
+  $("filtSummary").textContent = filterSummary();
+}
+
+/* ---- hovedrender ---- */
 function renderStats(){
-  const h = load(LS.hist,[]);
-  $("sCount").textContent = h.length;
-  $("sBest").textContent = h.length ? Math.min(...h.map(r=>r.darts)) : "–";
-  $("sAvg").textContent = h.length ? (h.reduce((a,r)=>a+r.darts,0)/h.length).toFixed(1) : "–";
-  const withCo = h.filter(r=>typeof r.co==="number");
-  $("sCo").textContent = withCo.length ? (withCo.reduce((a,r)=>a+r.co,0)/withCo.length).toFixed(1) : "–";
-  renderChart(h);
-  renderTrend(h);
-  renderPb(h);
+  if(!filtUIBuilt) buildFilterUI();
+  syncFilterUI();
+  $("perTag").textContent = "· "+periodLabel();
+  document.querySelectorAll(".sect").forEach(s=>s.classList.toggle("off", !F.sect[s.dataset.sect]));
+
+  const rtb = fh(LS.hist).filter(r=>typeof r.darts==="number" && r.darts>0);
+  const dbl = fh(LS.dhist).filter(r=>typeof r.darts==="number" && r.darts>0);
+  const tp  = fh(LS.tph).filter(r=>r.total>0);
+  const co  = fh(LS.coh);
+  const qz  = fh(LS.quiz);
+  const gm  = fh(LS.games);
+
+  renderTotals(rtb,dbl,tp,co,qz,gm);
+  renderRtbKeys(rtb);
+  renderChart(rtb);
+  renderTrend(rtb);
+  renderPb(rtb);
   renderWeak();
-  renderHistList(h);
+  renderHistList(rtb);
   renderNumStats();
-  renderDblStats();
-  renderTpStats();
-  renderCoStats();
-  renderQuizStats();
-  renderGameStats();
+  renderDblStats(dbl);
+  renderTpStats(tp);
+  renderCoStats(co);
+  renderQuizStats(qz);
+  renderGameStats(gm);
   $("soundToggle").checked = SET.sound!==false;
+}
+
+function renderTotals(rtb,dbl,tp,co,qz,gm){
+  const dRtb=sumBy(rtb,r=>r.darts), dDbl=sumBy(dbl,r=>r.darts), dTp=sumBy(tp,r=>r.total),
+        dCo=sumBy(co,r=>r.o>0?r.o:3), dGm=sumBy(gm,g=>g.dartsAll||g.darts||0);
+  const darts = dRtb+dDbl+dTp+dCo+dGm;
+  const hits  = sumBy(rtb,r=>r.s+r.d+r.t)+sumBy(dbl,r=>r.s+r.d+r.t)+sumBy(tp,r=>r.hits);
+  const att   = dRtb+dDbl+dTp;
+  const sess  = rtb.length+dbl.length+tp.length+qz.length+gm.length;
+  const allTs = [...rtb,...dbl,...tp,...co,...qz,...gm].map(r=>r.ts);
+  const st    = streakInfo(allTs);
+  const dur   = sumBy(rtb,r=>r.dur||0)+sumBy(dbl,r=>r.dur||0);
+
+  const empty = allTs.length===0;
+  $("totEmpty").style.display = empty ? "block":"none";
+  $("totGrid").style.display  = empty ? "none":"grid";
+  if(empty){ $("totGrid").innerHTML=""; return; }
+
+  let g="";
+  g+=ktile(nf(darts),"Piler kastet","green");
+  g+=ktile(sess,"Økter / runder");
+  g+=ktile(st.days,"Aktive dager");
+  g+=ktile(nf(hits),"Treff");
+  g+=ktile(nf(Math.max(0,att-hits)),"Bom");
+  g+=ktile(att?Math.round(100*hits/att)+"%":"–","Treff %");
+  g+=ktile(st.cur,"Dager på rad nå");
+  g+=ktile(st.best,"Lengste rekke","gold");
+  g+=ktile(dur?fmtDur(dur):"–","Tid trent");
+  g+=ktile(nf(dRtb),"Piler · rundt brettet");
+  g+=ktile(nf(dDbl),"Piler · dobbel");
+  g+=ktile(nf(dTp),"Piler · måltrening");
+  g+=ktile(nf(dCo),"Piler · checkout");
+  g+=ktile(nf(dGm),"Piler · spill");
+  g+=ktile(fmtDay(Math.min(...allTs)),"Første økt");
+  $("totGrid").innerHTML=g;
+}
+
+function renderRtbKeys(h){
+  const empty=!h.length;
+  $("rtbEmpty").style.display = empty?"block":"none";
+  $("rtbGrid").style.display  = empty?"none":"grid";
+  if(empty){ $("rtbGrid").innerHTML=""; return; }
+  const darts=sumBy(h,r=>r.darts), hits=sumBy(h,r=>r.s+r.d+r.t);
+  const pts=sumBy(h,r=>r.s+2*r.d+3*r.t);
+  const withCo=h.filter(r=>typeof r.co==="number");
+  const withDur=h.filter(r=>r.dur>0);
+  const durSum=sumBy(withDur,r=>r.dur);
+  let g="";
+  g+=ktile(h.length,"Runder");
+  g+=ktile(Math.min(...h.map(r=>r.darts)),"Rekord","gold");
+  g+=ktile((darts/h.length).toFixed(1),"Snitt piler");
+  g+=ktile(median(h.map(r=>r.darts)).toFixed(1),"Median piler");
+  g+=ktile(Math.max(...h.map(r=>r.darts)),"Verste runde");
+  g+=ktile(nf(darts),"Piler totalt","green");
+  g+=ktile(nf(hits),"Treff");
+  g+=ktile(nf(Math.max(0,darts-hits)),"Bom");
+  g+=ktile(darts?Math.round(100*hits/darts)+"%":"–","Treff %");
+  g+=ktile(darts?(pts/darts).toFixed(2):"–","Poeng / pil");
+  g+=ktile(nf(sumBy(h,r=>r.d||0)),"Dobler");
+  g+=ktile(nf(sumBy(h,r=>r.t||0)),"Tripler");
+  g+=ktile(withCo.length?(sumBy(withCo,r=>r.co)/withCo.length).toFixed(1):"–","Snitt piler på bull");
+  g+=ktile(withDur.length?fmtDur(durSum/withDur.length):"–","Snitt tid / runde");
+  g+=ktile(durSum?fmtDur(durSum):"–","Tid totalt");
+  $("rtbGrid").innerHTML=g;
 }
 
 function renderHistList(h){
   const ul=$("histList"); ul.innerHTML="";
   $("histEmpty").style.display = h.length? "none":"block";
   const best = h.length? Math.min(...h.map(r=>r.darts)) : null;
-  [...h].reverse().slice(0,30).forEach(r=>{
+  histSlice(h,(x,y)=>x.darts-y.darts).forEach(r=>{
     const li=document.createElement("li");
     const pct = Math.round(100*(r.s+r.d+r.t)/r.darts);
     li.innerHTML='<span class="d"></span>'+
-      '<span class="num" style="color:var(--ink2);font-size:13px">'+pct+'% · '+(r.d||0)+' D · '+(r.t||0)+' T'+
-        (typeof r.co==="number" ? ' · CO '+r.co : '')+'</span>'+
+      '<span class="num" style="color:var(--ink2);font-size:12px">'+pct+'% · '+(r.d||0)+' D · '+(r.t||0)+' T'+
+        (typeof r.co==="number" ? ' · bull '+r.co : '')+(r.dur ? ' · '+fmtDur(r.dur) : '')+'</span>'+
       '<span class="num '+(r.darts===best?"best":"")+'" style="font-weight:800">'+r.darts+' piler'+(r.darts===best?" ★":"")+'</span>';
     li.querySelector(".d").textContent = fmtDate(r.ts);
     ul.appendChild(li);
@@ -1586,35 +2178,35 @@ function renderHistList(h){
 function weekKey(ts){
   const d=new Date(ts);
   const day=(d.getDay()+6)%7;
-  const mon=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day);
-  return mon.getTime();
+  return new Date(d.getFullYear(),d.getMonth(),d.getDate()-day).getTime();
 }
 function renderTrend(h){
   const box=$("trendBox"); box.innerHTML="";
   const weeks={};
-  h.forEach(r=>{
-    const k=weekKey(r.ts);
-    (weeks[k]=weeks[k]||[]).push(r.darts);
+  h.forEach(r=>{ const k=weekKey(r.ts); (weeks[k]=weeks[k]||[]).push(r.darts); });
+  const keys=Object.keys(weeks).map(Number).sort((a,b)=>a-b);
+
+  const data = keys.slice(-12).map(k=>{
+    const arr=weeks[k], avg=arr.reduce((a,b)=>a+b,0)/arr.length;
+    return {v:+avg.toFixed(1), lab:fmtDay(k),
+            tip:"Uke fra "+fmtDay(k)+": "+avg.toFixed(1)+" piler ("+arr.length+" runder)"};
   });
-  const keys=Object.keys(weeks).map(Number).sort((a,b)=>b-a).slice(0,4);
-  $("trendEmpty").style.display = keys.length<2 ? "block":"none";
-  if(keys.length<2) return;
-  if(keys.length>=2){
-    const now=(weeks[keys[0]].reduce((a,b)=>a+b,0)/weeks[keys[0]].length);
-    const prev=(weeks[keys[1]].reduce((a,b)=>a+b,0)/weeks[keys[1]].length);
-    const diff=now-prev;
-    const head=document.createElement("div");
-    head.className="trendrow";
+  lineChart($("weekWrap"), $("weekEmpty"), data, {min:2});
+
+  const desc=[...keys].reverse().slice(0,6);
+  if(desc.length>=2){
+    const avg=k=>weeks[k].reduce((a,b)=>a+b,0)/weeks[k].length;
+    const diff=avg(desc[0])-avg(desc[1]);
+    const head=document.createElement("div"); head.className="trendrow";
     head.innerHTML='<span style="font-weight:800">'+(diff<=0?"📉 Fremgang":"📈 Litt tyngre uke")+'</span>'+
       '<span class="num" style="font-weight:800;color:'+(diff<=0?"var(--green)":"var(--red)")+'">'+
       (diff<=0?"":"+")+diff.toFixed(1)+' piler/runde</span>';
     box.appendChild(head);
   }
-  keys.forEach(k=>{
+  desc.forEach(k=>{
     const arr=weeks[k];
     const row=document.createElement("div"); row.className="trendrow";
-    const from=new Date(k).toLocaleDateString("nb-NO",{day:"numeric",month:"short"});
-    row.innerHTML='<span class="d">Uke fra '+from+'</span>'+
+    row.innerHTML='<span class="d">Uke fra '+fmtDay(k)+'</span>'+
       '<span class="num">'+arr.length+' runder · snitt '+(arr.reduce((a,b)=>a+b,0)/arr.length).toFixed(1)+'</span>';
     box.appendChild(row);
   });
@@ -1622,46 +2214,79 @@ function renderTrend(h){
 
 function renderPb(h){
   const ul=$("pbList"); ul.innerHTML="";
-  const pbs=[];
-  let best=Infinity;
-  h.forEach(r=>{ if(r.darts<best){ best=r.darts; pbs.push(r); } });
+  const pbs=[]; let best=Infinity;
+  [...h].sort((a,b)=>a.ts-b.ts).forEach(r=>{ if(r.darts<best){ best=r.darts; pbs.push(r); } });
   $("pbEmpty").style.display = pbs.length? "none":"block";
-  [...pbs].reverse().slice(0,6).forEach((r,i)=>{
+  [...pbs].reverse().slice(0,8).forEach((r,i)=>{
     const li=document.createElement("li");
-    li.innerHTML='<span class="d"></span><span></span>'+
+    li.innerHTML='<span class="d"></span><span class="num" style="color:var(--ink2);font-size:12px">'+
+      Math.round(100*(r.s+r.d+r.t)/r.darts)+'% treff</span>'+
       '<span class="num best" style="font-weight:800">'+r.darts+' piler'+(i===0?" ★":"")+'</span>';
     li.querySelector(".d").textContent = fmtDate(r.ts);
     ul.appendChild(li);
   });
 }
 
+/* per-tall-aggregat: livstid når ingen periodefilter er satt, ellers regnet ut fra runder i perioden */
+function numAgg(){
+  if(wideOpen()) return {agg:load(LS.nums,{}), missing:0, live:false};
+  const agg={};
+  const add=(n,o)=>{
+    const x = agg[n] || (agg[n]={att:0,s:0,d:0,t:0});
+    x.att+=o.att||0; x.s+=o.s||0; x.d+=o.d||0; x.t+=o.t||0;
+  };
+  let missing=0;
+  fh(LS.hist).forEach(r=>{
+    if(r.num && typeof r.num==="object"){ for(const k in r.num) add(k,r.num[k]); }
+    else missing++;
+  });
+  fh(LS.tph).forEach(r=>add(r.n,{att:r.total,s:r.s,d:r.d,t:r.t}));
+  return {agg, missing, live:true};
+}
+
 function renderWeak(){
-  const nums=load(LS.nums,{});
+  const {agg}=numAgg();
   const box=$("weakChips"); box.innerHTML="";
-  const cands=SEQ.filter(n=>nums[n] && nums[n].att>=6)
-    .map(n=>({n, p:(nums[n].s+nums[n].d+nums[n].t)/nums[n].att}))
+  const cands=SEQ.filter(n=>agg[n] && agg[n].att>=6)
+    .map(n=>({n, p:(agg[n].s+agg[n].d+agg[n].t)/agg[n].att}))
     .sort((a,b)=>a.p-b.p).slice(0,3);
   $("weakEmpty").style.display = cands.length? "none":"block";
   cands.forEach(c=>{
     const b=document.createElement("button");
     b.textContent=(c.n===25?"Bull":c.n)+" · "+Math.round(100*c.p)+"%";
-    onTap(b,()=>goTargetPractice(c.n));
+    onPick(b,()=>goTargetPractice(c.n));
     box.appendChild(b);
   });
 }
 
 function renderNumStats(){
-  const nums = load(LS.nums,{});
+  const {agg,missing,live}=numAgg();
   const wrapN=$("numStats"); wrapN.innerHTML="";
-  const anyNums = Object.keys(nums).some(k=>nums[k].att>0);
-  $("numEmpty").style.display = anyNums ? "none":"block";
-  if(!anyNums) return;
-  SEQ.forEach(n=>{
-    const o = nums[n];
+  const showEmptyRows = (F.numMin===0 && F.numSort==="seq");
+  let list = SEQ.map(n=>({n, o:agg[n]}))
+                .filter(x=> showEmptyRows ? true : (x.o && x.o.att>=Math.max(1,F.numMin)));
+  const any = SEQ.some(n=>agg[n] && agg[n].att>0);
+  $("numEmpty").style.display = any ? "none":"block";
+
+  const notes=[];
+  if(live) notes.push("Regnet ut fra runder i valgt periode.");
+  if(missing) notes.push(missing+" eldre runde"+(missing===1?"":"r")+" mangler detaljdata per tall og er ikke med (lagres fra nå av).");
+  if(F.numMin>0) notes.push("Viser kun mål med minst "+F.numMin+" kast.");
+  const note=$("numNote");
+  note.textContent = notes.join(" ");
+  note.style.display = notes.length ? "block":"none";
+  if(!any) return;
+
+  const pct = x => (x.o && x.o.att) ? (x.o.s+x.o.d+x.o.t)/x.o.att : -1;
+  if(F.numSort==="best")  list.sort((a,b)=>pct(b)-pct(a));
+  if(F.numSort==="worst") list.sort((a,b)=>pct(a)-pct(b));
+
+  list.forEach(x=>{
+    const o=x.o;
     const row=document.createElement("div"); row.className="nrow";
     if(o && o.att>0){
-      const hitP = Math.round(100*(o.s+o.d+o.t)/o.att);
-      const dP = Math.round(100*o.d/o.att), tP = Math.round(100*o.t/o.att);
+      const hitP=Math.round(100*(o.s+o.d+o.t)/o.att);
+      const dP=Math.round(100*o.d/o.att), tP=Math.round(100*o.t/o.att);
       row.innerHTML='<span class="nlab"></span>'+
         '<div class="nbar"><i style="width:'+hitP+'%"></i></div>'+
         '<span class="npct num">'+hitP+'%</span>'+
@@ -1670,34 +2295,95 @@ function renderNumStats(){
       row.innerHTML='<span class="nlab"></span>'+
         '<div class="nbar"></div><span class="npct">–</span><span class="ndt">ingen kast</span>';
     }
-    row.querySelector(".nlab").textContent = n===25?"Bull":n;
+    row.querySelector(".nlab").textContent = x.n===25?"Bull":x.n;
     wrapN.appendChild(row);
   });
 }
 
-function renderDblStats(){
-  const h=load(LS.dhist,[]);
-  $("dCount").textContent=h.length;
-  $("dBest").textContent=h.length? Math.min(...h.map(r=>r.darts)):"–";
-  $("dAvg").textContent=h.length? (h.reduce((a,r)=>a+r.darts,0)/h.length).toFixed(1):"–";
+function renderDblStats(h){
+  const empty=!h.length;
+  $("dblGridEmpty").style.display = empty?"block":"none";
+  $("dblGrid").style.display = empty?"none":"grid";
+  if(!empty){
+    const darts=sumBy(h,r=>r.darts), hits=sumBy(h,r=>r.s+r.d+r.t);
+    const withDur=h.filter(r=>r.dur>0), durSum=sumBy(withDur,r=>r.dur);
+    let g="";
+    g+=ktile(h.length,"Runder");
+    g+=ktile(Math.min(...h.map(r=>r.darts)),"Rekord","gold");
+    g+=ktile((darts/h.length).toFixed(1),"Snitt piler");
+    g+=ktile(median(h.map(r=>r.darts)).toFixed(1),"Median piler");
+    g+=ktile(Math.max(...h.map(r=>r.darts)),"Verste runde");
+    g+=ktile(nf(darts),"Piler totalt","green");
+    g+=ktile(nf(hits),"Dobler truffet");
+    g+=ktile(nf(Math.max(0,darts-hits)),"Bom");
+    g+=ktile(darts?Math.round(100*hits/darts)+"%":"–","Treff %");
+    g+=ktile(withDur.length?fmtDur(durSum/withDur.length):"–","Snitt tid / runde");
+    g+=ktile(durSum?fmtDur(durSum):"–","Tid totalt");
+    g+=ktile(darts?(darts/21).toFixed(1):"–","Piler per dobbel");
+    $("dblGrid").innerHTML=g;
+  } else $("dblGrid").innerHTML="";
+
   const ul=$("dblHist"); ul.innerHTML="";
   $("dblEmpty").style.display=h.length?"none":"block";
   const best=h.length? Math.min(...h.map(r=>r.darts)):null;
-  [...h].reverse().slice(0,15).forEach(r=>{
+  histSlice(h,(x,y)=>x.darts-y.darts).forEach(r=>{
     const li=document.createElement("li");
     const pct=Math.round(100*(r.s+r.d+r.t)/r.darts);
-    li.innerHTML='<span class="d"></span><span class="num" style="color:var(--ink2);font-size:13px">'+pct+'% treff</span>'+
+    li.innerHTML='<span class="d"></span><span class="num" style="color:var(--ink2);font-size:12px">'+pct+'% treff'+
+      (r.dur?' · '+fmtDur(r.dur):'')+'</span>'+
       '<span class="num '+(r.darts===best?"best":"")+'" style="font-weight:800">'+r.darts+' piler'+(r.darts===best?" ★":"")+'</span>';
     li.querySelector(".d").textContent=fmtDate(r.ts);
     ul.appendChild(li);
   });
 }
 
-function renderTpStats(){
-  const h=load(LS.tph,[]);
+function renderTpStats(all){
+  const h = F.tpNum==="all" ? all : all.filter(r=>String(r.n)===String(F.tpNum));
+  const empty=!h.length;
+  $("tpGridEmpty").style.display = empty?"block":"none";
+  $("tpGrid").style.display = empty?"none":"grid";
+  if(!empty){
+    const darts=sumBy(h,r=>r.total), hits=sumBy(h,r=>r.hits);
+    const bestPct=Math.max(...h.map(r=>r.hits/r.total));
+    let g="";
+    g+=ktile(h.length,"Økter");
+    g+=ktile(nf(darts),"Piler totalt","green");
+    g+=ktile(nf(hits),"Treff");
+    g+=ktile(nf(Math.max(0,darts-hits)),"Bom");
+    g+=ktile(darts?Math.round(100*hits/darts)+"%":"–","Treff %");
+    g+=ktile(Math.round(100*bestPct)+"%","Beste økt","gold");
+    g+=ktile(nf(sumBy(h,r=>r.d||0)),"Dobler");
+    g+=ktile(nf(sumBy(h,r=>r.t||0)),"Tripler");
+    g+=ktile(new Set(h.map(r=>r.n)).size,"Ulike mål");
+    $("tpGrid").innerHTML=g;
+  } else $("tpGrid").innerHTML="";
+
+  // per mål
+  const per={};
+  all.forEach(r=>{
+    const o=per[r.n]||(per[r.n]={att:0,hits:0,n:0});
+    o.att+=r.total; o.hits+=r.hits; o.n++;
+  });
+  const bw=$("tpNumBreak"); bw.innerHTML="";
+  const keys=SEQ.filter(n=>per[n]);
+  $("tpBreakEmpty").style.display = keys.length?"none":"block";
+  const ordered = F.numSort==="best" ? [...keys].sort((a,b)=>per[b].hits/per[b].att-per[a].hits/per[a].att)
+                : F.numSort==="worst"? [...keys].sort((a,b)=>per[a].hits/per[a].att-per[b].hits/per[b].att)
+                : keys;
+  ordered.forEach(n=>{
+    const o=per[n], p=Math.round(100*o.hits/o.att);
+    const row=document.createElement("div"); row.className="nrow";
+    row.innerHTML='<span class="nlab"></span>'+
+      '<div class="nbar"><i style="width:'+p+'%"></i></div>'+
+      '<span class="npct num">'+p+'%</span>'+
+      '<span class="ndt num">'+o.hits+'/'+o.att+' · '+o.n+' økt'+(o.n===1?"":"er")+'</span>';
+    row.querySelector(".nlab").textContent = n===25?"Bull":n;
+    bw.appendChild(row);
+  });
+
   const ul=$("tpHist"); ul.innerHTML="";
   $("tpEmpty").style.display=h.length?"none":"block";
-  [...h].reverse().slice(0,15).forEach(r=>{
+  histSlice(h,(x,y)=>(y.hits/y.total)-(x.hits/x.total)).forEach(r=>{
     const li=document.createElement("li");
     const pct=Math.round(100*r.hits/r.total);
     li.innerHTML='<span class="d"></span><span style="font-weight:700">'+(r.n===25?"Bull":r.n)+'</span>'+
@@ -1707,15 +2393,54 @@ function renderTpStats(){
   });
 }
 
-function renderCoStats(){
-  const h=load(LS.coh,[]);
-  $("cAtt").textContent=h.length;
-  const ok=h.filter(r=>r.o>0);
-  $("cSucc").textContent=h.length? Math.round(100*ok.length/h.length)+"%":"–";
-  $("cAvgD").textContent=ok.length? (ok.reduce((a,r)=>a+r.o,0)/ok.length).toFixed(1):"–";
+const CO_BANDS=[{k:"lett",l:"2–60",lo:2,hi:60},{k:"mid",l:"61–100",lo:61,hi:100},{k:"hard",l:"101–170",lo:101,hi:170}];
+function renderCoStats(all){
+  let h=all;
+  if(F.coRange!=="all"){
+    const b=CO_BANDS.find(x=>x.k===F.coRange);
+    if(b) h=h.filter(r=>r.t>=b.lo && r.t<=b.hi);
+  }
+  if(F.coRes==="ok")   h=h.filter(r=>r.o>0);
+  if(F.coRes==="fail") h=h.filter(r=>!(r.o>0));
+
+  const empty=!h.length;
+  $("coGridEmpty").style.display = empty?"block":"none";
+  $("coGrid").style.display = empty?"none":"grid";
+  if(!empty){
+    const ok=h.filter(r=>r.o>0);
+    const darts=sumBy(h,r=>r.o>0?r.o:3);
+    let g="";
+    g+=ktile(h.length,"Forsøk");
+    g+=ktile(ok.length,"Utganger","green");
+    g+=ktile(Math.round(100*ok.length/h.length)+"%","Suksess %");
+    g+=ktile(ok.length?(sumBy(ok,r=>r.o)/ok.length).toFixed(2):"–","Snitt piler ut");
+    g+=ktile(nf(darts),"Piler totalt");
+    g+=ktile(ok.length?Math.max(...ok.map(r=>r.t)):"–","Høyeste utgang","gold");
+    g+=ktile(ok.filter(r=>r.o===1).length,"Ut på 1 pil");
+    g+=ktile(ok.filter(r=>r.o===2).length,"Ut på 2 piler");
+    g+=ktile(ok.filter(r=>r.o===3).length,"Ut på 3 piler");
+    $("coGrid").innerHTML=g;
+  } else $("coGrid").innerHTML="";
+
+  const bw=$("coRangeBreak"); bw.innerHTML="";
+  CO_BANDS.forEach(b=>{
+    const arr=all.filter(r=>r.t>=b.lo && r.t<=b.hi);
+    const okN=arr.filter(r=>r.o>0).length;
+    const p=arr.length?Math.round(100*okN/arr.length):0;
+    const row=document.createElement("div"); row.className="nrow";
+    row.innerHTML='<span class="nlab" style="font-size:11px">'+b.l+'</span>'+
+      '<div class="nbar"><i style="width:'+p+'%"></i></div>'+
+      '<span class="npct num">'+(arr.length?p+"%":"–")+'</span>'+
+      '<span class="ndt num">'+okN+'/'+arr.length+' forsøk</span>';
+    bw.appendChild(row);
+  });
+
   const ul=$("coHist"); ul.innerHTML="";
   $("coEmpty").style.display=h.length?"none":"block";
-  [...h].reverse().slice(0,12).forEach(r=>{
+  histSlice(h,(x,y)=>{
+    const ax=x.o>0?x.o:9, ay=y.o>0?y.o:9;
+    return ax===ay ? y.t-x.t : ax-ay;
+  }).forEach(r=>{
     const li=document.createElement("li");
     li.innerHTML='<span class="d"></span><span class="num" style="font-weight:800">'+r.t+'</span>'+
       '<span class="num" style="font-weight:700;color:'+(r.o>0?"var(--green)":"var(--red)")+'">'+
@@ -1725,15 +2450,29 @@ function renderCoStats(){
   });
 }
 
-function renderQuizStats(){
+function renderQuizStats(all){
+  const h = F.quizMode==="all" ? all : all.filter(r=>r.mode===F.quizMode);
   const best=load(LS.qbest,{});
   $("quizBestBox").innerHTML =
-    'Beste på 1 min — Finn feltet: <span class="num" style="color:var(--gold)">'+(best.find??"–")+
+    'Bestenotering (alle tider) — Finn feltet: <span class="num" style="color:var(--gold)">'+(best.find??"–")+
     '</span> · Finn tallet: <span class="num" style="color:var(--gold)">'+(best.inv??"–")+'</span>';
-  const h=load(LS.quiz,[]);
+
+  const grid=$("quizGrid");
+  if(h.length){
+    const score=sumBy(h,r=>r.score), err=sumBy(h,r=>r.err);
+    let g="";
+    g+=ktile(h.length,"Runder");
+    g+=ktile(Math.max(...h.map(r=>r.score)),"Beste i perioden","gold");
+    g+=ktile((score/h.length).toFixed(1),"Snitt riktige");
+    g+=ktile(nf(score),"Riktige totalt","green");
+    g+=ktile(nf(err),"Feil totalt");
+    g+=ktile((score+err)?Math.round(100*score/(score+err))+"%":"–","Treffsikkerhet");
+    grid.innerHTML=g; grid.style.display="grid";
+  } else { grid.innerHTML=""; grid.style.display="none"; }
+
   const ul=$("quizHist"); ul.innerHTML="";
   $("quizEmpty").style.display=h.length?"none":"block";
-  [...h].reverse().slice(0,10).forEach(r=>{
+  histSlice(h,(x,y)=>y.score-x.score).forEach(r=>{
     const li=document.createElement("li");
     li.innerHTML='<span class="d"></span><span>'+(r.mode==="find"?"Finn feltet":"Finn tallet")+'</span>'+
       '<span class="num" style="font-weight:800">'+r.score+' riktige · '+r.err+' feil</span>';
@@ -1742,27 +2481,59 @@ function renderQuizStats(){
   });
 }
 
-function renderGameStats(){
-  const gh=load(LS.games,[]);
-  const ps=$("playerStats"); ps.innerHTML="";
-  const wins={}, played={};
+function renderGameStats(all){
+  const names=new Set();
+  all.forEach(g=>{ (g.players||[g.winner]).forEach(n=>{ if(n) names.add(n); }); });
+  buildPlayerChips([...names].sort((a,b)=>String(a).localeCompare(String(b),"nb")));
+
+  let gh=all;
+  if(F.gameMode!=="all")   gh=gh.filter(g=>String(g.mode)===String(F.gameMode));
+  if(F.gamePlayer!=="all") gh=gh.filter(g=>(g.players||[g.winner]).indexOf(F.gamePlayer)>=0);
+
+  const empty=!gh.length;
+  $("gameGridEmpty").style.display = empty?"block":"none";
+  $("gameGrid").style.display = empty?"none":"grid";
+  if(!empty){
+    const darts=sumBy(gh,g=>g.dartsAll||g.darts||0);
+    const avgs=gh.map(g=>+g.avg).filter(v=>isFinite(v)&&v>0);
+    let g2="";
+    g2+=ktile(gh.length,"Spill");
+    g2+=ktile(nf(darts),"Piler totalt","green");
+    g2+=ktile(avgs.length?(avgs.reduce((a,b)=>a+b,0)/avgs.length).toFixed(1):"–","Snitt (vinner)");
+    g2+=ktile(avgs.length?Math.max(...avgs).toFixed(1):"–","Beste snitt","gold");
+    g2+=ktile(Math.min(...gh.map(g=>g.darts||Infinity)),"Færreste piler");
+    g2+=ktile(new Set(gh.flatMap(g=>g.players||[g.winner])).size,"Spillere");
+    g2+=ktile(gh.filter(g=>g.dblOut).length,"Med dobbel ut");
+    g2+=ktile(gh.filter(g=>(g.legs||1)>1).length,"Flere legs");
+    g2+=ktile(nf(sumBy(gh,g=>(g.ps||[]).reduce((a,p)=>a+(p.scored||0),0))),"Poeng scoret");
+    $("gameGrid").innerHTML=g2;
+  } else $("gameGrid").innerHTML="";
+
+  const wins={}, played={}, pd={}, psc={};
   gh.forEach(g=>{
     wins[g.winner]=(wins[g.winner]||0)+1;
-    (g.players||[]).forEach(n=>played[n]=(played[n]||0)+1);
+    (g.players||[g.winner]).forEach(n=>played[n]=(played[n]||0)+1);
+    (g.ps||[]).forEach(p=>{ pd[p.n]=(pd[p.n]||0)+(p.darts||0); psc[p.n]=(psc[p.n]||0)+(p.scored||0); });
   });
-  Object.keys(played).sort((a,b)=>(wins[b]||0)-(wins[a]||0)).forEach(n=>{
+  const ps=$("playerStats"); ps.innerHTML="";
+  Object.keys(played).sort((a,b)=>(wins[b]||0)-(wins[a]||0) || played[b]-played[a]).forEach(n=>{
     const li=document.createElement("li");
-    li.innerHTML='<span style="font-weight:700"></span><span></span>'+
-      '<span class="num" style="font-weight:800">'+(wins[n]||0)+' av '+played[n]+' spill</span>';
+    const w=wins[n]||0, pl=played[n];
+    const avg = pd[n] ? (psc[n]/pd[n]*3).toFixed(1) : null;
+    li.innerHTML='<span style="font-weight:700"></span>'+
+      '<span class="num" style="color:var(--ink2);font-size:12px">'+Math.round(100*w/pl)+'% seier'+
+        (avg? ' · snitt '+avg : '')+'</span>'+
+      '<span class="num" style="font-weight:800">'+w+' av '+pl+' spill</span>';
     li.children[0].textContent=n;
     ps.appendChild(li);
   });
+
   const gul=$("gameHist"); gul.innerHTML="";
   $("gameHistEmpty").style.display = gh.length? "none":"block";
-  [...gh].reverse().slice(0,15).forEach(g=>{
+  histSlice(gh,(x,y)=>(+y.avg||0)-(+x.avg||0)).forEach(g=>{
     const li=document.createElement("li");
-    li.innerHTML='<span class="d"></span><span></span><span class="num">'+g.mode+
-      (g.legs>1?' · '+g.legs+' legs':'')+' · snitt '+g.avg+'</span>';
+    li.innerHTML='<span class="d"></span><span></span><span class="num" style="font-size:12px">'+g.mode+
+      (g.legs>1?' · '+g.legs+' legs':'')+' · '+g.darts+' piler · snitt '+g.avg+'</span>';
     li.querySelector(".d").textContent = fmtDate(g.ts);
     li.children[1].textContent = g.winner;
     li.children[1].style.fontWeight="700";
@@ -1770,16 +2541,21 @@ function renderGameStats(){
   });
 }
 
-function renderChart(h){
-  const wrap=$("chartWrap");
-  wrap.querySelectorAll("svg,.tip").forEach(e=>e.remove());
-  $("chartEmpty").style.display = h.length<2 ? "block":"none";
-  if(h.length<2) return;
+/* ---- linjediagram (brukes av både «piler per runde» og ukestrenden) ---- */
+document.addEventListener("click",()=>{ document.querySelectorAll(".tip").forEach(t=>t.style.display="none"); });
 
-  const data = h.slice(-25).map(r=>r.darts);
-  const W=440,H=190,padL=30,padR=12,padT=14,padB=22;
-  const min=Math.min(...data), max=Math.max(...data);
-  const lo=Math.max(0,min-2), hi=max+2;
+function lineChart(wrap, emptyEl, data, opt){
+  opt = opt||{};
+  wrap.querySelectorAll("svg,.tip").forEach(e=>e.remove());
+  const need = opt.min||2;
+  if(emptyEl) emptyEl.style.display = data.length<need ? "block":"none";
+  if(data.length<need) return;
+
+  const W=440,H=190,padL=32,padR=12,padT=14,padB=24;
+  const vals=data.map(d=>d.v);
+  const min=Math.min(...vals), max=Math.max(...vals);
+  let lo=Math.max(0,min-2), hi=max+2;
+  if(hi-lo<1) hi=lo+1;
   const X=i=> padL + i*(W-padL-padR)/Math.max(1,data.length-1);
   const Y=v=> padT + (hi-v)*(H-padT-padB)/(hi-lo);
 
@@ -1787,7 +2563,7 @@ function renderChart(h){
   const svg=document.createElementNS(ns,"svg");
   svg.setAttribute("viewBox","0 0 "+W+" "+H);
   svg.setAttribute("role","img");
-  svg.setAttribute("aria-label","Linjediagram over piler brukt per runde");
+  svg.setAttribute("aria-label", opt.label || "Linjediagram");
 
   const steps=4;
   for(let i=0;i<=steps;i++){
@@ -1805,7 +2581,7 @@ function renderChart(h){
     tx.textContent=v; svg.appendChild(tx);
   }
 
-  const pts=data.map((v,i)=>X(i)+","+Y(v)).join(" ");
+  const pts=data.map((d,i)=>X(i)+","+Y(d.v)).join(" ");
   const area=document.createElementNS(ns,"polygon");
   area.setAttribute("points", padL+","+Y(lo)+" "+pts+" "+X(data.length-1)+","+Y(lo));
   area.setAttribute("fill","var(--green)");area.setAttribute("opacity","0.12");
@@ -1818,30 +2594,49 @@ function renderChart(h){
   pl.setAttribute("stroke-linecap","round");
   svg.appendChild(pl);
 
+  // x-akse: første og siste etikett
+  if(data[0].lab){
+    [[0,"start"],[data.length-1,"end"]].forEach(([i,anch])=>{
+      const tx=document.createElementNS(ns,"text");
+      tx.setAttribute("x", i===0 ? padL : W-padR);
+      tx.setAttribute("y", H-6);
+      tx.setAttribute("text-anchor", anch);
+      tx.setAttribute("font-size","9.5");tx.setAttribute("fill","var(--ink2)");
+      tx.setAttribute("font-family","inherit");
+      tx.textContent=data[i].lab; svg.appendChild(tx);
+    });
+  }
+
   const tip=document.createElement("div"); tip.className="tip";
-  const bestV=Math.min(...data);
-  data.forEach((v,i)=>{
+  const bestV=Math.min(...vals);
+  data.forEach((d,i)=>{
     const c=document.createElementNS(ns,"circle");
-    c.setAttribute("cx",X(i));c.setAttribute("cy",Y(v));
-    const isBest=v===bestV, isLast=i===data.length-1;
+    c.setAttribute("cx",X(i));c.setAttribute("cy",Y(d.v));
+    const isBest=d.v===bestV, isLast=i===data.length-1;
     c.setAttribute("r", isBest||isLast ? 5 : 3.5);
     c.setAttribute("fill", isBest ? "var(--gold)" : "var(--green)");
     c.setAttribute("stroke","var(--surface)");c.setAttribute("stroke-width","1.5");
     const hitC=document.createElementNS(ns,"circle");
-    hitC.setAttribute("cx",X(i));hitC.setAttribute("cy",Y(v));hitC.setAttribute("r","14");
+    hitC.setAttribute("cx",X(i));hitC.setAttribute("cy",Y(d.v));hitC.setAttribute("r","14");
     hitC.setAttribute("fill","transparent");hitC.style.cursor="pointer";
     hitC.addEventListener("click",ev=>{
       const rect=wrap.getBoundingClientRect(), sr=svg.getBoundingClientRect();
-      tip.textContent=v+" piler";
+      tip.textContent = d.tip || d.v;
       tip.style.left=(sr.left-rect.left + X(i)*sr.width/W)+"px";
-      tip.style.top =(sr.top -rect.top  + Y(v)*sr.height/H)+"px";
+      tip.style.top =(sr.top -rect.top  + Y(d.v)*sr.height/H)+"px";
       tip.style.display="block";
       ev.stopPropagation();
     });
     svg.appendChild(c); svg.appendChild(hitC);
   });
-  document.addEventListener("click",()=>{tip.style.display="none";});
   wrap.appendChild(svg); wrap.appendChild(tip);
+}
+
+function renderChart(h){
+  const n = F.histN>0 ? F.histN : h.length;
+  const arr = h.slice(-Math.min(Math.max(n,2),120));
+  const data = arr.map(r=>({v:r.darts, lab:fmtDay(r.ts), tip:r.darts+" piler · "+fmtDay(r.ts)}));
+  lineChart($("chartWrap"), $("chartEmpty"), data, {min:2, label:"Linjediagram over piler brukt per runde"});
 }
 
 /* ---- verktøy: lyd, eksport, import, slett ---- */
@@ -1887,6 +2682,7 @@ armConfirm($("btnWipe"),()=>{
   }
   keys.forEach(k=>localStorage.removeItem(k));
   SET={sound:true,coDiff:"alle"};
+  F=JSON.parse(JSON.stringify(DEF_F));
   T=freshRound("rtb");
   renderStats(); updateResume();
 });
