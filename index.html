@@ -1005,13 +1005,15 @@ document.querySelectorAll("nav.tabs button").forEach(b=>{
 });
 
 /* ================= HUMØRFJES, KONFETTI, LYD ================= */
+// ett fjes per poengsum 0–9 (3 piler à maks 3 poeng): 0 surt, 1 nøytralt, fra 2 og opp smiler de stadig bredere
+const FACES = ["😠","😐","🙂","😊","😀","😄","😁","😎","🥳","🤩"];
 function showRoundFace(pts, mode){
   let face;
   if(mode==="dbl"){ // maks 3 poeng (3 dobler) i dobbeltrening
     face = pts===0?"😠": pts===1?"🙂": pts===2?"😎":"🤩";
     if(pts>=3){ confetti(); applause(); }
   } else {
-    face = pts===0?"😠": pts===1?"😐": pts===2?"🙂": pts===3?"😄": pts<9?"😎":"🤩";
+    face = FACES[Math.max(0, Math.min(FACES.length-1, pts))];
     if(pts>=9){ confetti(); applause(); }
   }
   const fx=$("faceFx");
