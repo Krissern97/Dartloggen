@@ -1,5 +1,7 @@
 // Dartloggen service worker — gjør appen tilgjengelig uten nett
-const CACHE = "dartloggen-v8";
+// NB: nummeret her må følge APP_VERSION i index.html, som viser det på
+// startskjermen. Bump begge to i samme endring.
+const CACHE = "dartloggen-v9";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", e => {

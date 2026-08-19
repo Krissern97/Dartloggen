@@ -321,6 +321,13 @@
   .trendrow:first-of-type{border-top:0}
   .trendrow .d{color:var(--ink2)}
 
+  /* ---------- versjonslinje ---------- */
+  .verline{
+    text-align:center;margin:18px 2px 2px;font-size:11px;line-height:1.5;
+    color:var(--ink2);font-variant-numeric:tabular-nums;
+  }
+  .verline b{font-weight:800;color:var(--ink2);letter-spacing:.04em}
+
   /* ---------- stemmestyring ---------- */
   .micbtn{
     border:1.5px solid var(--line);background:var(--surface);color:var(--ink2);
@@ -452,6 +459,7 @@
           <button class="modecard" data-tmode="co"><b>Checkout-trening</b><span>Tilfeldig utgang — klarer du å sjekke ut på 3 piler?</span></button>
           <button class="modecard" data-tmode="quiz" style="grid-column:1/-1"><b>Dartquiz</b><span>Blindkart på dartskiva — finn riktig felt eller riktig tall. Flest riktige på ett minutt!</span></button>
         </div>
+        <div class="verline" id="verLine"></div>
       </div>
 
       <!-- rundt brettet + dobbeltrening (samme spillside) -->
@@ -978,6 +986,12 @@
 
 <script>
 "use strict";
+/* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
+   har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
+   skal alltid vise samme nummer. */
+const APP_VERSION = 9;
+const APP_ROLLOUT = "2026-08-19T09:30:00+02:00";
+
 const $ = id => document.getElementById(id);
 const LS = {
   hist: "dart_training_history",
@@ -3049,6 +3063,17 @@ armConfirm($("btnWipe"),()=>{
 });
 
 /* ================= INIT ================= */
+function renderVersion(){
+  const d = new Date(APP_ROLLOUT);
+  let when = "";
+  if(!isNaN(d)){
+    when = d.toLocaleDateString("nb-NO",{day:"numeric",month:"short",year:"numeric"})+
+           " kl. "+d.toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit"});
+  }
+  $("verLine").innerHTML = "<b>v"+APP_VERSION+"</b>" + (when ? "<br>rullet ut "+when : "");
+}
+renderVersion();
+
 setupPlayersUI(["",""]);
 T = freshRound("rtb");
 showTView("modePicker");
