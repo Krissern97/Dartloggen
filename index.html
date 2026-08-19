@@ -354,9 +354,18 @@
   #voiceBar.err .vdot{animation:none}
   @keyframes vpulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
   #voiceBar .vheard{
-    margin-left:auto;font-weight:600;opacity:.9;max-width:55%;
+    margin-left:auto;font-weight:600;opacity:.9;max-width:38%;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
+  #voiceBar .vlang{
+    display:flex;flex:none;border:1px solid currentColor;border-radius:13px;overflow:hidden;
+  }
+  #voiceBar .vlang button{
+    border:0;background:transparent;color:inherit;font:inherit;font-size:10.5px;font-weight:800;
+    letter-spacing:.08em;padding:4px 8px;cursor:pointer;touch-action:none;
+  }
+  #voiceBar .vlang button.active{background:var(--green-ink);color:var(--green)}
+  #voiceBar.err .vlang button.active{background:#fff;color:var(--red)}
   body.voiceon #app{padding-top:calc(44px + env(safe-area-inset-top,0px))}
   @media (prefers-reduced-motion: reduce){ #voiceBar .vdot{animation:none} }
 
@@ -971,6 +980,9 @@
   <span class="vdot"></span>
   <span id="voiceTxt">Lytter …</span>
   <span class="vheard" id="voiceHeard"></span>
+  <span class="vlang" id="voiceLangSeg">
+    <button data-vl="nb-NO" aria-label="Norske kommandoer">NO</button><button data-vl="en-US" aria-label="English commands">EN</button>
+  </span>
 </div>
 
 <div id="faceFx"><span></span></div>
@@ -989,8 +1001,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 9;
-const APP_ROLLOUT = "2026-08-19T09:30:00+02:00";
+const APP_VERSION = 10;
+const APP_ROLLOUT = "2026-08-19T08:23:08+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1962,27 +1974,46 @@ onTap($("btnRematch"),()=>{
    Knappene fungerer nøyaktig som før — stemme er kun et tillegg. */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 
-// Kun norsk. Ordene er valgt for å ligge akustisk langt fra hverandre, og hver
-// kommando har et romslig sett synonymer fordi gjenkjenningen ofte bommer på
-// korte ord. Engelske ord er bevisst holdt utenfor: to språk samtidig gir bare
-// flere måter å forveksle på.
-const VOICE_LANG = "nb-NO";
-// Merk: vanlige småord som «en», «én», «feil» og «tilbake» er bevisst holdt
-// utenfor. De dukker opp hele tiden i vanlig prat, og ett slikt ord er nok til
-// at en samtale i rommet fører piler inn i runden din.
-// «hit» er hovedordet for treff: lang, tydelig vokal som bærer godt gjennom
-// støy, i motsetning til «treff» der f-lyden lett faller bort. Det er dessuten
-// et helt vanlig norsk ord («kom hit»), så nb-NO-modellen kjenner det igjen
-// uten at vi trenger å blande inn engelsk. «treff» godtas fortsatt som reserve.
-const VOICE_WORDS = {
-  0:["bom","bomm","båm","bomb","bommet","bommer","boms"],
-  1:["hit","hitt","treff","traff","tref","treffer","enkel","enkelt"],
-  2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
-  3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
-  undo:["angre","angra","angrer","slett"]
+// To språk, så dere kan måle hvilket som faktisk treffer best. Byttes med
+// NO/EN-knappen i lyttestripa — også midt i en økt.
+//
+// «hit» er kommandoen for treff i BEGGE språk: det er et vanlig ord på norsk
+// også («kom hit»), og har en lang, tydelig vokal som bærer gjennom støy. Ett
+// ord mindre å tenke på når man bytter.
+//
+// Svært vanlige småord («no», «en», «back», «feil») er bevisst utelatt. Ett
+// slikt ord er nok til at vanlig prat i rommet fører piler inn i runden.
+const VOICE_LANGS = {
+  "nb-NO":{
+    label:"NO",
+    words:{
+      0:["bom","bomm","båm","bomb","bommet","bommer","boms"],
+      1:["hit","hitt","treff","traff","tref","treffer","enkel","enkelt"],
+      2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
+      3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
+      undo:["angre","angra","angrer","slett"]
+    },
+    say:["bom","hit","dobbel","trippel"], undoSay:"angre",
+    ready:"klar", again:"gjenta",
+    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «hit bom hit». Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.'
+  },
+  "en-US":{
+    label:"EN",
+    words:{
+      0:["miss","missed","mis","misses"],
+      1:["hit","hits","hitt","heat"],
+      2:["double","doubles","doubled"],
+      3:["triple","triples","tripled","treble","trebles"],
+      undo:["undo","cancel","delete"]
+    },
+    say:["miss","hit","double","triple"], undoSay:"undo",
+    ready:"ready", again:"repeat",
+    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b> — a whole turn in one go works, like «hit miss hit». Say <b>«undo»</b> to take back the last dart.'
+  }
 };
 const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
-const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «hit bom hit». Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også. Knappene virker som før hele tiden.';
+function voiceLangKey(){ return SET.voiceLang==="en-US" ? "en-US" : "nb-NO"; }
+function VL(){ return VOICE_LANGS[voiceLangKey()]; }
 
 const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"",
                errN:0, errTs:0, wake:null, hideT:null};
@@ -1991,18 +2022,21 @@ const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, 
    Viktig: mikrofonen må døves mens den snakker, ellers hører den seg selv
    og registrerer kommandoene en gang til. */
 const TTS = window.speechSynthesis || null;
-let ttsVoice = null;
-function pickTtsVoice(){
+let ttsVoices = [];
+function loadTtsVoices(){
   if(!TTS) return;
-  let vs=[];
-  try{ vs=TTS.getVoices()||[]; }catch(e){ return; }
-  ttsVoice = vs.filter(v=>v.lang==="nb-NO")[0]
-          || vs.filter(v=>/^(nb|nn|no)\b/i.test(v.lang||""))[0]
-          || null;
+  try{ ttsVoices = TTS.getVoices() || []; }catch(e){ ttsVoices = []; }
+}
+function ttsVoiceFor(lang){
+  if(!ttsVoices.length) loadTtsVoices();
+  const fam = lang==="en-US" ? /^en\b/i : /^(nb|nn|no)\b/i;
+  return ttsVoices.filter(v=>v.lang===lang)[0]
+      || ttsVoices.filter(v=>fam.test(v.lang||""))[0]
+      || null;
 }
 if(TTS){
-  pickTtsVoice();
-  try{ TTS.addEventListener("voiceschanged",pickTtsVoice); }catch(e){ TTS.onvoiceschanged=pickTtsVoice; }
+  loadTtsVoices();
+  try{ TTS.addEventListener("voiceschanged",loadTtsVoices); }catch(e){ TTS.onvoiceschanged=loadTtsVoices; }
 }
 // Mikrofonen skrus ALDRI av mens appen snakker — den bare filtrerer bort det
 // den hører av sin egen stemme. Å stoppe og starte økten ga et merkbart hakk
@@ -2034,8 +2068,9 @@ function voiceSay(text){
     TTS.cancel();
     u=new SpeechSynthesisUtterance(text);
   }catch(e){ voiceAfterSpeak(); return; }
-  u.lang=VOICE_LANG;
-  if(ttsVoice) u.voice=ttsVoice;
+  u.lang=voiceLangKey();
+  const v=ttsVoiceFor(voiceLangKey());
+  if(v) u.voice=v;
   u.rate=1.25;                             // litt rask, så dødtiden blir kort
   u.onend=voiceAfterSpeak;
   u.onerror=voiceAfterSpeak;
@@ -2059,12 +2094,13 @@ function lev(a,b){ // redigeringsavstand, for å tåle nesten-treff fra gjenkjen
   return prev[n];
 }
 function matchWord(tok){
-  for(const k in VOICE_WORDS) if(VOICE_WORDS[k].indexOf(tok)>=0) return k;
+  const W=VL().words;
+  for(const k in W) if(W[k].indexOf(tok)>=0) return k;
   // Fuzzy-match bare lange ord. På korte ord er én bokstavs slingring altfor
   // vidt: «som» og «kom» ligger da ett steg fra «bom», og «tre» fra «treff».
   if(tok.length<5) return null;
   let best=null, bestD=99;
-  for(const k in VOICE_WORDS) for(const w of VOICE_WORDS[k]){
+  for(const k in W) for(const w of W[k]){
     if(w.length<5) continue;
     const d=lev(tok,w);
     if(d<bestD){ bestD=d; best=k; }
@@ -2104,7 +2140,7 @@ function voiceHandle(transcript){
   let n=0;
   const label=[];
   cmds.forEach(c=>{
-    if(voiceApply(c)){ n++; label.push(c==="undo"?"angre":["bom","hit","dobbel","trippel"][+c]); }
+    if(voiceApply(c)){ n++; label.push(c==="undo" ? VL().undoSay : VL().say[+c]); }
   });
   if(n){
     voiceStatus("Registrert", label.join(" · "));
@@ -2132,7 +2168,21 @@ function voiceError(txt){
   clearTimeout(VOICE.hideT);
   VOICE.hideT=setTimeout(()=>{ if(!VOICE.on) renderVoice(); },5000);
 }
+function renderVoiceLang(){
+  $("voiceLangSeg").querySelectorAll("button").forEach(b=>
+    b.classList.toggle("active", b.dataset.vl===voiceLangKey()));
+  if($("voiceWords")) $("voiceWords").innerHTML=VL().help;
+}
+function setVoiceLang(key){
+  if(voiceLangKey()===key) return;
+  SET.voiceLang=key; saveSet();
+  renderVoiceLang();
+  // rec.lang kan ikke endres på en økt som allerede kjører — den må startes
+  // på nytt. «klar»/«ready» på det nye språket bekrefter at byttet gikk.
+  if(VOICE.on){ voiceStop(); voiceStart(); }
+}
 function renderVoice(){
+  renderVoiceLang();
   document.querySelectorAll("[data-mic]").forEach(b=>{
     b.classList.toggle("on", VOICE.on);
     b.setAttribute("aria-pressed", VOICE.on?"true":"false");
@@ -2148,7 +2198,7 @@ function voiceStart(){
   if(!SR || VOICE.on) return;
   let rec;
   try{ rec=new SR(); }catch(e){ voiceError("Fikk ikke startet talegjenkjenning"); return; }
-  rec.lang=VOICE_LANG;
+  rec.lang=voiceLangKey();
   rec.continuous=true;        // ignoreres på iOS — derfor restarter vi i onend
   rec.interimResults=true;
   rec.maxAlternatives=4;
@@ -2168,7 +2218,7 @@ function voiceStart(){
           if(navigator.vibrate) navigator.vibrate([50,70,50]);   // annen rytme = si det på nytt
           // si bare fra hvis det lignet et forsøk. Lange setninger er noen
           // andre som prater i rommet, og da skal appen holde munn.
-          if(heard && heard.split(/\s+/).length<=4) voiceSay("gjenta");
+          if(heard && heard.split(/\s+/).length<=4) voiceSay(VL().again);
         }
       } else interim+=r[0].transcript;
     }
@@ -2201,7 +2251,7 @@ function voiceStart(){
   voiceWake();
   // «Klar» bekrefter at modusen er på — og låser samtidig opp talesyntesen,
   // som på iOS må startes fra et trykk første gang.
-  voiceSay("klar");
+  voiceSay(VL().ready);
 }
 function voiceTryStart(rec){
   if(!VOICE.on || VOICE.rec!==rec) return;
@@ -2244,8 +2294,9 @@ document.addEventListener("visibilitychange",()=>{
 });
 
 document.querySelectorAll("[data-mic]").forEach(b=>onTap(b,toggleVoice));
+$("voiceLangSeg").querySelectorAll("button").forEach(b=>onTap(b,()=>setVoiceLang(b.dataset.vl)));
 if(SR){
-  $("voiceWords").innerHTML=VOICE_HELP;
+  renderVoiceLang();
   $("voiceSetting").style.display="block";
 } else {
   document.querySelectorAll("[data-mic]").forEach(b=>b.style.display="none");
