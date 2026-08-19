@@ -1970,7 +1970,8 @@ const VOICE_WORDS = {
 const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
 const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «hit bom hit». Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også. Knappene virker som før hele tiden.';
 
-const VOICE = {on:false, rec:null, stopping:false, speaking:false, errN:0, errTs:0, wake:null, hideT:null};
+const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"",
+               errN:0, errTs:0, wake:null, hideT:null};
 
 /* ---- tilbakelesing: appen sier hva den registrerte ----
    Viktig: mikrofonen må døves mens den snakker, ellers hører den seg selv
@@ -1989,18 +1990,31 @@ if(TTS){
   pickTtsVoice();
   try{ TTS.addEventListener("voiceschanged",pickTtsVoice); }catch(e){ TTS.onvoiceschanged=pickTtsVoice; }
 }
-function voiceHush(){                      // stopp lyttingen uten å slå av modusen
-  const rec=VOICE.rec;
-  if(rec){ try{ rec.abort(); }catch(e){} }
+// Mikrofonen skrus ALDRI av mens appen snakker — den bare filtrerer bort det
+// den hører av sin egen stemme. Å stoppe og starte økten ga et merkbart hakk
+// mellom hver runde, og på iOS koster hver ny økt ekstra oppstartstid.
+function cmdSeq(text){
+  return String(text).toLowerCase().replace(/[.,!?;:–—-]/g," ").split(/\s+/)
+    .filter(Boolean).map(matchWord).filter(k=>k!==null).join(",");
+}
+function isEcho(heard){
+  if(!VOICE.lastSaid) return false;
+  const a=cmdSeq(heard);
+  return a!=="" && a===cmdSeq(VOICE.lastSaid);
 }
 function voiceAfterSpeak(){
+  if(!VOICE.speaking) return;
   VOICE.speaking=false;
-  if(VOICE.on && VOICE.rec) setTimeout(()=>voiceTryStart(VOICE.rec),150);
+  // ekkoet av vår egen stemme kan komme et lite øyeblikk etter at lyden er
+  // ferdig. I dette vinduet kastes bare det som er identisk med det vi sa —
+  // alt annet du sier går rett inn som vanlig.
+  VOICE.echoUntil=Date.now()+1500;
+  if(VOICE.on && VOICE.rec) voiceTryStart(VOICE.rec);
 }
 function voiceSay(text){
   if(!TTS || !text){ return; }
   VOICE.speaking=true;
-  voiceHush();
+  VOICE.lastSaid=text;
   let u;
   try{
     TTS.cancel();
@@ -2130,6 +2144,8 @@ function voiceStart(){
     for(let i=e.resultIndex;i<e.results.length;i++){
       const r=e.results[i];
       if(r.isFinal){
+        // vår egen stemme, enten mens vi snakker eller som etterslep rett etterpå
+        if(Date.now()<VOICE.echoUntil && isEcho((r[0]&&r[0].transcript)||"")) continue;
         let done=false;
         for(let a=0;a<r.length && !done;a++) done=voiceHandle(r[a].transcript);
         if(!done){
@@ -2160,8 +2176,10 @@ function voiceStart(){
       voiceError(t==="network" ? "Mistet nettforbindelsen — stemme slått av" : "Stemmestyring stoppet");
     }
   };
+  // iOS avslutter økten etter hver ytring uansett. Start igjen umiddelbart —
+  // også mens appen snakker, siden ekkoet uansett filtreres bort.
   rec.onend=()=>{
-    if(VOICE.on && !VOICE.stopping && !VOICE.speaking) setTimeout(()=>voiceTryStart(rec),300);
+    if(VOICE.on && !VOICE.stopping) setTimeout(()=>voiceTryStart(rec),60);
   };
   VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.speaking=false; VOICE.errN=0;
   voiceTryStart(rec);
