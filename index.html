@@ -321,6 +321,38 @@
   .trendrow:first-of-type{border-top:0}
   .trendrow .d{color:var(--ink2)}
 
+  /* ---------- stemmestyring ---------- */
+  .micbtn{
+    border:1.5px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-size:17px;line-height:1;padding:7px 11px;border-radius:20px;cursor:pointer;
+    margin-left:8px;flex:none;
+  }
+  .micbtn.on{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+  .micbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .backrow .rowend{display:flex;align-items:center;min-width:0}
+
+  #voiceBar{
+    position:fixed;left:0;right:0;top:0;z-index:30;
+    display:none;align-items:center;gap:9px;
+    background:var(--green);color:var(--green-ink);
+    padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;
+    font-size:12.5px;font-weight:700;box-shadow:0 1px 6px rgba(0,0,0,.18);
+  }
+  #voiceBar.on{display:flex}
+  #voiceBar.err{background:var(--red);color:#fff}
+  #voiceBar .vdot{
+    width:9px;height:9px;border-radius:50%;background:currentColor;flex:none;
+    animation:vpulse 1.4s ease-in-out infinite;
+  }
+  #voiceBar.err .vdot{animation:none}
+  @keyframes vpulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
+  #voiceBar .vheard{
+    margin-left:auto;font-weight:600;opacity:.9;max-width:55%;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  body.voiceon #app{padding-top:calc(44px + env(safe-area-inset-top,0px))}
+  @media (prefers-reduced-motion: reduce){ #voiceBar .vdot{animation:none} }
+
   /* ---------- statistikkfilter ---------- */
   .filtcard{
     background:var(--surface);border:1px solid var(--line);border-radius:14px;
@@ -424,7 +456,11 @@
 
       <!-- rundt brettet + dobbeltrening (samme spillside) -->
       <div id="boardTraining" style="display:none">
-        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow" id="btModeName"></span></div>
+        <div class="backrow">
+          <button class="backbtn" data-back>‹ Velg trening</button>
+          <span class="rowend"><span class="eyebrow" id="btModeName"></span>
+            <button class="micbtn" data-mic aria-label="Stemmestyring" aria-pressed="false">🎤</button></span>
+        </div>
         <div class="roundline">Runde <span class="num" id="tRound">1</span></div>
         <div class="statrow">
           <div class="stat"><div class="v num" id="tDarts">0</div><div class="l">Piler</div></div>
@@ -487,7 +523,11 @@
 
       <!-- måltrening -->
       <div id="tpView" style="display:none">
-        <div class="backrow"><button class="backbtn" data-back>‹ Velg trening</button><span class="eyebrow">Måltrening</span></div>
+        <div class="backrow">
+          <button class="backbtn" data-back>‹ Velg trening</button>
+          <span class="rowend"><span class="eyebrow">Måltrening</span>
+            <button class="micbtn" data-mic aria-label="Stemmestyring" aria-pressed="false">🎤</button></span>
+        </div>
         <div id="tpSetup">
           <div class="card">
             <div class="eyebrow">Velg mål</div>
@@ -892,7 +932,15 @@
           <label for="soundToggle">Lydeffekter (klapping)</label>
           <input type="checkbox" id="soundToggle">
         </div>
-        <div class="rowbtns">
+        <div id="voiceSetting" style="display:none;border-top:1px solid var(--line);padding-top:12px">
+          <div class="eyebrow" style="margin-bottom:6px">Stemmestyring</div>
+          <div class="note" id="voiceWords"></div>
+        </div>
+        <div class="note" id="voiceUnsupported" style="display:none">
+          Nettleseren din støtter ikke talegjenkjenning, så stemmestyring er skjult.
+          Prøv Safari på iPhone eller Chrome på Android.
+        </div>
+        <div class="rowbtns" style="margin-top:12px">
           <button class="ghost" id="btnExport">Eksporter backup</button>
           <button class="ghost" id="btnImport">Importer backup</button>
         </div>
@@ -909,6 +957,12 @@
     <button data-v="spill">Spill</button>
     <button data-v="stats">Statistikk</button>
   </nav>
+</div>
+
+<div id="voiceBar" role="status" aria-live="polite">
+  <span class="vdot"></span>
+  <span id="voiceTxt">Lytter …</span>
+  <span class="vheard" id="voiceHeard"></span>
 </div>
 
 <div id="faceFx"><span></span></div>
@@ -956,7 +1010,7 @@ function fmtDur(ms){
 }
 // lokal dato → heltall dagnummer (trygt over sommertid)
 const dayNum = ts => { const d=new Date(ts); return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000; };
-let SET = load(LS.set,{sound:true,coDiff:"alle"});
+let SET = load(LS.set,{sound:true,coDiff:"alle",voice:false});
 function saveSet(){ save(LS.set,SET); }
 
 // registrer på pointerdown: trykket telles i det fingeren treffer skjermen,
@@ -1000,6 +1054,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>{
     document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
     $("view-"+b.dataset.v).classList.add("active");
     stopQuiz();
+    if(typeof voiceSync==="function") voiceSync();
     if(b.dataset.v==="stats") renderStats();
   });
 });
@@ -1066,6 +1121,7 @@ const TVIEWS=["modePicker","boardTraining","tpView","coView","quizView"];
 function showTView(id){
   TVIEWS.forEach(v=>$(v).style.display = v===id?"block":"none");
   if(id==="modePicker") updateResume();
+  if(typeof voiceSync==="function") voiceSync();
 }
 function updateResume(){
   const lbl = c => {
@@ -1351,12 +1407,15 @@ onTap($("btnS"),()=>tapDart(1));
 onTap($("btnD"),()=>tapDart(2));
 onTap($("btnT"),()=>tapDart(3));
 onTap($("btnConfirm"),()=>confirmTurn(true));
-onTap($("btnUndo"),()=>{
-  const u = T.undo.pop(); if(!u) return;
+function boardUndo(){
+  if(T.done || T.pending) return false;
+  const u = T.undo.pop(); if(!u) return false;
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
   T.turnHits=u.turnHits; T.num=u.num;
   saveCur(); renderTraining();
-});
+  return true;
+}
+onTap($("btnUndo"),boardUndo);
 onTap($("btnFinishRound"),()=>{
   if(!T.pending || T.done) return;
   commitRound();
@@ -1467,11 +1526,14 @@ onTap($("tpMiss"),()=>tpDartTap(0));
 onTap($("tpS"),()=>tpDartTap(1));
 onTap($("tpD"),()=>tpDartTap(2));
 onTap($("tpT"),()=>tpDartTap(3));
-onTap($("tpUndo"),()=>{
-  const u=TP.undo.pop(); if(!u) return;
+function tpUndoStep(){
+  if(!TP) return false;
+  const u=TP.undo.pop(); if(!u) return false;
   TP.left=u.left; TP.hits=u.hits; TP.s=u.s; TP.d=u.d; TP.t=u.t;
   save(LS.tpcur,TP); renderTp();
-});
+  return true;
+}
+onTap($("tpUndo"),tpUndoStep);
 armConfirm($("tpQuit"),()=>{
   localStorage.removeItem(LS.tpcur); TP=null;
   $("tpPlay").style.display="none"; $("tpSetup").style.display="block"; renderTpSetup();
@@ -1880,6 +1942,216 @@ armConfirm($("btnGameQuit"),()=>{
 onTap($("btnRematch"),()=>{
   $("gameOver").style.display="none"; $("gameSetup").style.display="block";
 });
+
+/* ================= STEMMESTYRING =================
+   Web Speech API. Krever nett (lyden gjenkjennes hos Google/Apple).
+   Knappene fungerer nøyaktig som før — stemme er kun et tillegg. */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+
+// Kun norsk. Ordene er valgt for å ligge akustisk langt fra hverandre, og hver
+// kommando har et romslig sett synonymer fordi gjenkjenningen ofte bommer på
+// korte ord. Engelske ord er bevisst holdt utenfor: to språk samtidig gir bare
+// flere måter å forveksle på.
+const VOICE_LANG = "nb-NO";
+const VOICE_WORDS = {
+  0:["bom","bomm","båm","bomb","bommet","bommer","bum","boom"],
+  1:["treff","traff","tref","treffer","enkel","enkelt","én","en"],
+  2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
+  3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
+  undo:["angre","angra","angrer","tilbake","slett","feil"]
+};
+const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«treff»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «treff bom treff». Si <b>«angre»</b> for å ta tilbake siste pil. Knappene virker som før hele tiden.';
+
+const VOICE = {on:false, rec:null, stopping:false, errN:0, errTs:0, wake:null, hideT:null};
+
+function lev(a,b){ // redigeringsavstand, for å tåle nesten-treff fra gjenkjenningen
+  if(a===b) return 0;
+  const m=a.length, n=b.length;
+  if(!m) return n;
+  if(!n) return m;
+  let prev=Array.from({length:n+1},(_,i)=>i), cur=new Array(n+1);
+  for(let i=1;i<=m;i++){
+    cur[0]=i;
+    for(let j=1;j<=n;j++)
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
+    const tmp=prev; prev=cur; cur=tmp;
+  }
+  return prev[n];
+}
+function matchWord(tok){
+  for(const k in VOICE_WORDS) if(VOICE_WORDS[k].indexOf(tok)>=0) return k;
+  if(tok.length<3) return null;            // for korte biter blir gjetningen for utrygg
+  let best=null, bestD=99;
+  for(const k in VOICE_WORDS) for(const w of VOICE_WORDS[k]){
+    const d=lev(tok,w);
+    if(d<bestD){ bestD=d; best=k; }
+  }
+  return bestD<=1 ? best : null;
+}
+
+// hvilken treningsside er åpen akkurat nå?
+function voiceTarget(){
+  if(!$("view-trening").classList.contains("active")) return null;
+  if($("boardTraining").style.display!=="none") return "board";
+  if($("tpView").style.display!=="none") return "tp";
+  return null;
+}
+function voiceApply(cmd){
+  const tgt=voiceTarget();
+  if(!tgt) return false;
+  if(cmd==="undo") return tgt==="board" ? boardUndo() : tpUndoStep();
+  const kind=+cmd;
+  if(tgt==="board"){
+    if(T.done || T.pending) return false;
+    tapDart(kind);
+  } else {
+    if(!TP || TP.left<=0) return false;
+    if(kind===3 && TP.n===25) return false;   // trippel finnes ikke på bull
+    tpDartTap(kind);
+  }
+  return true;
+}
+function voiceHandle(transcript){
+  const toks=String(transcript).toLowerCase()
+    .replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
+  const cmds=[];
+  toks.forEach(t=>{ const k=matchWord(t); if(k!==null) cmds.push(k); });
+  if(!cmds.length) return false;
+  let n=0;
+  const label=[];
+  cmds.forEach(c=>{
+    if(voiceApply(c)){ n++; label.push(c==="undo"?"angre":["bom","treff","dobbel","trippel"][+c]); }
+  });
+  if(n){
+    voiceStatus("Registrert", label.join(" · "));
+    // kort dunk i lomma så du vet det gikk inn uten å måtte se på skjermen.
+    // (iOS støtter ikke vibrate — der er stripa og måltallet tilbakemeldingen.)
+    if(navigator.vibrate) navigator.vibrate(35);
+  }
+  return n>0;
+}
+
+function voiceStatus(txt, heard){
+  const bar=$("voiceBar");
+  $("voiceTxt").textContent=txt;
+  $("voiceHeard").textContent=heard||"";
+  bar.classList.remove("err");
+  clearTimeout(VOICE.hideT);
+  VOICE.hideT=setTimeout(()=>{ if(VOICE.on){ $("voiceTxt").textContent="Lytter …"; $("voiceHeard").textContent=""; } },2500);
+}
+function voiceError(txt){
+  $("voiceBar").classList.add("on","err");
+  $("voiceTxt").textContent=txt;
+  $("voiceHeard").textContent="";
+  document.body.classList.add("voiceon");
+  clearTimeout(VOICE.hideT);
+  VOICE.hideT=setTimeout(()=>{ if(!VOICE.on) renderVoice(); },5000);
+}
+function renderVoice(){
+  document.querySelectorAll("[data-mic]").forEach(b=>{
+    b.classList.toggle("on", VOICE.on);
+    b.setAttribute("aria-pressed", VOICE.on?"true":"false");
+  });
+  const bar=$("voiceBar");
+  bar.classList.toggle("on", VOICE.on);
+  if(VOICE.on) bar.classList.remove("err");
+  document.body.classList.toggle("voiceon", VOICE.on);
+  if(VOICE.on){ $("voiceTxt").textContent="Lytter …"; $("voiceHeard").textContent=""; }
+}
+
+function voiceStart(){
+  if(!SR || VOICE.on) return;
+  let rec;
+  try{ rec=new SR(); }catch(e){ voiceError("Fikk ikke startet talegjenkjenning"); return; }
+  rec.lang=VOICE_LANG;
+  rec.continuous=true;        // ignoreres på iOS — derfor restarter vi i onend
+  rec.interimResults=true;
+  rec.maxAlternatives=4;
+  rec.onresult=e=>{
+    let interim="";
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const r=e.results[i];
+      if(r.isFinal){
+        let done=false;
+        for(let a=0;a<r.length && !done;a++) done=voiceHandle(r[a].transcript);
+        if(!done){
+          voiceStatus("Hørte ikke en kommando", (r[0]&&r[0].transcript||"").trim());
+          if(navigator.vibrate) navigator.vibrate([50,70,50]);   // annen rytme = si det på nytt
+        }
+      } else interim+=r[0].transcript;
+    }
+    if(interim.trim()) voiceStatus("Lytter …", interim.trim());
+  };
+  rec.onerror=e=>{
+    const t=e.error;
+    if(t==="no-speech"||t==="aborted") return;          // onend starter på nytt
+    if(t==="not-allowed"||t==="service-not-allowed"){
+      SET.voice=false; saveSet(); voiceStop();
+      voiceError("Mikrofonen er blokkert — gi tilgang i innstillingene");
+      return;
+    }
+    const now=Date.now();
+    VOICE.errN = (now-VOICE.errTs<10000) ? VOICE.errN+1 : 1;
+    VOICE.errTs=now;
+    if(VOICE.errN>=5){
+      SET.voice=false; saveSet(); voiceStop();
+      voiceError(t==="network" ? "Mistet nettforbindelsen — stemme slått av" : "Stemmestyring stoppet");
+    }
+  };
+  rec.onend=()=>{ if(VOICE.on && !VOICE.stopping) setTimeout(()=>voiceTryStart(rec),300); };
+  VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.errN=0;
+  voiceTryStart(rec);
+  renderVoice();
+  voiceWake();
+}
+function voiceTryStart(rec){
+  if(!VOICE.on || VOICE.rec!==rec) return;
+  try{ rec.start(); }catch(e){}   // kaster hvis den allerede kjører — ufarlig
+}
+function voiceStop(){
+  VOICE.stopping=true; VOICE.on=false;
+  const rec=VOICE.rec; VOICE.rec=null;
+  if(rec){ try{ rec.onend=null; rec.stop(); }catch(e){} try{ rec.abort(); }catch(e){} }
+  renderVoice();
+  voiceUnwake();
+}
+function toggleVoice(){
+  if(!SR){ voiceError("Nettleseren støtter ikke talegjenkjenning"); return; }
+  if(VOICE.on){ SET.voice=false; saveSet(); voiceStop(); }
+  else { SET.voice=true; saveSet(); voiceStart(); }
+}
+// start/stopp automatisk når du går inn og ut av en treningsside.
+// Kallet skjer inne i et trykk, så iOS godtar mikrofonstarten.
+function voiceSync(){
+  if(!SR) return;
+  if(voiceTarget() && SET.voice){ if(!VOICE.on) voiceStart(); }
+  else if(VOICE.on) voiceStop();
+}
+
+// hold skjermen våken — låser telefonen seg, dør mikrofonen midt i økta
+function voiceWake(){
+  try{
+    if(navigator.wakeLock && !VOICE.wake)
+      navigator.wakeLock.request("screen").then(w=>{ VOICE.wake=w; }).catch(()=>{});
+  }catch(e){}
+}
+function voiceUnwake(){
+  try{ if(VOICE.wake){ VOICE.wake.release(); VOICE.wake=null; } }catch(e){}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden){ if(VOICE.on) voiceStop(); }
+  else voiceSync();
+});
+
+document.querySelectorAll("[data-mic]").forEach(b=>onTap(b,toggleVoice));
+if(SR){
+  $("voiceWords").innerHTML=VOICE_HELP;
+  $("voiceSetting").style.display="block";
+} else {
+  document.querySelectorAll("[data-mic]").forEach(b=>b.style.display="none");
+  $("voiceUnsupported").style.display="block";
+  SET.voice=false;
+}
 
 /* ================= STATISTIKK ================= */
 /* ---- filtertilstand (egen lagringsnøkkel — rører ikke eksisterende data) ---- */
@@ -2683,7 +2955,8 @@ armConfirm($("btnWipe"),()=>{
     if(k && k.startsWith("dart_")) keys.push(k);
   }
   keys.forEach(k=>localStorage.removeItem(k));
-  SET={sound:true,coDiff:"alle"};
+  SET={sound:true,coDiff:"alle",voice:false};
+  if(VOICE.on) voiceStop();
   F=JSON.parse(JSON.stringify(DEF_F));
   T=freshRound("rtb");
   renderStats(); updateResume();
