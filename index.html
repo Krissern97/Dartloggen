@@ -354,15 +354,15 @@
   #voiceBar.err .vdot{animation:none}
   @keyframes vpulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
   #voiceBar .vheard{
-    margin-left:auto;font-weight:600;opacity:.9;max-width:38%;
+    margin-left:auto;font-weight:600;opacity:.9;max-width:26%;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   #voiceBar .vlang{
-    display:flex;flex:none;border:1px solid currentColor;border-radius:13px;overflow:hidden;
+    display:flex;flex:none;border:1px solid currentColor;border-radius:13px;overflow:hidden;margin-left:6px;
   }
   #voiceBar .vlang button{
     border:0;background:transparent;color:inherit;font:inherit;font-size:10.5px;font-weight:800;
-    letter-spacing:.08em;padding:4px 8px;cursor:pointer;touch-action:none;
+    letter-spacing:.06em;padding:4px 7px;cursor:pointer;touch-action:none;
   }
   #voiceBar .vlang button.active{background:var(--green-ink);color:var(--green)}
   #voiceBar.err .vlang button.active{background:#fff;color:var(--red)}
@@ -983,6 +983,9 @@
   <span class="vlang" id="voiceLangSeg">
     <button data-vl="nb-NO" aria-label="Norske kommandoer">NO</button><button data-vl="en-US" aria-label="English commands">EN</button>
   </span>
+  <span class="vlang" id="voiceNumSeg">
+    <button data-vn="0" aria-label="Ord som kommandoer">ABC</button><button data-vn="1" aria-label="Tall som kommandoer">123</button>
+  </span>
 </div>
 
 <div id="faceFx"><span></span></div>
@@ -1001,8 +1004,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 11;
-const APP_ROLLOUT = "2026-08-19T09:01:48+00:00";
+const APP_VERSION = 12;
+const APP_ROLLOUT = "2026-08-19T11:04:36+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1036,7 +1039,7 @@ function fmtDur(ms){
 }
 // lokal dato → heltall dagnummer (trygt over sommertid)
 const dayNum = ts => { const d=new Date(ts); return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000; };
-let SET = load(LS.set,{sound:true,coDiff:"alle",voice:false});
+let SET = load(LS.set,{sound:true,coDiff:"alle",voice:false,voiceNums:false});
 function saveSet(){ save(LS.set,SET); }
 
 // registrer på pointerdown: trykket telles i det fingeren treffer skjermen,
@@ -1994,8 +1997,19 @@ const VOICE_LANGS = {
       undo:["angre","angra","angrer","slett"]
     },
     say:["bom","hit","dobbel","trippel"], undoSay:"angre",
+    // Sifrene er selve poengsummen: 0 bom, 1 enkel, 2 dobbel, 3 trippel.
+    // Motoren skriver dem snart som ord, snart som tall — begge godtas.
+    nums:{
+      0:["null","0","nuller"],
+      1:["en","én","1","in"],
+      2:["to","2","tå"],
+      3:["tre","3","tres"],
+      undo:["angre","angra","angrer","slett"]
+    },
+    numSay:["null","en","to","tre"],
     ready:"klar", again:"gjenta",
-    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b>. Mest treffsikkert er <b>ett ord per pil</b>, med en liten pause mellom — sier du «hit bom hit» i ett strekk, hender det motoren slår ordene sammen. Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.'
+    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b>. Mest treffsikkert er <b>ett ord per pil</b>, med en liten pause mellom — sier du «hit bom hit» i ett strekk, hender det motoren slår ordene sammen. Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.',
+    numHelp:'Si poengsummen: <b>«null»</b> bom, <b>«en»</b> enkel, <b>«to»</b> dobbel, <b>«tre»</b> trippel. Hele runden i ett strekk fungerer ofte bedre med tall enn med ord — «en null en» — fordi gjenkjenningen er spesialtrent på sifferrekker. Si <b>«angre»</b> for å ta tilbake siste pil.'
   },
   "en-US":{
     label:"EN",
@@ -2007,13 +2021,32 @@ const VOICE_LANGS = {
       undo:["undo","cancel","delete"]
     },
     say:["miss","hit","double","triple"], undoSay:"undo",
+    nums:{
+      0:["zero","0","oh","nought"],
+      1:["one","1","won"],
+      2:["two","2","too"],
+      3:["three","3"],
+      undo:["undo","cancel","delete"]
+    },
+    numSay:["zero","one","two","three"],
     ready:"ready", again:"repeat",
-    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b>. Most reliable is <b>one word per dart</b>, with a short pause between — said in one breath, «hit miss hit» sometimes gets merged. Say <b>«undo»</b> to take back the last dart.'
+    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b>. Most reliable is <b>one word per dart</b>, with a short pause between — said in one breath, «hit miss hit» sometimes gets merged. Say <b>«undo»</b> to take back the last dart.',
+    numHelp:'Say the score: <b>«zero»</b> miss, <b>«one»</b> single, <b>«two»</b> double, <b>«three»</b> triple. A whole turn in one breath often works better with digits than with words — «one zero one» — because recognition is specifically trained on digit strings. Say <b>«undo»</b> to take back the last dart.'
   }
 };
 const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
 function voiceLangKey(){ return SET.voiceLang==="en-US" ? "en-US" : "nb-NO"; }
-function VL(){ return VOICE_LANGS[voiceLangKey()]; }
+function voiceNums(){ return !!SET.voiceNums; }
+// Slår sammen språk- og vokabularvalget, så resten av koden bare spør VL().
+function VL(){
+  const L=VOICE_LANGS[voiceLangKey()], d=voiceNums();
+  return {
+    label:L.label, ready:L.ready, again:L.again, undoSay:L.undoSay,
+    words: d ? L.nums    : L.words,
+    say:   d ? L.numSay  : L.say,
+    help:  d ? L.numHelp : L.help
+  };
+}
 
 const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"", lastInterim:"",
                errN:0, errTs:0, wake:null, hideT:null};
@@ -2199,7 +2232,17 @@ function voiceError(txt){
 function renderVoiceLang(){
   $("voiceLangSeg").querySelectorAll("button").forEach(b=>
     b.classList.toggle("active", b.dataset.vl===voiceLangKey()));
+  $("voiceNumSeg").querySelectorAll("button").forEach(b=>
+    b.classList.toggle("active", (b.dataset.vn==="1")===voiceNums()));
   if($("voiceWords")) $("voiceWords").innerHTML=VL().help;
+}
+// Vokabularbytte trenger ingen ny lytteøkt — rec.lang er den samme, det er
+// bare hvilke ord vi godtar som endrer seg.
+function setVoiceNums(on){
+  if(voiceNums()===on) return;
+  SET.voiceNums=on; saveSet();
+  renderVoiceLang();
+  if(VOICE.on) voiceSay(VL().ready);
 }
 function setVoiceLang(key){
   if(voiceLangKey()===key) return;
@@ -2330,6 +2373,7 @@ document.addEventListener("visibilitychange",()=>{
 
 document.querySelectorAll("[data-mic]").forEach(b=>onTap(b,toggleVoice));
 $("voiceLangSeg").querySelectorAll("button").forEach(b=>onTap(b,()=>setVoiceLang(b.dataset.vl)));
+$("voiceNumSeg").querySelectorAll("button").forEach(b=>onTap(b,()=>setVoiceNums(b.dataset.vn==="1")));
 if(SR){
   renderVoiceLang();
   $("voiceSetting").style.display="block";
