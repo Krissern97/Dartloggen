@@ -1956,15 +1956,19 @@ const VOICE_LANG = "nb-NO";
 // Merk: vanlige småord som «en», «én», «feil» og «tilbake» er bevisst holdt
 // utenfor. De dukker opp hele tiden i vanlig prat, og ett slikt ord er nok til
 // at en samtale i rommet fører piler inn i runden din.
+// «hit» er hovedordet for treff: lang, tydelig vokal som bærer godt gjennom
+// støy, i motsetning til «treff» der f-lyden lett faller bort. Det er dessuten
+// et helt vanlig norsk ord («kom hit»), så nb-NO-modellen kjenner det igjen
+// uten at vi trenger å blande inn engelsk. «treff» godtas fortsatt som reserve.
 const VOICE_WORDS = {
   0:["bom","bomm","båm","bomb","bommet","bommer","boms"],
-  1:["treff","traff","tref","treffer","enkel","enkelt"],
+  1:["hit","hitt","treff","traff","tref","treffer","enkel","enkelt"],
   2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
   3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
   undo:["angre","angra","angrer","slett"]
 };
 const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
-const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«treff»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «treff bom treff». Si <b>«angre»</b> for å ta tilbake siste pil. Knappene virker som før hele tiden.';
+const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «hit bom hit». Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også. Knappene virker som før hele tiden.';
 
 const VOICE = {on:false, rec:null, stopping:false, speaking:false, errN:0, errTs:0, wake:null, hideT:null};
 
@@ -2072,7 +2076,7 @@ function voiceHandle(transcript){
   let n=0;
   const label=[];
   cmds.forEach(c=>{
-    if(voiceApply(c)){ n++; label.push(c==="undo"?"angre":["bom","treff","dobbel","trippel"][+c]); }
+    if(voiceApply(c)){ n++; label.push(c==="undo"?"angre":["bom","hit","dobbel","trippel"][+c]); }
   });
   if(n){
     voiceStatus("Registrert", label.join(" · "));
