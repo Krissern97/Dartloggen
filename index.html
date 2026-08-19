@@ -1001,8 +1001,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 10;
-const APP_ROLLOUT = "2026-08-19T08:23:08+00:00";
+const APP_VERSION = 11;
+const APP_ROLLOUT = "2026-08-19T09:01:48+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1995,7 +1995,7 @@ const VOICE_LANGS = {
     },
     say:["bom","hit","dobbel","trippel"], undoSay:"angre",
     ready:"klar", again:"gjenta",
-    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «hit bom hit». Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.'
+    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b>. Mest treffsikkert er <b>ett ord per pil</b>, med en liten pause mellom — sier du «hit bom hit» i ett strekk, hender det motoren slår ordene sammen. Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.'
   },
   "en-US":{
     label:"EN",
@@ -2008,14 +2008,14 @@ const VOICE_LANGS = {
     },
     say:["miss","hit","double","triple"], undoSay:"undo",
     ready:"ready", again:"repeat",
-    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b> — a whole turn in one go works, like «hit miss hit». Say <b>«undo»</b> to take back the last dart.'
+    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b>. Most reliable is <b>one word per dart</b>, with a short pause between — said in one breath, «hit miss hit» sometimes gets merged. Say <b>«undo»</b> to take back the last dart.'
   }
 };
 const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
 function voiceLangKey(){ return SET.voiceLang==="en-US" ? "en-US" : "nb-NO"; }
 function VL(){ return VOICE_LANGS[voiceLangKey()]; }
 
-const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"",
+const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"", lastInterim:"",
                errN:0, errTs:0, wake:null, hideT:null};
 
 /* ---- tilbakelesing: appen sier hva den registrerte ----
@@ -2130,13 +2130,41 @@ function voiceApply(cmd){
   }
   return true;
 }
-function voiceHandle(transcript){
+// Hvor mange piler er det plass til å registrere akkurat nå? Brukes til å
+// forkaste tolkninger som inneholder flere piler enn en runde kan ta.
+function voiceRoom(){
+  const t=voiceTarget();
+  if(t==="board") return (T && !T.done && !T.pending) ? Math.max(0,3-T.turnHits.length) : 0;
+  if(t==="tp")    return TP ? Math.max(0,Math.min(3,TP.left)) : 0;
+  return 0;
+}
+function parseCmds(transcript){
   const toks=String(transcript).toLowerCase()
     .replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
-  if(toks.length>VOICE_MAXWORDS) return false;   // hel setning = samtale, ikke kommandoer
+  if(!toks.length || toks.length>VOICE_MAXWORDS) return null;   // hel setning = samtale
   const cmds=[];
   toks.forEach(t=>{ const k=matchWord(t); if(k!==null) cmds.push(k); });
-  if(!cmds.length) return false;
+  if(!cmds.length) return null;
+  return {cmds, ratio:cmds.length/toks.length};
+}
+// Motoren gir flere tolkningsforslag av samme ytring. Tidligere tok vi det
+// FØRSTE som ga et gyldig resultat — så når forslag 1 var "miss miss" og
+// forslag 2 "miss hit miss", vant det første og midterste pilen forsvant.
+// Nå vurderes alle, og den som fanger flest kommandoer vinner.
+function bestParse(cands){
+  const room=voiceRoom();
+  let best=null;
+  cands.forEach(txt=>{
+    if(!txt) return;
+    const p=parseCmds(txt);
+    if(!p) return;
+    if(p.cmds.filter(c=>c!=="undo").length>room) return;
+    if(!best || p.cmds.length>best.cmds.length ||
+       (p.cmds.length===best.cmds.length && p.ratio>best.ratio)) best=p;
+  });
+  return best;
+}
+function applyCmds(cmds){
   let n=0;
   const label=[];
   cmds.forEach(c=>{
@@ -2210,8 +2238,15 @@ function voiceStart(){
       if(r.isFinal){
         // vår egen stemme, enten mens vi snakker eller som etterslep rett etterpå
         if(Date.now()<VOICE.echoUntil && isEcho((r[0]&&r[0].transcript)||"")) continue;
-        let done=false;
-        for(let a=0;a<r.length && !done;a++) done=voiceHandle(r[a].transcript);
+        // Alle alternativene fra motoren er kandidater — og den siste interim-
+        // teksten i tillegg, siden ord ofte er intakte der før motorens siste
+        // språkmodell-runde slår dem sammen ("miss hit miss" -> "miss miss").
+        const cands=[];
+        for(let a=0;a<r.length;a++) if(r[a] && r[a].transcript) cands.push(r[a].transcript);
+        if(VOICE.lastInterim) cands.push(VOICE.lastInterim);
+        VOICE.lastInterim="";
+        const best=bestParse(cands);
+        const done = best ? applyCmds(best.cmds) : false;
         if(!done){
           const heard=((r[0]&&r[0].transcript)||"").trim();
           voiceStatus("Hørte ikke en kommando", heard);
@@ -2222,7 +2257,7 @@ function voiceStart(){
         }
       } else interim+=r[0].transcript;
     }
-    if(interim.trim()) voiceStatus("Lytter …", interim.trim());
+    if(interim.trim()){ VOICE.lastInterim=interim.trim(); voiceStatus("Lytter …", interim.trim()); }
   };
   rec.onerror=e=>{
     const t=e.error;
