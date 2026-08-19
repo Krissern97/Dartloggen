@@ -1953,16 +1953,64 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
 // korte ord. Engelske ord er bevisst holdt utenfor: to språk samtidig gir bare
 // flere måter å forveksle på.
 const VOICE_LANG = "nb-NO";
+// Merk: vanlige småord som «en», «én», «feil» og «tilbake» er bevisst holdt
+// utenfor. De dukker opp hele tiden i vanlig prat, og ett slikt ord er nok til
+// at en samtale i rommet fører piler inn i runden din.
 const VOICE_WORDS = {
-  0:["bom","bomm","båm","bomb","bommet","bommer","bum","boom"],
-  1:["treff","traff","tref","treffer","enkel","enkelt","én","en"],
+  0:["bom","bomm","båm","bomb","bommet","bommer","boms"],
+  1:["treff","traff","tref","treffer","enkel","enkelt"],
   2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
   3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
-  undo:["angre","angra","angrer","tilbake","slett","feil"]
+  undo:["angre","angra","angrer","slett"]
 };
+const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
 const VOICE_HELP = 'Trykk på 🎤 øverst på treningssiden. Si <b>«treff»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b> — gjerne hele runden i én setning, som «treff bom treff». Si <b>«angre»</b> for å ta tilbake siste pil. Knappene virker som før hele tiden.';
 
-const VOICE = {on:false, rec:null, stopping:false, errN:0, errTs:0, wake:null, hideT:null};
+const VOICE = {on:false, rec:null, stopping:false, speaking:false, errN:0, errTs:0, wake:null, hideT:null};
+
+/* ---- tilbakelesing: appen sier hva den registrerte ----
+   Viktig: mikrofonen må døves mens den snakker, ellers hører den seg selv
+   og registrerer kommandoene en gang til. */
+const TTS = window.speechSynthesis || null;
+let ttsVoice = null;
+function pickTtsVoice(){
+  if(!TTS) return;
+  let vs=[];
+  try{ vs=TTS.getVoices()||[]; }catch(e){ return; }
+  ttsVoice = vs.filter(v=>v.lang==="nb-NO")[0]
+          || vs.filter(v=>/^(nb|nn|no)\b/i.test(v.lang||""))[0]
+          || null;
+}
+if(TTS){
+  pickTtsVoice();
+  try{ TTS.addEventListener("voiceschanged",pickTtsVoice); }catch(e){ TTS.onvoiceschanged=pickTtsVoice; }
+}
+function voiceHush(){                      // stopp lyttingen uten å slå av modusen
+  const rec=VOICE.rec;
+  if(rec){ try{ rec.abort(); }catch(e){} }
+}
+function voiceAfterSpeak(){
+  VOICE.speaking=false;
+  if(VOICE.on && VOICE.rec) setTimeout(()=>voiceTryStart(VOICE.rec),150);
+}
+function voiceSay(text){
+  if(!TTS || !text){ return; }
+  VOICE.speaking=true;
+  voiceHush();
+  let u;
+  try{
+    TTS.cancel();
+    u=new SpeechSynthesisUtterance(text);
+  }catch(e){ voiceAfterSpeak(); return; }
+  u.lang=VOICE_LANG;
+  if(ttsVoice) u.voice=ttsVoice;
+  u.rate=1.25;                             // litt rask, så dødtiden blir kort
+  u.onend=voiceAfterSpeak;
+  u.onerror=voiceAfterSpeak;
+  try{ TTS.speak(u); }catch(e){ voiceAfterSpeak(); return; }
+  // sikkerhetsnett hvis verken onend eller onerror kommer
+  setTimeout(()=>{ if(VOICE.speaking) voiceAfterSpeak(); }, 400+text.length*110);
+}
 
 function lev(a,b){ // redigeringsavstand, for å tåle nesten-treff fra gjenkjenningen
   if(a===b) return 0;
@@ -1980,9 +2028,12 @@ function lev(a,b){ // redigeringsavstand, for å tåle nesten-treff fra gjenkjen
 }
 function matchWord(tok){
   for(const k in VOICE_WORDS) if(VOICE_WORDS[k].indexOf(tok)>=0) return k;
-  if(tok.length<3) return null;            // for korte biter blir gjetningen for utrygg
+  // Fuzzy-match bare lange ord. På korte ord er én bokstavs slingring altfor
+  // vidt: «som» og «kom» ligger da ett steg fra «bom», og «tre» fra «treff».
+  if(tok.length<5) return null;
   let best=null, bestD=99;
   for(const k in VOICE_WORDS) for(const w of VOICE_WORDS[k]){
+    if(w.length<5) continue;
     const d=lev(tok,w);
     if(d<bestD){ bestD=d; best=k; }
   }
@@ -2014,6 +2065,7 @@ function voiceApply(cmd){
 function voiceHandle(transcript){
   const toks=String(transcript).toLowerCase()
     .replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
+  if(toks.length>VOICE_MAXWORDS) return false;   // hel setning = samtale, ikke kommandoer
   const cmds=[];
   toks.forEach(t=>{ const k=matchWord(t); if(k!==null) cmds.push(k); });
   if(!cmds.length) return false;
@@ -2025,8 +2077,9 @@ function voiceHandle(transcript){
   if(n){
     voiceStatus("Registrert", label.join(" · "));
     // kort dunk i lomma så du vet det gikk inn uten å måtte se på skjermen.
-    // (iOS støtter ikke vibrate — der er stripa og måltallet tilbakemeldingen.)
+    // (iOS støtter ikke vibrate — der er tilbakelesingen tilbakemeldingen.)
     if(navigator.vibrate) navigator.vibrate(35);
+    voiceSay(label.join(", "));
   }
   return n>0;
 }
@@ -2068,6 +2121,7 @@ function voiceStart(){
   rec.interimResults=true;
   rec.maxAlternatives=4;
   rec.onresult=e=>{
+    if(VOICE.speaking) return;            // vår egen stemme — skal aldri registreres
     let interim="";
     for(let i=e.resultIndex;i<e.results.length;i++){
       const r=e.results[i];
@@ -2075,8 +2129,12 @@ function voiceStart(){
         let done=false;
         for(let a=0;a<r.length && !done;a++) done=voiceHandle(r[a].transcript);
         if(!done){
-          voiceStatus("Hørte ikke en kommando", (r[0]&&r[0].transcript||"").trim());
+          const heard=((r[0]&&r[0].transcript)||"").trim();
+          voiceStatus("Hørte ikke en kommando", heard);
           if(navigator.vibrate) navigator.vibrate([50,70,50]);   // annen rytme = si det på nytt
+          // si bare fra hvis det lignet et forsøk. Lange setninger er noen
+          // andre som prater i rommet, og da skal appen holde munn.
+          if(heard && heard.split(/\s+/).length<=4) voiceSay("gjenta");
         }
       } else interim+=r[0].transcript;
     }
@@ -2098,20 +2156,26 @@ function voiceStart(){
       voiceError(t==="network" ? "Mistet nettforbindelsen — stemme slått av" : "Stemmestyring stoppet");
     }
   };
-  rec.onend=()=>{ if(VOICE.on && !VOICE.stopping) setTimeout(()=>voiceTryStart(rec),300); };
-  VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.errN=0;
+  rec.onend=()=>{
+    if(VOICE.on && !VOICE.stopping && !VOICE.speaking) setTimeout(()=>voiceTryStart(rec),300);
+  };
+  VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.speaking=false; VOICE.errN=0;
   voiceTryStart(rec);
   renderVoice();
   voiceWake();
+  // «Klar» bekrefter at modusen er på — og låser samtidig opp talesyntesen,
+  // som på iOS må startes fra et trykk første gang.
+  voiceSay("klar");
 }
 function voiceTryStart(rec){
   if(!VOICE.on || VOICE.rec!==rec) return;
   try{ rec.start(); }catch(e){}   // kaster hvis den allerede kjører — ufarlig
 }
 function voiceStop(){
-  VOICE.stopping=true; VOICE.on=false;
+  VOICE.stopping=true; VOICE.on=false; VOICE.speaking=false;
   const rec=VOICE.rec; VOICE.rec=null;
   if(rec){ try{ rec.onend=null; rec.stop(); }catch(e){} try{ rec.abort(); }catch(e){} }
+  if(TTS){ try{ TTS.cancel(); }catch(e){} }
   renderVoice();
   voiceUnwake();
 }
