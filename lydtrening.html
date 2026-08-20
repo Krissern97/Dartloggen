@@ -10,16 +10,16 @@
   :root{
     --bg:#F2EDE2; --surface:#FFFDF7; --surface2:#EAE3D4;
     --ink:#2A241B; --ink2:#6F6555; --line:#DCD3C0;
-    --green:#1E7A44; --green-ink:#FFFFFF; --green-soft:#E0EDE2;
-    --red:#B3312E; --red-soft:#F6E5E2; --gold:#A5802F;
+    --green:#1E7A44; --green-ink:#FFFFFF; --green-soft:#E0EDE2; --green-mid:#C4E0CB;
+    --red:#B3312E; --red-soft:#F6E5E2; --gold:#A5802F; --gold-soft:#F1E8D2;
     --shadow:0 1px 3px rgba(42,36,27,.12);
   }
   @media (prefers-color-scheme: dark){
     :root{
       --bg:#131110; --surface:#1D1A17; --surface2:#26221D;
       --ink:#EFE7D7; --ink2:#A79C8A; --line:#332E27;
-      --green:#4BA96B; --green-ink:#0E1F14; --green-soft:#1E2B21;
-      --red:#D8574F; --red-soft:#2E1D1A; --gold:#C9A45C; --shadow:none;
+      --green:#4BA96B; --green-ink:#0E1F14; --green-soft:#1E2B21; --green-mid:#2C4A36;
+      --red:#D8574F; --red-soft:#2E1D1A; --gold:#C9A45C; --gold-soft:#2C2618; --shadow:none;
     }
   }
   *{box-sizing:border-box}
@@ -29,9 +29,10 @@
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
     -webkit-tap-highlight-color:transparent; min-height:100dvh;
   }
+  button{touch-action:manipulation;user-select:none;-webkit-user-select:none}
   #app{max-width:480px;margin:0 auto;padding:14px 14px 40px}
   h1{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:0 0 2px}
-  .sub{font-size:12px;color:var(--ink2);margin-bottom:16px}
+  .sub{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.45}
   h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:22px 2px 8px;color:var(--ink2)}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
   .step{display:flex;gap:9px;align-items:baseline;margin-bottom:9px}
@@ -56,21 +57,43 @@
   .msg{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.5;min-height:18px;white-space:pre-line}
   .msg.err{color:var(--red);font-weight:700}
   .msg.ok{color:var(--green);font-weight:700}
+  .msg.warn{color:var(--gold);font-weight:700;background:var(--gold-soft);padding:9px 11px;border-radius:9px}
 
-  .wrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .wrow{display:flex;align-items:center;gap:7px;padding:9px 0;border-top:1px solid var(--line)}
   .wrow:first-child{border-top:0}
-  .wlab{flex:none;width:76px;font-weight:800;font-size:14px}
+  .wlab{flex:none;width:66px;font-weight:800;font-size:13.5px}
   .wlab small{display:block;font-size:10px;font-weight:600;color:var(--ink2)}
-  .wbar{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:0}
+  .wbar{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:24px}
   .wbar i{display:block;height:100%;background:var(--green);border-radius:4px;width:0}
   .wbar i.low{background:var(--gold)}
-  .wcount{flex:none;width:46px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink2)}
-  .wrec{
-    flex:none;border:1.5px solid var(--green);background:var(--green-soft);color:var(--green);
-    font:inherit;font-weight:800;font-size:12px;padding:8px 11px;border-radius:10px;cursor:pointer;
+  .wcount{flex:none;width:30px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+  .wbtn{
+    flex:none;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);
+    font:inherit;font-weight:800;font-size:13px;width:32px;height:32px;border-radius:9px;cursor:pointer;
+    display:grid;place-items:center;padding:0;
   }
-  .wrec:disabled{opacity:.4}
-  .wrec.live{background:var(--red);border-color:var(--red);color:#fff}
+  .wbtn.go{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .wbtn:disabled{opacity:.35}
+
+  /* autoopptak */
+  .autopanel{
+    position:fixed;inset:0;z-index:40;background:var(--bg);
+    display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+    padding:24px;text-align:center;
+  }
+  .autopanel.on{display:flex}
+  .autopanel.rec{background:var(--green);color:var(--green-ink)}
+  .acue{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
+  .aword{font-size:clamp(48px,17vw,76px);font-weight:800;line-height:1.05}
+  .aprog{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.75;margin-top:4px}
+  .adots{display:flex;gap:5px;margin-top:14px;flex-wrap:wrap;justify-content:center;max-width:280px}
+  .adots i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.25}
+  .adots i.done{opacity:1}
+  .astop{
+    margin-top:26px;border:1.5px solid currentColor;background:none;color:inherit;
+    font:inherit;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:13px 26px;border-radius:12px;cursor:pointer;
+  }
 
   .heard{text-align:center;padding:18px 10px;background:var(--surface2);border-radius:12px;margin-top:12px}
   .heard .big{font-size:38px;font-weight:800;line-height:1.1}
@@ -86,8 +109,8 @@
 
   <div class="card">
     <div class="step"><b>1</b><span>Trykk <b>Last modellen</b>. Den hentes én gang (~2 MB), og kjører deretter uten nett.</span></div>
-    <div class="step"><b>2</b><span>Spill inn <b>minst 15</b> av hvert ord. Ett trykk = ett opptak. Varier litt: vanlig stemme, litt høyere, litt fortere — slik du faktisk kommer til å si det.</span></div>
-    <div class="step"><b>3</b><span>Spill inn <b>bakgrunn</b> uten å si noe, mens rommet er som det pleier. Dette er det viktigste for at den ikke skal fyre på tilfeldig støy.</span></div>
+    <div class="step"><b>2</b><span>Trykk <b>Kjør gjennom alle ordene</b>. Den tar opp automatisk med en halv sekunds pause mellom hvert, og viser stort hvilket ord du skal si og akkurat når.</span></div>
+    <div class="step"><b>3</b><span><b>Si ordet hver gang skjermen blir grønn.</b> Blir et opptak feil — du sa ingenting, eller sa feil ord — trykk <b>↶</b> på den raden for å slette det siste. Et stille opptak ødelegger modellen mer enn et manglende.</span></div>
     <div class="step"><b>4</b><span>Trykk <b>Tren</b>, og test nederst. Gjør det <b>der skiva står</b> — rom og avstand betyr mye.</span></div>
     <button class="primary" id="btnLoad">Last modellen</button>
     <div class="msg" id="loadMsg"></div>
@@ -96,18 +119,20 @@
   <div id="main" class="hide">
     <h2>Ordene</h2>
     <div class="card" id="words"></div>
+    <button class="primary" id="btnAutoAll">Kjør gjennom alle ordene</button>
+    <div class="msg" id="recMsg"></div>
 
     <h2>Tren modellen</h2>
     <div class="card">
       <button class="primary" id="btnTrain" disabled>Tren</button>
-      <div class="msg" id="trainMsg">Trenger minst 15 opptak av hvert ord, bakgrunn inkludert.</div>
+      <div class="msg" id="trainMsg"></div>
       <div class="row">
         <button class="ghost" id="btnSave" disabled>Lagre på telefonen</button>
         <button class="ghost" id="btnLoadSaved">Hent lagret</button>
       </div>
       <div class="row">
         <button class="ghost" id="btnExport" disabled>Last ned modellfiler</button>
-        <button class="ghost" id="btnClear">Slett opptak</button>
+        <button class="ghost" id="btnClear">Slett alle opptak</button>
       </div>
       <div class="msg" id="saveMsg"></div>
     </div>
@@ -130,56 +155,69 @@
   </div>
 </div>
 
+<div class="autopanel" id="autoPanel">
+  <div class="acue" id="autoCue">Gjør deg klar</div>
+  <div class="aword" id="autoWord">treff</div>
+  <div class="aprog" id="autoProg">0 / 0</div>
+  <div class="adots" id="autoDots"></div>
+  <button class="astop" id="btnAutoStop">Stopp</button>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/* Ordene modellen skal lære. BG er påkrevd av biblioteket og må hete akkurat
-   dette — det er klassen for "ingen kommando", altså rommet slik det er. */
+/* BG er påkrevd av biblioteket og må hete akkurat dette — klassen for
+   "ingen kommando", altså rommet slik det er. */
 const BG = "_background_noise_";
 const WORDS = [
-  {k:"bom",     label:"bom",      hint:"pil utenfor"},
-  {k:"hit",     label:"hit",      hint:"enkel"},
-  {k:"dobbel",  label:"dobbel",   hint:"dobbel"},
-  {k:"trippel", label:"trippel",  hint:"trippel"},
-  {k:"angre",   label:"angre",    hint:"ta tilbake"},
-  {k:BG,        label:"bakgrunn", hint:"si ingenting"}
+  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:15},
+  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:15},
+  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:15},
+  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:15},
+  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:15},
+  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, long:true}
 ];
-const MIN_PER_WORD = 15;
+const GAP = 500;                        // pause mellom hvert opptak
 const STORE = "indexeddb://dartloggen-lyd";
 
-let base = null, transfer = null, listening = false;
+let base=null, transfer=null, listening=false, auto=false;
 
-function msg(el, text, cls){ const e=$(el); e.textContent=text; e.className="msg"+(cls?" "+cls:""); }
+function msg(el,text,cls){ const e=$(el); e.textContent=text; e.className="msg"+(cls?" "+cls:""); }
 function logLine(t){
   const el=$("log");
   const stamp=new Date().toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   el.textContent = stamp+"  "+t+"\n"+el.textContent;
 }
+const wordOf = k => WORDS.filter(w=>w.k===k)[0];
 
 /* ---------- 1. last basismodellen ---------- */
 $("btnLoad").addEventListener("click", async () => {
-  $("btnLoad").disabled = true;
+  $("btnLoad").disabled=true;
   msg("loadMsg","Laster ned … krever nett første gang.");
   try{
-    if(typeof speechCommands === "undefined")
+    if(typeof speechCommands==="undefined")
       throw new Error("Fikk ikke lastet biblioteket. Er du på nett?");
     base = speechCommands.create("BROWSER_FFT");
     await base.ensureModelLoaded();
     transfer = base.createTransfer("dartloggen");
     buildWordRows();
     $("main").classList.remove("hide");
-    msg("loadMsg","Modellen er klar. Nå kan du spille inn ord.","ok");
+    msg("loadMsg","Modellen er klar.","ok");
     logLine("basismodell lastet");
   }catch(e){
-    $("btnLoad").disabled = false;
+    $("btnLoad").disabled=false;
     msg("loadMsg","Feil: "+(e.message||e),"err");
   }
 });
 
-/* ---------- 2. spill inn eksempler ---------- */
+/* ---------- opptak ---------- */
+function counts(){
+  try{ return transfer.countExamples() || {}; }catch(e){ return {}; }
+}
 function buildWordRows(){
   const box=$("words"); box.innerHTML="";
   WORDS.forEach(w => {
@@ -188,36 +226,19 @@ function buildWordRows(){
       '<div class="wlab"></div>'+
       '<div class="wbar"><i></i></div>'+
       '<div class="wcount">0</div>'+
-      '<button class="wrec">Spill inn</button>';
+      '<button class="wbtn undo" title="Slett siste opptak" aria-label="Slett siste opptak av '+w.label+'">↶</button>'+
+      '<button class="wbtn one" title="Ett opptak" aria-label="Ett opptak av '+w.label+'">＋</button>'+
+      '<button class="wbtn go auto" title="Ta opp flere" aria-label="Ta opp flere av '+w.label+'">▶</button>';
     const lab=row.querySelector(".wlab");
-    lab.textContent = w.label;
-    const small=document.createElement("small");
-    small.textContent = w.hint;
-    lab.appendChild(small);
+    lab.textContent=w.label;
+    const small=document.createElement("small"); small.textContent=w.hint; lab.appendChild(small);
 
-    const btn=row.querySelector(".wrec");
-    btn.addEventListener("click", async ev => {
-      ev.preventDefault();
-      if(listening || btn.disabled) return;
-      btn.classList.add("live"); btn.textContent="…";
-      btn.disabled = true;
-      try{
-        // bakgrunn trenger et lengre, sammenhengende opptak
-        await transfer.collectExample(w.k, w.k===BG ? {durationSec:2} : undefined);
-        logLine("opptak: "+w.label);
-      }catch(e){
-        msg("trainMsg","Opptak feilet: "+(e.message||e),"err");
-      }
-      btn.disabled = false;
-      btn.classList.remove("live"); btn.textContent="Spill inn";
-      refreshCounts();
-    });
+    row.querySelector(".undo").addEventListener("click", () => undoLast(w));
+    row.querySelector(".one").addEventListener("click", () => collectOne(w));
+    row.querySelector(".auto").addEventListener("click", () => runAuto([w]));
     box.appendChild(row);
   });
   refreshCounts();
-}
-function counts(){
-  try{ return transfer.countExamples() || {}; }catch(e){ return {}; }
 }
 function refreshCounts(){
   const c=counts();
@@ -225,119 +246,181 @@ function refreshCounts(){
   WORDS.forEach((w,i) => {
     if(!rows[i]) return;
     const n=c[w.k]||0;
-    rows[i].querySelector(".wcount").textContent = n;
+    rows[i].querySelector(".wcount").textContent=n;
     const bar=rows[i].querySelector(".wbar i");
-    bar.style.width = Math.min(100, n/MIN_PER_WORD*100)+"%";
-    bar.classList.toggle("low", n < MIN_PER_WORD);
+    bar.style.width=Math.min(100, n/w.min*100)+"%";
+    bar.classList.toggle("low", n < w.min);
+    rows[i].querySelector(".undo").disabled = n===0;
   });
-  const ready = WORDS.every(w => (c[w.k]||0) >= MIN_PER_WORD);
+  const ready = WORDS.every(w => (c[w.k]||0) >= w.min);
   $("btnTrain").disabled = !ready;
-  if(ready){
-    msg("trainMsg","Klar til å trene.","ok");
-  }else{
-    const mangler = WORDS.filter(w => (c[w.k]||0) < MIN_PER_WORD)
-      .map(w => w.label+" ("+(c[w.k]||0)+"/"+MIN_PER_WORD+")").join(", ");
-    msg("trainMsg","Mangler: "+mangler);
-  }
+  if(ready) msg("trainMsg","Klar til å trene.","ok");
+  else msg("trainMsg","Mangler: "+WORDS.filter(w=>(c[w.k]||0)<w.min)
+        .map(w=>w.label+" ("+(c[w.k]||0)+"/"+w.min+")").join(", "));
 }
 
-/* ---------- 3. tren ---------- */
+async function collectOne(w){
+  if(auto || listening) return;
+  try{
+    await transfer.collectExample(w.k, w.long ? {durationSec:2} : undefined);
+    logLine("opptak: "+w.label);
+    msg("recMsg","Tok opp «"+w.label+"».","ok");
+  }catch(e){ msg("recMsg","Opptak feilet: "+(e.message||e),"err"); }
+  refreshCounts();
+}
+// Et stille eller feilmerket opptak lærer modellen at stillhet betyr det ordet,
+// og da svarer den med ordet hele tiden. Derfor må siste opptak kunne angres.
+function undoLast(w){
+  if(auto || listening) return;
+  // getExamples kaster hvis ordet ikke finnes i datasettet ennå, så sjekk først
+  if(!(counts()[w.k]||0)){ msg("recMsg","Ingen opptak å slette på «"+w.label+"».","warn"); return; }
+  try{
+    const ex=transfer.getExamples(w.k);
+    if(!ex || !ex.length){ msg("recMsg","Ingen opptak å slette på «"+w.label+"».","warn"); return; }
+    transfer.removeExample(ex[ex.length-1].uid);
+    logLine("slettet siste: "+w.label);
+    msg("recMsg","Slettet siste opptak av «"+w.label+"». Husk å trene på nytt.","ok");
+  }catch(e){ msg("recMsg","Kunne ikke slette: "+(e.message||e),"err"); }
+  refreshCounts();
+}
+
+/* ---------- autoopptak med fast rytme ---------- */
+function autoUI(state, word, i, n){
+  const p=$("autoPanel");
+  p.classList.toggle("rec", state==="rec");
+  $("autoCue").textContent = state==="rec" ? "Si ordet nå" : (state==="ready" ? "Gjør deg klar" : "…");
+  $("autoWord").textContent = word;
+  $("autoProg").textContent = i+" / "+n;
+  const dots=$("autoDots");
+  if(dots.children.length!==n){
+    dots.innerHTML="";
+    for(let j=0;j<n;j++) dots.appendChild(document.createElement("i"));
+  }
+  [...dots.children].forEach((d,j)=>d.classList.toggle("done", j<i));
+}
+async function runAuto(list){
+  if(auto || listening) return;
+  auto=true;
+  $("autoPanel").classList.add("on");
+  try{
+    for(const w of list){
+      if(!auto) break;
+      autoUI("ready", w.label, 0, w.burst);
+      await sleep(1400);                 // rekk å lese hvilket ord som kommer
+      for(let i=0;i<w.burst;i++){
+        if(!auto) break;
+        autoUI("rec", w.label, i, w.burst);
+        if(navigator.vibrate) navigator.vibrate(25);
+        try{
+          await transfer.collectExample(w.k, w.long ? {durationSec:2} : undefined);
+        }catch(e){
+          msg("recMsg","Opptak feilet: "+(e.message||e),"err");
+          auto=false; break;
+        }
+        refreshCounts();
+        if(!auto) break;
+        autoUI("wait", w.label, i+1, w.burst);
+        await sleep(GAP);
+      }
+      logLine("autoopptak: "+w.label);
+    }
+  } finally {
+    auto=false;
+    $("autoPanel").classList.remove("on","rec");
+    refreshCounts();
+    msg("recMsg","Ferdig med opptak. Sjekk tallene over — er noe feil, bruk ↶ på den raden.","ok");
+  }
+}
+$("btnAutoStop").addEventListener("click", ()=>{ auto=false; });
+$("btnAutoAll").addEventListener("click", ()=>runAuto(WORDS));
+
+/* ---------- tren ---------- */
 $("btnTrain").addEventListener("click", async () => {
-  $("btnTrain").disabled = true;
+  $("btnTrain").disabled=true;
   msg("trainMsg","Trener …");
   try{
     await transfer.train({
-      epochs: 30,
-      callback: { onEpochEnd: async (ep, logs) => {
+      epochs:30,
+      callback:{ onEpochEnd: async (ep,logs) => {
         const acc = logs && (logs.acc!==undefined ? logs.acc : logs.accuracy);
         msg("trainMsg","Trener … runde "+(ep+1)+"/30"+
             (acc!==undefined ? " · treffsikkerhet "+Math.round(acc*100)+"%" : ""));
       }}
     });
-    $("btnListen").disabled = false;
-    $("btnSave").disabled = false;
-    $("btnExport").disabled = false;
+    $("btnListen").disabled=false;
+    $("btnSave").disabled=false;
+    $("btnExport").disabled=false;
     msg("trainMsg","Ferdig trent. Test den nederst — helst der skiva står.","ok");
     logLine("modell trent");
-  }catch(e){
-    msg("trainMsg","Trening feilet: "+(e.message||e),"err");
-  }
-  $("btnTrain").disabled = false;
+  }catch(e){ msg("trainMsg","Trening feilet: "+(e.message||e),"err"); }
+  $("btnTrain").disabled=false;
 });
 
-/* ---------- 4. test live ---------- */
+/* ---------- test live ---------- */
 $("btnListen").addEventListener("click", async () => {
   if(listening){
     try{ await transfer.stopListening(); }catch(e){}
-    listening = false;
-    $("btnListen").textContent = "Start lytting";
+    listening=false;
+    $("btnListen").textContent="Start lytting";
     msg("listenMsg","");
     return;
   }
+  if(auto) return;
   try{
-    const labels = transfer.wordLabels();
+    const labels=transfer.wordLabels();
     buildLive(labels);
     await transfer.listen(async result => {
-      const scores = Array.from(result.scores);
-      let best = 0;
-      scores.forEach((v,i) => { if(v > scores[best]) best = i; });
-      updateLive(labels, scores);
-      const word = labels[best], conf = scores[best];
-      if(word !== BG && conf >= 0.75){
-        $("heardWord").textContent = word;
-        $("heardConf").textContent = Math.round(conf*100)+" % sikker";
+      const scores=Array.from(result.scores);
+      let best=0;
+      scores.forEach((v,i)=>{ if(v>scores[best]) best=i; });
+      updateLive(labels,scores);
+      const word=labels[best], conf=scores[best];
+      if(word!==BG && conf>=0.75){
+        $("heardWord").textContent=word;
+        $("heardConf").textContent=Math.round(conf*100)+" % sikker";
         logLine("hørte: "+word+"  ("+Math.round(conf*100)+" %)");
         if(navigator.vibrate) navigator.vibrate(30);
       }
     },{
-      probabilityThreshold: 0.70,
-      overlapFactor: 0.5,
-      includeSpectrogram: false,
-      invokeCallbackOnNoiseAndUnknown: true
+      probabilityThreshold:0.70,
+      overlapFactor:0.5,
+      includeSpectrogram:false,
+      invokeCallbackOnNoiseAndUnknown:true
     });
-    listening = true;
-    $("btnListen").textContent = "Stopp lytting";
+    listening=true;
+    $("btnListen").textContent="Stopp lytting";
     msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
-  }catch(e){
-    msg("listenMsg","Kunne ikke starte: "+(e.message||e),"err");
-  }
+  }catch(e){ msg("listenMsg","Kunne ikke starte: "+(e.message||e),"err"); }
 });
 function buildLive(labels){
   const box=$("live"); box.innerHTML="";
   labels.forEach(l => {
     const row=document.createElement("div"); row.className="wrow";
-    row.innerHTML =
-      '<div class="wlab" style="width:88px;font-size:12px"></div>'+
-      '<div class="wbar"><i></i></div>'+
-      '<div class="wcount">0 %</div>';
+    row.innerHTML='<div class="wlab" style="width:84px;font-size:12px"></div>'+
+      '<div class="wbar"><i></i></div><div class="wcount">0 %</div>';
     row.querySelector(".wlab").textContent = (l===BG ? "bakgrunn" : l);
     box.appendChild(row);
   });
 }
-function updateLive(labels, scores){
+function updateLive(labels,scores){
   const rows=$("live").children;
   labels.forEach((l,i) => {
     if(!rows[i]) return;
-    rows[i].querySelector(".wbar i").style.width = Math.round(scores[i]*100)+"%";
-    rows[i].querySelector(".wcount").textContent = Math.round(scores[i]*100)+" %";
+    rows[i].querySelector(".wbar i").style.width=Math.round(scores[i]*100)+"%";
+    rows[i].querySelector(".wcount").textContent=Math.round(scores[i]*100)+" %";
   });
 }
 
 /* ---------- lagre, hente, eksportere ---------- */
 $("btnSave").addEventListener("click", async () => {
-  try{
-    await transfer.save(STORE);
-    msg("saveMsg","Lagret på telefonen.","ok");
-    logLine("modell lagret");
-  }catch(e){ msg("saveMsg","Lagring feilet: "+(e.message||e),"err"); }
+  try{ await transfer.save(STORE); msg("saveMsg","Lagret på telefonen.","ok"); logLine("modell lagret"); }
+  catch(e){ msg("saveMsg","Lagring feilet: "+(e.message||e),"err"); }
 });
 $("btnLoadSaved").addEventListener("click", async () => {
   try{
     await transfer.load(STORE);
-    $("btnListen").disabled = false;
-    $("btnExport").disabled = false;
-    msg("saveMsg","Hentet lagret modell.","ok");
-    logLine("lagret modell hentet");
+    $("btnListen").disabled=false; $("btnExport").disabled=false;
+    msg("saveMsg","Hentet lagret modell.","ok"); logLine("lagret modell hentet");
   }catch(e){ msg("saveMsg","Fant ingen lagret modell: "+(e.message||e),"err"); }
 });
 $("btnExport").addEventListener("click", async () => {
@@ -347,9 +430,10 @@ $("btnExport").addEventListener("click", async () => {
   }catch(e){ msg("saveMsg","Nedlasting feilet: "+(e.message||e),"err"); }
 });
 $("btnClear").addEventListener("click", () => {
+  if(auto || listening) return;
   WORDS.forEach(w => { try{ transfer.clearExamples(w.k); }catch(e){} });
   refreshCounts();
-  msg("saveMsg","Opptakene er slettet.");
+  msg("saveMsg","Alle opptak er slettet.");
 });
 </script>
 </html>
