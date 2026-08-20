@@ -97,8 +97,16 @@
   .modecard{
     background:var(--surface);border:1px solid var(--line);border-radius:14px;
     padding:13px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);
-    box-shadow:var(--shadow);min-height:96px;
+    box-shadow:var(--shadow);min-height:124px;
   }
+  .mico{
+    display:block;width:26px;height:26px;margin-bottom:9px;
+    color:var(--ink2);fill:none;stroke:currentColor;stroke-width:1.6;
+    stroke-linecap:round;stroke-linejoin:round;
+  }
+  .mico .acc{stroke:var(--green)}
+  .mico .accf{fill:var(--green);stroke:none}
+  .mico .dot{fill:currentColor;stroke:none}
   .modecard b{display:block;font-size:14px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
   .modecard span{font-size:11.5px;color:var(--ink2);display:block;margin-top:4px;line-height:1.35}
   .modecard span.resume{color:var(--gold);font-weight:700}
@@ -377,8 +385,34 @@
     border:1px solid var(--line);background:var(--surface);color:var(--ink);
   }
   .periodtag{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:none;color:var(--green)}
-  .sect{display:block}
-  .sect.off{display:none}
+  .secbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 2px 8px}
+  .ghostmini{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:16px;cursor:pointer;
+  }
+  .sect{display:block;margin-bottom:8px}
+  .sechead{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    color:var(--ink);font:inherit;padding:13px 14px;cursor:pointer;box-shadow:var(--shadow);
+  }
+  .sechead:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  .sect.open .sechead{border-radius:12px 12px 0 0;background:var(--green-soft);border-color:var(--green-mid)}
+  .secname{font-size:12.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;flex:none}
+  .sect.open .secname{color:var(--green)}
+  .secsum{
+    margin-left:auto;font-size:11.5px;color:var(--ink2);text-align:right;
+    font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .secchev{flex:none;color:var(--ink2);font-size:17px;line-height:1;transition:transform .18s}
+  .sect.open .secchev{transform:rotate(90deg);color:var(--green)}
+  @media (prefers-reduced-motion: reduce){ .secchev{transition:none} }
+  .secbody{display:none}
+  .sect.open .secbody{
+    display:block;padding:10px 12px 12px;background:var(--surface);
+    border:1px solid var(--green-mid);border-top:0;border-radius:0 0 12px 12px;
+  }
+  .sect.open .secbody > .card:first-child{margin-top:0}
   .note{font-size:11.5px;color:var(--ink2);margin-top:8px;line-height:1.4}
   .note.warn{
     color:var(--gold);font-weight:600;background:var(--gold-soft);
@@ -446,11 +480,47 @@
       <div id="modePicker">
         <h2 class="sec">Velg trening</h2>
         <div class="modegrid">
-          <button class="modecard" data-tmode="rtb"><b>Rundt brettet</b><span>1–20 og bull. Enkel +1, dobbel +2, trippel +3.</span><span class="resume" id="resumeRtb"></span></button>
-          <button class="modecard" data-tmode="dbl"><b>Dobbeltrening</b><span>D1–D20 og bullseye. Kun dobler teller.</span><span class="resume" id="resumeDbl"></span></button>
-          <button class="modecard" data-tmode="tp"><b>Måltrening</b><span>Velg ett tall, kast en serie piler, mål treffprosenten.</span></button>
-          <button class="modecard" data-tmode="co"><b>Checkout-trening</b><span>Tilfeldig utgang — klarer du å sjekke ut på 3 piler?</span></button>
-          <button class="modecard" data-tmode="quiz" style="grid-column:1/-1"><b>Dartquiz</b><span>Blindkart på dartskiva — finn riktig felt eller riktig tall. Flest riktige på ett minutt!</span></button>
+          <button class="modecard" data-tmode="rtb">
+            <svg class="mico" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7.41 5.45A8 8 0 1 1 4 12"/>
+              <path class="acc" d="M5.5 15 4 12 2.5 15"/>
+              <circle class="dot" cx="12" cy="12" r="2"/>
+            </svg>
+            <b>Rundt brettet</b><span>1–20 og bull. Enkel +1, dobbel +2, trippel +3.</span><span class="resume" id="resumeRtb"></span>
+          </button>
+          <button class="modecard" data-tmode="dbl">
+            <svg class="mico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="acc" cx="12" cy="12" r="9" stroke-width="2.4"/>
+              <circle cx="12" cy="12" r="5"/>
+              <circle class="dot" cx="12" cy="12" r="1.6"/>
+            </svg>
+            <b>Dobbeltrening</b><span>D1–D20 og bullseye. Kun dobler teller.</span><span class="resume" id="resumeDbl"></span>
+          </button>
+          <button class="modecard" data-tmode="tp">
+            <svg class="mico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <circle cx="12" cy="12" r="4.6"/>
+              <circle class="accf" cx="10.9" cy="11.3" r="1.25"/>
+              <circle class="accf" cx="13.4" cy="10.9" r="1.25"/>
+              <circle class="accf" cx="12.1" cy="13.5" r="1.25"/>
+            </svg>
+            <b>Måltrening</b><span>Velg ett tall, kast en serie piler, mål treffprosenten.</span>
+          </button>
+          <button class="modecard" data-tmode="co">
+            <svg class="mico" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path class="acc" d="M7.6 12.3 10.6 15.2 16.4 8.9" stroke-width="2"/>
+            </svg>
+            <b>Checkout-trening</b><span>Tilfeldig utgang — klarer du å sjekke ut på 3 piler?</span>
+          </button>
+          <button class="modecard" data-tmode="quiz" style="grid-column:1/-1">
+            <svg class="mico" viewBox="0 0 24 24" aria-hidden="true">
+              <path class="accf" d="M12 12 12 3.5A8.5 8.5 0 0 1 19.36 7.75Z"/>
+              <circle cx="12" cy="12" r="8.5"/>
+              <path d="M12 3.5 12 12M19.36 7.75 12 12M19.36 16.25 12 12M12 20.5 12 12M4.64 16.25 12 12M4.64 7.75 12 12"/>
+            </svg>
+            <b>Dartquiz</b><span>Blindkart på dartskiva — finn riktig felt eller riktig tall. Flest riktige på ett minutt!</span>
+          </button>
         </div>
         <div class="verline" id="verLine"></div>
       </div>
@@ -683,7 +753,7 @@
     <section id="view-stats">
       <!-- ---------- FILTER ---------- -->
       <div class="filtcard" id="statFilter">
-        <div class="flabel">Tidsperiode</div>
+        <div class="flabel">Tidsperiode <span class="periodtag" id="perTag"></span></div>
         <div class="fchips" id="fPeriod">
           <button data-p="7">7 dager</button>
           <button data-p="30">30 dager</button>
@@ -717,17 +787,6 @@
             <button data-h="day">Dag 12–17</button>
             <button data-h="eve">Kveld 17–24</button>
             <button data-h="night">Natt 00–05</button>
-          </div>
-
-          <div class="flabel">Vis seksjoner</div>
-          <div class="fchips" id="fSections">
-            <button data-s="rtb" class="active">Rundt brettet</button>
-            <button data-s="num" class="active">Treff per tall</button>
-            <button data-s="dbl" class="active">Dobbel</button>
-            <button data-s="tp" class="active">Måltrening</button>
-            <button data-s="co" class="active">Checkout</button>
-            <button data-s="quiz" class="active">Quiz</button>
-            <button data-s="game" class="active">Spill</button>
           </div>
 
           <div class="flabel">Historikklister</div>
@@ -791,16 +850,34 @@
         </div>
       </div>
 
+      <div class="secbar">
+        <span class="eyebrow">Velg hva du vil se</span>
+        <button class="ghostmini" id="btnAllSec">Åpne alle</button>
+      </div>
+
       <!-- ---------- TOTALT ---------- -->
-      <h2 class="sec">Totalt <span class="periodtag" id="perTag"></span></h2>
+      <div class="sect" data-sect="tot">
+        <button class="sechead" data-acc="tot">
+          <span class="secname">Totalt</span>
+          <span class="secsum" id="ss-tot"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
       <div class="card">
         <div class="kgrid" id="totGrid"></div>
         <div class="empty" id="totEmpty" style="display:none">Ingen aktivitet i valgt periode.</div>
       </div>
+        </div>
+      </div>
 
       <!-- ---------- RUNDT BRETTET ---------- -->
       <div class="sect" data-sect="rtb">
-        <h2 class="sec">Rundt brettet</h2>
+        <button class="sechead" data-acc="rtb">
+          <span class="secname">Rundt brettet</span>
+          <span class="secsum" id="ss-rtb"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="rtbGrid"></div>
           <div class="empty" id="rtbEmpty" style="display:none">Ingen runder i valgt periode.</div>
@@ -854,22 +931,34 @@
           <ul class="hist" id="histList"></ul>
           <div class="empty" id="histEmpty">Ingen runder ennå.</div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- TREFF PER TALL ---------- -->
       <div class="sect" data-sect="num">
-        <h2 class="sec">Treff per tall</h2>
+        <button class="sechead" data-acc="num">
+          <span class="secname">Treff per tall</span>
+          <span class="secsum" id="ss-num"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="eyebrow" style="margin-bottom:6px">Treff&nbsp;% per mål · D og T viser dobbel-/trippelandel av kastene</div>
           <div id="numStats"></div>
           <div class="empty" id="numEmpty">Spill noen runder, så bygges statistikken per tall her.</div>
           <div class="note" id="numNote" style="display:none"></div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- DOBBELTRENING ---------- -->
       <div class="sect" data-sect="dbl">
-        <h2 class="sec">Dobbeltrening</h2>
+        <button class="sechead" data-acc="dbl">
+          <span class="secname">Dobbeltrening</span>
+          <span class="secsum" id="ss-dbl"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="dblGrid"></div>
           <div class="empty" id="dblGridEmpty" style="display:none">Ingen dobbelrunder i valgt periode.</div>
@@ -879,11 +968,17 @@
           <ul class="hist" id="dblHist"></ul>
           <div class="empty" id="dblEmpty">Ingen dobbelrunder ennå.</div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- MÅLTRENING ---------- -->
       <div class="sect" data-sect="tp">
-        <h2 class="sec">Måltrening</h2>
+        <button class="sechead" data-acc="tp">
+          <span class="secname">Måltrening</span>
+          <span class="secsum" id="ss-tp"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="tpGrid"></div>
           <div class="empty" id="tpGridEmpty" style="display:none">Ingen økter i valgt periode.</div>
@@ -898,11 +993,17 @@
           <ul class="hist" id="tpHist"></ul>
           <div class="empty" id="tpEmpty">Ingen økter ennå.</div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- CHECKOUT ---------- -->
       <div class="sect" data-sect="co">
-        <h2 class="sec">Checkout-trening</h2>
+        <button class="sechead" data-acc="co">
+          <span class="secname">Checkout-trening</span>
+          <span class="secsum" id="ss-co"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="coGrid"></div>
           <div class="empty" id="coGridEmpty" style="display:none">Ingen forsøk i valgt periode.</div>
@@ -916,22 +1017,34 @@
           <ul class="hist" id="coHist"></ul>
           <div class="empty" id="coEmpty">Ingen forsøk ennå.</div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- QUIZ ---------- -->
       <div class="sect" data-sect="quiz">
-        <h2 class="sec">Dartquiz</h2>
+        <button class="sechead" data-acc="quiz">
+          <span class="secname">Dartquiz</span>
+          <span class="secsum" id="ss-quiz"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="quizGrid"></div>
           <div id="quizBestBox" style="font-size:13px;font-weight:700;margin-top:12px"></div>
           <ul class="hist" id="quizHist"></ul>
           <div class="empty" id="quizEmpty">Ingen quizrunder ennå.</div>
         </div>
+        </div>
       </div>
 
       <!-- ---------- X01 ---------- -->
       <div class="sect" data-sect="game">
-        <h2 class="sec">Spill (301/501/701)</h2>
+        <button class="sechead" data-acc="game">
+          <span class="secname">Spill (301/501/701)</span>
+          <span class="secsum" id="ss-game"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
         <div class="card">
           <div class="kgrid" id="gameGrid"></div>
           <div class="empty" id="gameGridEmpty" style="display:none">Ingen spill i valgt periode.</div>
@@ -943,9 +1056,16 @@
           <ul class="hist" id="gameHist"></ul>
           <div class="empty" id="gameHistEmpty">Ingen fullførte spill ennå.</div>
         </div>
+        </div>
       </div>
 
-      <h2 class="sec">Verktøy</h2>
+      <div class="sect" data-sect="tools">
+        <button class="sechead" data-acc="tools">
+          <span class="secname">Verktøy</span>
+          <span class="secsum" id="ss-tools"></span>
+          <span class="secchev" aria-hidden="true">›</span>
+        </button>
+        <div class="secbody">
       <div class="card">
         <div class="toggle-row" style="padding-bottom:10px">
           <label for="soundToggle">Lydeffekter (klapping)</label>
@@ -957,6 +1077,8 @@
         </div>
         <input type="file" id="importFile" accept=".json,application/json" style="display:none">
         <div class="empty" id="toolMsg" style="padding:8px 0 0;display:none"></div>
+      </div>
+        </div>
       </div>
 
       <button class="danger" id="btnWipe">Slett all statistikk</button>
@@ -987,8 +1109,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 17;
-const APP_ROLLOUT = "2026-08-20T08:45:03+00:00";
+const APP_VERSION = 18;
+const APP_ROLLOUT = "2026-08-20T11:16:59+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1961,7 +2083,7 @@ onTap($("btnRematch"),()=>{
 const DEF_F = {
   period:"all", from:"", to:"",
   days:"all", hours:"all",
-  sect:{rtb:1,num:1,dbl:1,tp:1,co:1,quiz:1,game:1},
+  open:{rtb:1},
   histSort:"new", histN:30,
   numSort:"seq", numMin:0,
   tpNum:"all",
@@ -1970,7 +2092,7 @@ const DEF_F = {
   gameMode:"all", gamePlayer:"all"
 };
 let F = Object.assign({}, DEF_F, load(LS.filt,{}) || {});
-F.sect = Object.assign({}, DEF_F.sect, F.sect || {});
+if(!F.open || typeof F.open!=="object") F.open = {rtb:1};
 function saveF(){ save(LS.filt,F); }
 
 function inRange(ts){
@@ -2051,13 +2173,20 @@ function buildFilterUI(){
   bindChips("fPeriod","p",v=>{ F.period=v; });
   bindChips("fDays","d",v=>{ F.days=v; });
   bindChips("fHours","h",v=>{ F.hours=v; });
-  $("fSections").querySelectorAll("button").forEach(b=>{
+  // Seksjonene foldes ut hver for seg — flere kan stå åpne samtidig.
+  document.querySelectorAll("[data-acc]").forEach(b=>{
     onPick(b,()=>{
-      const k=b.dataset.s;
-      F.sect[k] = F.sect[k] ? 0 : 1;
-      if(!Object.keys(F.sect).some(x=>F.sect[x])) F.sect[k]=1; // aldri skjul alt
-      saveF(); renderStats();
+      const k=b.dataset.acc;
+      F.open[k] = F.open[k] ? 0 : 1;
+      saveF();
+      renderSections();
     });
+  });
+  onPick($("btnAllSec"),()=>{
+    const anyOpen = SECT_KEYS.some(k=>F.open[k]);
+    SECT_KEYS.forEach(k=>{ F.open[k] = anyOpen ? 0 : 1; });
+    saveF();
+    renderSections();
   });
   bindChips("fHistSort","hs",v=>{ F.histSort=v; });
   bindChips("fHistN","hn",v=>{ F.histN=+v; });
@@ -2108,7 +2237,6 @@ function filterSummary(){
   let n=0;
   if(F.days!=="all") n++;
   if(F.hours!=="all") n++;
-  if(Object.keys(DEF_F.sect).some(k=>!F.sect[k])) n++;
   if(F.histSort!=="new") n++;
   if(F.histN!==30) n++;
   if(F.numSort!=="seq") n++;
@@ -2129,7 +2257,6 @@ function syncFilterUI(){
   $("fTo").value   = F.to||"";
   setActive("fDays","d",F.days);
   setActive("fHours","h",F.hours);
-  $("fSections").querySelectorAll("button").forEach(b=>b.classList.toggle("active", !!F.sect[b.dataset.s]));
   setActive("fHistSort","hs",F.histSort);
   setActive("fHistN","hn",String(F.histN));
   setActive("fNumSort","ns",F.numSort);
@@ -2142,12 +2269,26 @@ function syncFilterUI(){
   $("filtSummary").textContent = filterSummary();
 }
 
+const SECT_KEYS = ["tot","rtb","num","dbl","tp","co","quiz","game","tools"];
+function renderSections(){
+  document.querySelectorAll(".sect").forEach(el=>{
+    const open = !!F.open[el.dataset.sect];
+    el.classList.toggle("open", open);
+    const h = el.querySelector(".sechead");
+    if(h) h.setAttribute("aria-expanded", open ? "true":"false");
+  });
+  const anyOpen = SECT_KEYS.some(k=>F.open[k]);
+  $("btnAllSec").textContent = anyOpen ? "Lukk alle" : "Åpne alle";
+}
+// kort sammendrag i den lukkede raden, så listen i seg selv er nyttig
+function setSum(k, txt){ const e=$("ss-"+k); if(e) e.textContent = txt||""; }
+
 /* ---- hovedrender ---- */
 function renderStats(){
   if(!filtUIBuilt) buildFilterUI();
   syncFilterUI();
   $("perTag").textContent = "· "+periodLabel();
-  document.querySelectorAll(".sect").forEach(s=>s.classList.toggle("off", !F.sect[s.dataset.sect]));
+  renderSections();
 
   const rtb = fh(LS.hist).filter(r=>typeof r.darts==="number" && r.darts>0);
   const dbl = fh(LS.dhist).filter(r=>typeof r.darts==="number" && r.darts>0);
@@ -2173,6 +2314,7 @@ function renderStats(){
   renderQuizStats(qz);
   renderGameStats(gm);
   $("soundToggle").checked = SET.sound!==false;
+  setSum("tools", "lyd, backup, sletting");
 }
 
 function renderTotals(rtb,dbl,tp,co,qz,gm){
@@ -2186,6 +2328,7 @@ function renderTotals(rtb,dbl,tp,co,qz,gm){
   const st    = streakInfo(allTs);
   const dur   = sumBy(rtb,r=>r.dur||0)+sumBy(dbl,r=>r.dur||0);
 
+  setSum("tot", allTs.length ? nf(darts)+" piler · "+sess+" økter" : "ingen aktivitet");
   const empty = allTs.length===0;
   $("totEmpty").style.display = empty ? "block":"none";
   $("totGrid").style.display  = empty ? "none":"grid";
@@ -2211,6 +2354,7 @@ function renderTotals(rtb,dbl,tp,co,qz,gm){
 }
 
 function renderRtbKeys(h){
+  setSum("rtb", h.length ? h.length+" runder · rekord "+Math.min(...h.map(r=>r.darts)) : "ingen runder");
   const empty=!h.length;
   $("rtbEmpty").style.display = empty?"block":"none";
   $("rtbGrid").style.display  = empty?"none":"grid";
@@ -2472,7 +2616,14 @@ function renderProgress(){
 
 /* per-tall-aggregat: livstid når ingen periodefilter er satt, ellers regnet ut fra runder i perioden */
 function numAgg(){
-  if(wideOpen()) return {agg:load(LS.nums,{}), missing:0, rounds:0, live:false, fellback:false};
+  if(wideOpen()){
+    // Livstidsaggregatet er rikest for "alt": det rommer også runder fra før
+    // detaljdata per tall fantes. Men er det tomt — f.eks. etter en import av
+    // en eldre backup — regner vi heller ut fra rundene enn å vise ingenting.
+    const life = load(LS.nums,{});
+    if(SEQ.some(n=>life[n] && life[n].att>0))
+      return {agg:life, missing:0, rounds:0, live:false, fellback:false};
+  }
   const agg={};
   const add=(n,o)=>{
     const x = agg[n] || (agg[n]={att:0,s:0,d:0,t:0});
@@ -2519,6 +2670,10 @@ function renderNumStats(){
   let list = SEQ.map(n=>({n, o:agg[n]}))
                 .filter(x=> showEmptyRows ? true : (x.o && x.o.att>=Math.max(1,F.numMin)));
   const any = SEQ.some(n=>agg[n] && agg[n].att>0);
+  const nMål = SEQ.filter(n=>agg[n] && agg[n].att>0).length;
+  const totAtt = SEQ.reduce((a,n)=>a+((agg[n]&&agg[n].att)||0),0);
+  const totHit = SEQ.reduce((a,n)=>a+((agg[n]&&(agg[n].s+agg[n].d+agg[n].t))||0),0);
+  setSum("num", any ? nMål+" mål · "+Math.round(100*totHit/totAtt)+"% treff" : "ingen kast");
   $("numEmpty").style.display = any ? "none":"block";
 
   const notes=[];
@@ -2567,6 +2722,7 @@ function renderNumStats(){
 }
 
 function renderDblStats(h){
+  setSum("dbl", h.length ? h.length+" runder · rekord "+Math.min(...h.map(r=>r.darts)) : "ingen runder");
   const empty=!h.length;
   $("dblGridEmpty").style.display = empty?"block":"none";
   $("dblGrid").style.display = empty?"none":"grid";
@@ -2605,6 +2761,8 @@ function renderDblStats(h){
 
 function renderTpStats(all){
   const h = F.tpNum==="all" ? all : all.filter(r=>String(r.n)===String(F.tpNum));
+  setSum("tp", h.length ? h.length+" økter · "+
+    Math.round(100*sumBy(h,r=>r.hits)/sumBy(h,r=>r.total))+"% treff" : "ingen økter");
   const empty=!h.length;
   $("tpGridEmpty").style.display = empty?"block":"none";
   $("tpGrid").style.display = empty?"none":"grid";
@@ -2669,6 +2827,8 @@ function renderCoStats(all){
   if(F.coRes==="ok")   h=h.filter(r=>r.o>0);
   if(F.coRes==="fail") h=h.filter(r=>!(r.o>0));
 
+  setSum("co", h.length ? h.length+" forsøk · "+
+    Math.round(100*h.filter(r=>r.o>0).length/h.length)+"% ut" : "ingen forsøk");
   const empty=!h.length;
   $("coGridEmpty").style.display = empty?"block":"none";
   $("coGrid").style.display = empty?"none":"grid";
@@ -2723,6 +2883,7 @@ function renderQuizStats(all){
     'Bestenotering (alle tider) — Finn feltet: <span class="num" style="color:var(--gold)">'+(best.find??"–")+
     '</span> · Finn tallet: <span class="num" style="color:var(--gold)">'+(best.inv??"–")+'</span>';
 
+  setSum("quiz", h.length ? h.length+" runder · beste "+Math.max(...h.map(r=>r.score)) : "ingen runder");
   const grid=$("quizGrid");
   if(h.length){
     const score=sumBy(h,r=>r.score), err=sumBy(h,r=>r.err);
@@ -2756,6 +2917,8 @@ function renderGameStats(all){
   if(F.gameMode!=="all")   gh=gh.filter(g=>String(g.mode)===String(F.gameMode));
   if(F.gamePlayer!=="all") gh=gh.filter(g=>(g.players||[g.winner]).indexOf(F.gamePlayer)>=0);
 
+  setSum("game", gh.length ? gh.length+" spill · "+
+    new Set(gh.flatMap(g=>g.players||[g.winner])).size+" spillere" : "ingen spill");
   const empty=!gh.length;
   $("gameGridEmpty").style.display = empty?"block":"none";
   $("gameGrid").style.display = empty?"none":"grid";
