@@ -95,6 +95,12 @@
     padding:13px 26px;border-radius:12px;cursor:pointer;
   }
 
+  .seg{display:flex;gap:8px;margin-bottom:10px}
+  .seg button{
+    flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;cursor:pointer;
+  }
+  .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
   .heard{text-align:center;padding:18px 10px;background:var(--surface2);border-radius:12px;margin-top:12px}
   .heard .big{font-size:38px;font-weight:800;line-height:1.1}
   .heard .conf{font-size:12px;color:var(--ink2);margin-top:4px;font-variant-numeric:tabular-nums}
@@ -139,6 +145,11 @@
 
     <h2>Test</h2>
     <div class="card">
+      <div class="seg" id="sens">
+        <button data-s="0.80">Streng</button>
+        <button data-s="0.62" class="active">Normal</button>
+        <button data-s="0.45">Følsom</button>
+      </div>
       <button class="primary" id="btnListen" disabled>Start lytting</button>
       <div class="heard">
         <div class="big" id="heardWord">–</div>
@@ -185,6 +196,9 @@ const GAP = 500;                        // pause mellom hvert opptak
 const STORE = "indexeddb://dartloggen-lyd";
 
 let base=null, transfer=null, listening=false, auto=false;
+let SENS=0.62;              // hvor sikker modellen må være på et ORD
+let lastFire=0;
+const SUPPRESS=700;         // hold munn like etter en treff, så ett ord ikke telles to ganger
 
 function msg(el,text,cls){ const e=$(el); e.textContent=text; e.className="msg"+(cls?" "+cls:""); }
 function logLine(t){
@@ -332,6 +346,13 @@ async function runAuto(list){
   }
 }
 $("btnAutoStop").addEventListener("click", ()=>{ auto=false; });
+$("sens").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    SENS=+b.dataset.s;
+    $("sens").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    msg("listenMsg","Terskel satt til "+Math.round(SENS*100)+" %.","ok");
+  });
+});
 $("btnAutoAll").addEventListener("click", ()=>runAuto(WORDS));
 
 /* ---------- tren ---------- */
@@ -341,6 +362,9 @@ $("btnTrain").addEventListener("click", async () => {
   try{
     await transfer.train({
       epochs:30,
+      // Blander bakgrunnsopptakene inn i ordene, så modellen lærer å kjenne
+      // igjen et ord selv når vinduet er halvt fylt med romstøy.
+      augmentByMixingNoiseRatio:0.5,
       callback:{ onEpochEnd: async (ep,logs) => {
         const acc = logs && (logs.acc!==undefined ? logs.acc : logs.accuracy);
         msg("trainMsg","Trener … runde "+(ep+1)+"/30"+
@@ -371,19 +395,26 @@ $("btnListen").addEventListener("click", async () => {
     buildLive(labels);
     await transfer.listen(async result => {
       const scores=Array.from(result.scores);
-      let best=0;
-      scores.forEach((v,i)=>{ if(v>scores[best]) best=i; });
       updateLive(labels,scores);
-      const word=labels[best], conf=scores[best];
-      if(word!==BG && conf>=0.75){
-        $("heardWord").textContent=word;
-        $("heardConf").textContent=Math.round(conf*100)+" % sikker";
-        logLine("hørte: "+word+"  ("+Math.round(conf*100)+" %)");
-        if(navigator.vibrate) navigator.vibrate(30);
-      }
+      // Vi lar ALDRI bakgrunn vinne. Motoren dømmer hvert vindu for seg, og et
+      // vindu der ordet ligger halvveis utenfor blir mest stillhet — da peker
+      // den på bakgrunn selv om du sa noe. I stedet ser vi bare på hvor sikker
+      // det beste ORDET er, og krever at det passerer terskelen.
+      let bi=-1, bv=0;
+      labels.forEach((l,i)=>{ if(l!==BG && scores[i]>bv){ bv=scores[i]; bi=i; } });
+      if(bi<0 || bv<SENS) return;
+      const now=Date.now();
+      if(now-lastFire < SUPPRESS) return;
+      lastFire=now;
+      $("heardWord").textContent=labels[bi];
+      $("heardConf").textContent=Math.round(bv*100)+" % sikker · bakgrunn "+
+        Math.round(100*(scores[labels.indexOf(BG)]||0))+" %";
+      logLine("hørte: "+labels[bi]+"  ("+Math.round(bv*100)+" %)");
+      if(navigator.vibrate) navigator.vibrate(30);
     },{
-      probabilityThreshold:0.70,
-      overlapFactor:0.5,
+      probabilityThreshold:0,      // vi tar avgjørelsen selv, over
+      overlapFactor:0.85,          // nytt vindu ~hvert 150 ms i stedet for 500
+      suppressionTimeMillis:0,
       includeSpectrogram:false,
       invokeCallbackOnNoiseAndUnknown:true
     });
