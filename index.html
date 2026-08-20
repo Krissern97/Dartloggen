@@ -359,6 +359,10 @@
   .sect{display:block}
   .sect.off{display:none}
   .note{font-size:11.5px;color:var(--ink2);margin-top:8px;line-height:1.4}
+  .note.warn{
+    color:var(--gold);font-weight:600;background:var(--gold-soft);
+    padding:8px 10px;border-radius:9px;margin-top:10px;
+  }
 
   /* ---------- nøkkeltall-grid ---------- */
   .kgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
@@ -942,8 +946,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 15;
-const APP_ROLLOUT = "2026-08-20T06:55:29+00:00";
+const APP_VERSION = 16;
+const APP_ROLLOUT = "2026-08-20T08:33:07+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2261,19 +2265,29 @@ function renderPb(h){
 
 /* per-tall-aggregat: livstid når ingen periodefilter er satt, ellers regnet ut fra runder i perioden */
 function numAgg(){
-  if(wideOpen()) return {agg:load(LS.nums,{}), missing:0, live:false};
+  if(wideOpen()) return {agg:load(LS.nums,{}), missing:0, rounds:0, live:false, fellback:false};
   const agg={};
   const add=(n,o)=>{
     const x = agg[n] || (agg[n]={att:0,s:0,d:0,t:0});
     x.att+=o.att||0; x.s+=o.s||0; x.d+=o.d||0; x.t+=o.t||0;
   };
-  let missing=0;
+  let missing=0, rounds=0;
   fh(LS.hist).forEach(r=>{
+    rounds++;
     if(r.num && typeof r.num==="object"){ for(const k in r.num) add(k,r.num[k]); }
     else missing++;
   });
   fh(LS.tph).forEach(r=>add(r.n,{att:r.total,s:r.s,d:r.d,t:r.t}));
-  return {agg, missing, live:true};
+  // Runder lagret før detaljdata per tall fantes kan ikke brytes ned. Kan INGEN
+  // av rundene i perioden brytes ned, ville seksjonen stått tom — eller enda
+  // verre, vist bare de få tallene måltrening bidro med. Da viser vi
+  // livstidstallene i stedet og sier tydelig fra.
+  if(rounds>0 && missing===rounds){
+    const life = load(LS.nums,{});
+    if(SEQ.some(n=>life[n] && life[n].att>0))
+      return {agg:life, missing, rounds, live:false, fellback:true};
+  }
+  return {agg, missing, rounds, live:true, fellback:false};
 }
 
 function renderWeak(){
@@ -2292,7 +2306,7 @@ function renderWeak(){
 }
 
 function renderNumStats(){
-  const {agg,missing,live}=numAgg();
+  const {agg,missing,live,rounds,fellback}=numAgg();
   const wrapN=$("numStats"); wrapN.innerHTML="";
   const showEmptyRows = (F.numMin===0 && F.numSort==="seq");
   let list = SEQ.map(n=>({n, o:agg[n]}))
@@ -2301,11 +2315,24 @@ function renderNumStats(){
   $("numEmpty").style.display = any ? "none":"block";
 
   const notes=[];
-  if(live) notes.push("Regnet ut fra runder i valgt periode.");
-  if(missing) notes.push(missing+" eldre runde"+(missing===1?"":"r")+" mangler detaljdata per tall og er ikke med (lagres fra nå av).");
+  let warn=false;
+  if(fellback){
+    warn=true;
+    notes.push("⚠ Ingen av rundene i valgt periode har detaljdata per tall — "+
+               "de ble spilt før appen begynte å lagre det. Viser livstidstall i stedet.");
+  } else if(live){
+    if(missing){
+      warn=true;
+      notes.push("⚠ "+missing+" av "+rounds+" runder i perioden mangler detaljdata per tall "+
+                 "og er ikke med. Tallene under bygger på de "+(rounds-missing)+" øvrige.");
+    } else {
+      notes.push("Regnet ut fra runder i valgt periode.");
+    }
+  }
   if(F.numMin>0) notes.push("Viser kun mål med minst "+F.numMin+" kast.");
   const note=$("numNote");
   note.textContent = notes.join(" ");
+  note.className = "note"+(warn?" warn":"");
   note.style.display = notes.length ? "block":"none";
   if(!any) return;
 
