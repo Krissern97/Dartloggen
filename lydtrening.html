@@ -125,7 +125,8 @@
   <div id="main" class="hide">
     <h2>Ordene</h2>
     <div class="card" id="words"></div>
-    <button class="primary" id="btnAutoAll">Kjør gjennom alle ordene</button>
+    <button class="primary" id="btnFree">Snakk fritt — si hvert ord mange ganger</button>
+    <button class="ghost" id="btnAutoAll" style="width:100%;margin-top:9px">Med fast rytme i stedet</button>
     <button class="ghost hide" id="btnDropSilent" style="width:100%;margin-top:9px"></button>
     <div class="msg" id="recMsg"></div>
 
@@ -248,6 +249,34 @@ function isSilent(k){
   if(lvl===null) return null;
   return lvl<=ref ? {uid:last.uid, lvl, ref} : null;
 }
+// Hvor i opptaket ligger det kraftigste øyeblikket? Ligger det helt ytterst,
+// ble ordet sannsynligvis delt mellom to opptak — da er begge halvdeler dårlige
+// treningsdata, og vi kaster dem.
+function peakPos(rec){
+  try{
+    const sp=rec.example.spectrogram, fs2=sp.frameSize, d=sp.data;
+    const nF=Math.floor(d.length/fs2);
+    if(nF<3) return null;
+    let best=-Infinity, bi=0;
+    for(let f=0;f<nF;f++){
+      let sum=0;
+      for(let i=0;i<fs2;i++) sum+=d[f*fs2+i];
+      if(sum>best){ best=sum; bi=f; }
+    }
+    return bi/(nF-1);
+  }catch(e){ return null; }
+}
+// Vurder siste opptak: tomt, delt, eller bra?
+function judgeLast(k){
+  const ex=examplesOf(k);
+  if(!ex.length) return {verdict:"ok"};
+  const last=ex[ex.length-1];
+  const ref=bgLevel(), lvl=sampleLevel(last);
+  if(ref!==null && lvl!==null && lvl<=ref) return {verdict:"stille", uid:last.uid};
+  const pp=peakPos(last);
+  if(pp!==null && (pp<0.15 || pp>0.85)) return {verdict:"delt", uid:last.uid};
+  return {verdict:"ok", uid:last.uid};
+}
 let suspects=[];
 function reportSuspects(){
   const btn=$("btnDropSilent");
@@ -307,7 +336,7 @@ function buildWordRows(){
 
     row.querySelector(".undo").addEventListener("click", () => undoLast(w));
     row.querySelector(".one").addEventListener("click", () => collectOne(w));
-    row.querySelector(".auto").addEventListener("click", () => runAuto([w]));
+    row.querySelector(".auto").addEventListener("click", () => runFree(w));
     box.appendChild(row);
   });
   refreshCounts();
@@ -408,7 +437,47 @@ async function runAuto(list){
     else msg("recMsg","Ferdig med opptak. Sjekk tallene over — er noe feil, bruk ↶ på den raden.","ok");
   }
 }
+// Snakk fritt: opptakene går rett etter hverandre uten rytme, og de som ikke
+// fanget et helt ord kastes med en gang. Du sier bare ordet i ditt eget tempo.
+async function runFree(w){
+  if(auto || listening) return;
+  auto=true;
+  let kept=0, dropped=0;
+  $("autoPanel").classList.add("on","rec");
+  try{
+    while(auto && kept < w.burst){
+      $("autoCue").textContent="Si ordet — i ditt eget tempo";
+      $("autoWord").textContent=w.label;
+      $("autoProg").textContent=kept+" / "+w.burst+(dropped?"   ("+dropped+" forkastet)":"");
+      try{
+        await transfer.collectExample(w.k, {durationMultiplier:w.dur});
+      }catch(e){ msg("recMsg","Opptak feilet: "+(e.message||e),"err"); break; }
+      const j = (w.k===BG) ? {verdict:"ok"} : judgeLast(w.k);
+      if(j.verdict==="ok"){ kept++; }
+      else {
+        dropped++;
+        try{ transfer.removeExample(j.uid); }catch(e){}
+      }
+      refreshCounts();
+    }
+  } finally {
+    auto=false;
+    $("autoPanel").classList.remove("on","rec");
+    refreshCounts();
+    msg("recMsg","«"+w.label+"»: beholdt "+kept+", forkastet "+dropped+
+      " som var stille eller delt på midten.", dropped>kept ? "warn":"ok");
+    logLine("fritt opptak "+w.label+": "+kept+" beholdt, "+dropped+" forkastet");
+  }
+}
+async function runFreeAll(){
+  for(const w of WORDS){
+    if(w.k===BG) continue;
+    await runFree(w);
+    if(!auto && $("autoPanel").classList.contains("on")) break;
+  }
+}
 $("btnAutoStop").addEventListener("click", ()=>{ auto=false; });
+$("btnFree").addEventListener("click", ()=>runFreeAll());
 $("sens").querySelectorAll("button").forEach(b=>{
   b.addEventListener("click", ()=>{
     SENS=+b.dataset.s;
