@@ -230,7 +230,11 @@ function makeEndpointer(cfg){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ thr:2.5, hangover:25, gap:50, ratio:0.85, drop:0.20 }, loadCfg());
+const cfg = Object.assign({ thr:2.5, hangover:60, gap:50, ratio:0.85, drop:0.20 }, loadCfg());
+// «hangover» betydde før pausen inni ett ord. Nå er det stillheten som
+// avslutter en hel runde, og da er de gamle 250 ms altfor kort — den ville
+// kuttet runden mellom ordene.
+if(cfg.hangover < 40) cfg.hangover = 60;
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -391,10 +395,10 @@ const CONTROLS = [
     lab:"Terskel — hvor mye over romnivået et ord må være",
     vis:v=>v.toFixed(1).replace(".",","),
     note:"Den røde streken i måleren. Skal ligge godt over romstøyen, men under stemmen din." },
-  { key:"hangover", min:10, max:60, step:1,
-    lab:"Pause før ordet regnes som ferdig",
+  { key:"hangover", min:20, max:120, step:2,
+    lab:"Stillhet som avslutter runden",
     vis:v=>(v*10)+" ms",
-    note:"Blir ett ord til flere utslag, øk den. Smelter to ord sammen, senk den." },
+    note:"Hele runden sies i én slurk. Kuttes den midt i, øk denne — den må være lengre enn pausene du gjør mellom ordene." },
   { key:"gap", min:10, max:100, step:1,
     lab:"Sperre mellom ord",
     vis:v=>(v*10)+" ms",
@@ -464,25 +468,31 @@ function controls(el, opts){
    de tre posisjonene, og de 64 settes sammen av de bitene. Er en frase
    faktisk lest inn, brukes det ekte opptaket framfor sammensetningen.  */
 const PWORDS = ["treff","bom","dobbel","trippel"];
-const PHRASES = [
-  ["treff","treff","treff"],   ["bom","bom","bom"],
-  ["dobbel","dobbel","dobbel"],["trippel","trippel","trippel"],
-  ["treff","bom","dobbel"],    ["bom","dobbel","trippel"],
-  ["dobbel","trippel","treff"],["trippel","treff","bom"],
-  ["treff","dobbel","bom"],    ["bom","trippel","dobbel"],
-  ["dobbel","bom","treff"],    ["trippel","dobbel","bom"]
-];
+/* Alle 64 kombinasjonene, i den rekkefølgen som gjør dem lette å lese inn:
+   først de fire like, så resten. Hver leses inn som ÉN ytring — hele runden
+   sagt i én slurk. Ingen oppdeling i ord noe sted: det var oppdelingen som
+   var den skjøre biten, og nå finnes den ikke.                            */
+const PHRASES = (function(){
+  const like=[], rest=[];
+  PWORDS.forEach(a=>PWORDS.forEach(b=>PWORDS.forEach(c=>{
+    const t=[a,b,c];
+    (a===b && b===c ? like : rest).push(t);
+  })));
+  return like.concat(rest);
+})();
 const PKEY = "dart_voice_phrases";
 
-/* Lagres uten normalisering: et sammensatt mønster må normaliseres under
-   ett, ikke bit for bit, ellers passer ikke delene sammen.               */
+/* Mønsteret lagres uten normalisering; den gjøres når det sammenlignes,
+   over hele ytringen under ett.                                          */
 function loadPhrases(){
   try{
     const raw=JSON.parse(localStorage.getItem(PKEY));
     if(!raw) return {};
     const out={};
-    for(const k in raw)
-      out[k]=raw[k].map(r=>({ f:r.f.map(v=>Float32Array.from(v)), b:r.b }));
+    for(const k in raw){
+      const liste = Array.isArray(raw[k]) ? raw[k] : [];
+      out[k]=liste.map(r=>({ f:(r.f||r).map(v=>Float32Array.from(v)) })).filter(r=>r.f.length);
+    }
     return out;
   }catch(e){ return {}; }
 }
@@ -490,107 +500,62 @@ function savePhrases(ph){
   try{
     const out={};
     for(const k in ph)
-      out[k]=ph[k].map(r=>({ f:r.f.map(m=>Array.from(m).map(v=>+v.toFixed(3))), b:r.b }));
+      out[k]=ph[k].map(r=>({ f:r.f.map(m=>Array.from(m).map(v=>+v.toFixed(3))) }));
     localStorage.setItem(PKEY, JSON.stringify(out));
     return true;
   }catch(e){ return false; }
 }
-// Hvor mange av de fire ordene finnes det biter av? Under fire kan ikke
-// alle kombinasjonene settes sammen, og da har stemmestyring ingen mening.
-function phraseReady(ph){
-  const bank=wordBank(ph||loadPhrases());
-  return PWORDS.filter(w=>bank[w] && (bank[w][0].length||bank[w][1].length||bank[w][2].length)).length;
-}
 function phraseCount(ph){
+  ph=ph||loadPhrases();
   let n=0; for(const k in ph) n+=ph[k].length; return n;
 }
-
-/* Hvert opptak gir tre ordbiter, og vi husker hvilken plass de sto på.
-   «bom» sist i en runde uttales ikke helt likt «bom» først.             */
-function wordBank(ph){
-  const bank={};
-  for(const key in ph){
-    const words=key.split("|");
-    ph[key].forEach(r=>{
-      const cuts=[0].concat(r.b, [r.f.length]);
-      words.forEach((w,i)=>{
-        const seg=r.f.slice(cuts[i], cuts[i+1]);
-        if(seg.length<5) return;
-        if(!bank[w]) bank[w]=[[],[],[]];
-        bank[w][i].push(seg);
-      });
-    });
-  }
-  return bank;
+// Hvor mange av de 64 er lest inn
+function phraseReady(ph){
+  ph=ph||loadPhrases();
+  return PHRASES.filter(a=>(ph[a.join("|")]||[]).length>0).length;
 }
-// Den som ligner mest på de andre er den tryggeste å bygge videre på.
-function medoid(list){
-  if(!list.length) return null;
-  if(list.length<3) return list[0];
-  let best=list[0], bestSum=Infinity;
-  list.forEach(a=>{
-    const A=cmn(a.map(m=>({mfcc:m})));
-    let sum=0;
-    list.forEach(b=>{ if(b!==a) sum+=dtw(A, cmn(b.map(m=>({mfcc:m}))), null, null); });
-    if(sum<bestSum){ bestSum=sum; best=a; }
-  });
-  return best;
-}
-function buildCombos(ph, maxLen){
-  maxLen = maxLen||3;
-  const bank=wordBank(ph);
-  const valgt={};                    // ord+plass -> beste bit
-  PWORDS.forEach(w=>{
-    for(let i=0;i<3;i++){
-      const b=bank[w];
-      let liste = b && b[i] && b[i].length ? b[i] : null;
-      if(!liste && b) liste = b[0].concat(b[1], b[2]);
-      valgt[w+i] = liste && liste.length ? medoid(liste) : null;
-    }
-  });
+/* Kandidatene er rett og slett det som er lest inn. Ingenting settes
+   sammen av biter lenger.                                                */
+function buildCombos(ph){
+  ph=ph||loadPhrases();
   const out=[];
-  (function bygg(cur){
-    if(cur.length){
-      const key=cur.join("|");
-      if(ph[key] && ph[key].length){
-        ph[key].forEach(r=>out.push({ combo:cur.slice(),
-          frames:cmn(r.f.map(m=>({mfcc:m}))), ekte:true }));
-      } else {
-        const flat=[];
-        let helt=true;
-        cur.forEach((w,i)=>{
-          const seg=valgt[w+i];
-          if(!seg){ helt=false; return; }
-          seg.forEach(m=>flat.push({mfcc:m}));
-        });
-        if(helt && flat.length) out.push({ combo:cur.slice(), frames:cmn(flat), ekte:false });
-      }
-    }
-    if(cur.length>=maxLen) return;
-    PWORDS.forEach(w=>bygg(cur.concat([w])));
-  })([]);
+  PHRASES.forEach(a=>{
+    const k=a.join("|");
+    (ph[k]||[]).forEach(r=>out.push({ combo:a, frames:cmn(r.f.map(m=>({mfcc:m}))) }));
+  });
   return out;
 }
-/* Hele ytringen mot hvert kandidatmønster. Ingen tidlig avbrytelse her:
-   vi trenger den nest beste for å vite hvor sikker den var.             */
+/* Hele ytringen mot hvert innlest mønster. Ingen tidlig avbrytelse: vi
+   trenger den nest beste for å vite hvor sikker den var.                 */
 function classifyPhrase(probe, combos){
   let best=null, bestD=Infinity, second=Infinity, secondC=null;
   for(let i=0;i<combos.length;i++){
     const d=dtw(probe, combos[i].frames, null, null);
-    if(d<bestD){ second=bestD; secondC=best; bestD=d; best=combos[i]; }
-    else if(d<second){ second=d; secondC=combos[i]; }
+    if(d<bestD){
+      if(!best || best.combo.join()!==combos[i].combo.join()){ second=bestD; secondC=best; }
+      bestD=d; best=combos[i];
+    } else if(d<second && (!best || best.combo.join()!==combos[i].combo.join())){
+      second=d; secondC=combos[i];
+    }
   }
   if(!best) return { combo:null, ratio:1, sure:false };
   const ratio = isFinite(second) && second>0 ? bestD/second : 0;
-  return { combo:best.combo, ekte:best.ekte, dist:bestD, ratio,
-           sure: ratio<=cfg.ratio, nest: secondC?secondC.combo:null };
+  return { combo:best.combo, dist:bestD, ratio, sure: ratio<=cfg.ratio,
+           nest: secondC?secondC.combo:null };
+}
+/* Detektoren stilles annerledes for en hel runde enn for ett ord: den skal
+   ikke avslutte på pausene INNI runden, bare på stillheten etter.        */
+function epCfgPhrase(){
+  return { start:cfg.thr, endMin:Math.max(0.3,cfg.thr*0.35), drop:cfg.drop,
+           hangover:cfg.hangover, refractory:cfg.gap,
+           minLen:25, maxLen:450, hardStop:500 };
 }
 
 window.Voice = {
   P, fft, dct, frameFeature, cmn, dist, dtw, makeEndpointer,
   packMel, unpackMel, classify, makeMic, ready, controls, CONTROLS,
   PWORDS, PHRASES, PKEY, loadPhrases, savePhrases, phraseCount,
-  wordBank, buildCombos, classifyPhrase, phraseReady,
+  buildCombos, classifyPhrase, phraseReady, epCfgPhrase,
   cfg, saveCfg, epCfg, loadTemplates, saveTemplates,
   WORDS, TARGET, STORE, SNIPKEY, CFGKEY, MINSEG
 };
