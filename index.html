@@ -1004,8 +1004,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 12;
-const APP_ROLLOUT = "2026-08-19T11:04:36+00:00";
+const APP_VERSION = 13;
+const APP_ROLLOUT = "2026-08-20T05:46:07+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2048,7 +2048,7 @@ function VL(){
   };
 }
 
-const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"", lastInterim:"",
+const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"", lastInterim:"", againTs:0,
                errN:0, errTs:0, wake:null, hideT:null};
 
 /* ---- tilbakelesing: appen sier hva den registrerte ----
@@ -2074,28 +2074,47 @@ if(TTS){
 // Mikrofonen skrus ALDRI av mens appen snakker — den bare filtrerer bort det
 // den hører av sin egen stemme. Å stoppe og starte økten ga et merkbart hakk
 // mellom hver runde, og på iOS koster hver ny økt ekstra oppstartstid.
+// Motoren slår sifre på rad sammen til ett tall — «en null tre» kommer som
+// «103». Vi deler dem opp igjen, så lenge hvert siffer er en gyldig poengsum
+// (0-3). Da spiller det ingen rolle om motoren skriver ord eller tall.
+function tokenize(text){
+  const raw=String(text).toLowerCase().replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
+  const out=[];
+  raw.forEach(t=>{
+    if(t.length>1 && /^[0-3]+$/.test(t)) t.split("").forEach(d=>out.push(d));
+    else out.push(t);
+  });
+  return out;
+}
 function cmdSeq(text){
-  return String(text).toLowerCase().replace(/[.,!?;:–—-]/g," ").split(/\s+/)
-    .filter(Boolean).map(matchWord).filter(k=>k!==null).join(",");
+  return tokenize(text).map(matchWord).filter(k=>k!==null).join(",");
 }
 function isEcho(heard){
   if(!VOICE.lastSaid) return false;
+  const norm=t=>String(t).toLowerCase().replace(/[^a-zæøå0-9]+/g," ").trim();
+  if(norm(heard)===norm(VOICE.lastSaid)) return true;   // fanger også "klar"/"gjenta"
   const a=cmdSeq(heard);
   return a!=="" && a===cmdSeq(VOICE.lastSaid);
+}
+function voiceHush(){                    // stopp lyttingen uten å slå av modusen
+  const rec=VOICE.rec;
+  if(rec){ try{ rec.abort(); }catch(e){} }
 }
 function voiceAfterSpeak(){
   if(!VOICE.speaking) return;
   VOICE.speaking=false;
-  // ekkoet av vår egen stemme kan komme et lite øyeblikk etter at lyden er
-  // ferdig. I dette vinduet kastes bare det som er identisk med det vi sa —
-  // alt annet du sier går rett inn som vanlig.
-  VOICE.echoUntil=Date.now()+1500;
+  // Mikrofonen var av mens vi snakket, så det eneste som kan lekke er halen
+  // av vår egen lyd rett før den er oppe igjen. 500 ms er for kort til å
+  // spise en ekte gjentakelse: motoren bruker uansett lengre tid på å avgjøre
+  // at DU er ferdig å snakke.
+  VOICE.echoUntil=Date.now()+500;
   if(VOICE.on && VOICE.rec) voiceTryStart(VOICE.rec);
 }
 function voiceSay(text){
   if(!TTS || !text){ return; }
   VOICE.speaking=true;
   VOICE.lastSaid=text;
+  voiceHush();          // appen skal aldri kunne høre sin egen stemme
   let u;
   try{
     TTS.cancel();
@@ -2172,8 +2191,7 @@ function voiceRoom(){
   return 0;
 }
 function parseCmds(transcript){
-  const toks=String(transcript).toLowerCase()
-    .replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
+  const toks=tokenize(transcript);
   if(!toks.length || toks.length>VOICE_MAXWORDS) return null;   // hel setning = samtale
   const cmds=[];
   toks.forEach(t=>{ const k=matchWord(t); if(k!==null) cmds.push(k); });
@@ -2319,9 +2337,9 @@ function voiceStart(){
     }
   };
   // iOS avslutter økten etter hver ytring uansett. Start igjen umiddelbart —
-  // også mens appen snakker, siden ekkoet uansett filtreres bort.
+  // men ikke mens appen snakker, for da ville den hørt seg selv.
   rec.onend=()=>{
-    if(VOICE.on && !VOICE.stopping) setTimeout(()=>voiceTryStart(rec),60);
+    if(VOICE.on && !VOICE.stopping && !VOICE.speaking) setTimeout(()=>voiceTryStart(rec),60);
   };
   VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.speaking=false; VOICE.errN=0;
   voiceTryStart(rec);
