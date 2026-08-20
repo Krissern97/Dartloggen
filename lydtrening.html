@@ -108,7 +108,9 @@
   }
   .step span{font-size:13px;line-height:1.45;color:var(--ink2)}
   .step span b{display:inline;width:auto;height:auto;background:none;color:var(--ink);font-weight:800}
-  .seg{display:flex;gap:8px;margin-bottom:10px}
+  .flab{font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+        color:var(--ink2);margin:0 2px 6px}
+  .seg{display:flex;gap:8px;margin-bottom:12px}
   .seg button{
     flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
     font:inherit;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;cursor:pointer;
@@ -138,10 +140,17 @@
 
     <h2>Test</h2>
     <div class="card">
+      <div class="flab">Hvor tydelig ordet må være</div>
       <div class="seg" id="sens">
         <button data-s="strict">Streng</button>
         <button data-s="normal" class="active">Normal</button>
         <button data-s="loose">Følsom</button>
+      </div>
+      <div class="flab">Pause før ordet regnes som ferdig</div>
+      <div class="seg" id="pause">
+        <button data-p="15">150 ms</button>
+        <button data-p="25" class="active">250 ms</button>
+        <button data-p="40">400 ms</button>
       </div>
       <button class="primary" id="btnListen" disabled>Start lytting</button>
       <div class="heard">
@@ -335,13 +344,17 @@ const SENS = {
    avstand fra gulvet. Og det finnes en hard grense, så den aldri kan
    henge seg opp uansett.                                                */
 function makeEndpointer(cfg){
-  const C = Object.assign({ start:1.0, end:0.5, drop:0.35, hangover:12,
-                            minLen:10, maxLen:140, hardStop:150 }, cfg||{});
-  let floor=null, n=0, on=false, startIdx=0, quiet=0, peak=-Infinity, len=0;
+  // drop 0.20 og 250 ms pause er målt fram: lavere dropp eller kortere pause
+  // splitter «treff» i to fordi f-lyden er svak og lang, mens høyere verdier
+  // gjør at ord i et urolig rom aldri blir avsluttet.
+  const C = Object.assign({ start:1.0, end:0.5, drop:0.20, hangover:25,
+                            minLen:10, maxLen:140, hardStop:150,
+                            refractory:20 }, cfg||{});
+  let floor=null, n=0, on=false, startIdx=0, quiet=0, peak=-Infinity, len=0, mute=-1;
   return {
     get floor(){ return floor; },
     get speaking(){ return on; },
-    reset(){ on=false; quiet=0; len=0; peak=-Infinity; },
+    reset(){ on=false; quiet=0; len=0; peak=-Infinity; mute=-1; },
     setCfg(c){ Object.assign(C, c); },
     // returnerer null, eller {from,to,why} der why er "ok" | "kort" | "lang"
     push(energy, idx){
@@ -351,6 +364,8 @@ function makeEndpointer(cfg){
         n++;
         const a = n<100 ? 1/n : 0.005;
         floor = floor*(1-a) + energy*a;
+        // kort sperre etter et ord: ekkoet i rommet skal ikke bli et nytt ord
+        if(idx < mute) return null;
         if(energy > floor + C.start){
           on=true; startIdx=idx; quiet=0; peak=energy; len=1;
         }
@@ -365,7 +380,7 @@ function makeEndpointer(cfg){
       const done = quiet>=C.hangover, forced = len>=C.hardStop;
       if(!done && !forced) return null;
       const tail = done ? quiet : 0;
-      on=false; quiet=0;
+      on=false; quiet=0; mute = idx + C.refractory;
       const from = startIdx-3, to = idx-tail+3;
       const seg = to-from;
       len=0; peak=-Infinity;
@@ -415,7 +430,12 @@ function logLine(t){
 async function startMic(){
   try{
     stream = await navigator.mediaDevices.getUserMedia({
-      audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+      // Rå lyd. Automatisk volumkontroll skrur opp følsomheten når det blir
+      // stille, så romlyden ETTER et ord måles høyere enn romlyden FØR — og
+      // da faller nivået aldri tilbake dit det var. Støydemping og
+      // ekkokansellering pumper på samme måte. Alle tre jobber mot en
+      // energibasert orddeteksjon, så vi vil ha signalet urørt.
+      audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
     });
     const AC = window.AudioContext || window.webkitAudioContext;
     try{ ctx = new AC({ sampleRate:P.sampleRate }); }
@@ -469,7 +489,7 @@ function onFrame(f){
   ring.push(f);
   if(ring.length>RING_MAX) ring.shift();
   frameNo++;
-  if(!ep) ep = makeEndpointer(sens);
+  if(!ep) ep = makeEndpointer(Object.assign({},sens,{hangover}));
 
   const fl = ep.floor===null ? f.energy : ep.floor;
   paintMeter(Math.max(0, Math.min(1, (f.energy-fl)/6)), f.energy-fl);
@@ -626,12 +646,23 @@ $("btnListen").addEventListener("click", ()=>{
     msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
   }
 });
+let hangover=25;
 $("sens").querySelectorAll("button").forEach(b=>{
   b.addEventListener("click",()=>{
     sens=SENS[b.dataset.s];
-    if(ep) ep.setCfg(sens);
+    if(ep) ep.setCfg(Object.assign({},sens,{hangover}));
     $("sens").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
     msg("listenMsg","Følsomhet: "+b.textContent.toLowerCase()+".","ok");
+  });
+});
+// Blir ett ord til to utslag, er pausen for kort — den rekker ikke over
+// stille partier inni ordet, som f-lyden i «treff».
+$("pause").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    hangover=+b.dataset.p;
+    if(ep) ep.setCfg(Object.assign({},sens,{hangover}));
+    $("pause").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    msg("listenMsg","Pause: "+b.textContent+". Blir ett ord til flere utslag, øk den.","ok");
   });
 });
 // Kort strek = likt fasiten. Den korteste vinner.
