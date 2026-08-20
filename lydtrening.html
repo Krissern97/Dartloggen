@@ -128,9 +128,23 @@
   .seg.wrap button{flex:0 1 auto;min-width:calc(33.33% - 6px);padding:9px 6px;font-size:12px}
   .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
 
-  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  /* Én i bredden: håndtakene må være dragbare med en finger, og da trengs
+     hele skjermbredden for å treffe enkeltrammer. */
+  .sgrid{display:grid;grid-template-columns:1fr;gap:10px}
   .snip{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface2)}
-  .snip canvas{display:block;width:100%;height:64px;background:#14120F;cursor:pointer}
+  .spec{position:relative;touch-action:none}
+  .snip canvas{display:block;width:100%;height:76px;background:#14120F;cursor:pointer}
+  .shade{position:absolute;top:0;bottom:0;background:rgba(10,9,8,.72);pointer-events:none}
+  .grip{
+    position:absolute;top:0;bottom:0;width:26px;margin-left:-13px;cursor:ew-resize;
+    touch-action:none;display:grid;place-items:center;
+  }
+  .grip::before{content:"";width:3px;height:100%;background:#F0D48A;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  .grip::after{
+    content:"";position:absolute;top:50%;margin-top:-13px;width:15px;height:26px;border-radius:5px;
+    background:#F0D48A;box-shadow:0 0 0 1px rgba(0,0,0,.5);
+  }
+  .grip.drag::after{background:#fff}
   .snip .sfoot{display:flex;align-items:center;gap:5px;padding:6px 7px}
   .snip .sfoot b{flex:1;font-size:11px;font-weight:700;color:var(--ink2);font-variant-numeric:tabular-nums;
                  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -177,9 +191,13 @@
     <h2>Opptak — se og hør</h2>
     <div class="card">
       <div class="seg wrap" id="snipTabs"></div>
+      <div class="row" id="trimRow" style="margin-top:0;margin-bottom:12px">
+        <button class="ghost" id="btnTight">Stram inn alle</button>
+        <button class="ghost" id="btnLoose">Angre innstramming</button>
+      </div>
       <div class="sgrid" id="snipBox"></div>
       <div class="msg" id="snipMsg"></div>
-      <div class="note">Grønt og gult er lyd, mørkt er stillhet. De to loddrette strekene viser hvor appen mente ordet startet og sluttet — ligger det lyd utenfor strekene, ble ordet klippet. Trykk på bildet for å høre snutten.</div>
+      <div class="note">Grønt og gult er lyd, mørkt er stillhet. Det som er nedtonet i hver ende er klippet bort — <b>dra i de gule håndtakene</b> for å sette selv hvor ordet begynner og slutter. Fasiten regnes om med en gang. Trykk på bildet for å høre snutten.</div>
     </div>
 
     <h2>Test</h2>
@@ -189,6 +207,26 @@
         <button data-p="15">150 ms</button>
         <button data-p="25" class="active">250 ms</button>
         <button data-p="40">400 ms</button>
+      </div>
+      <div class="flab gap">Hvor sikker den må være før den sier et ord</div>
+      <div class="srow">
+        <input type="range" id="ratio" min="0.50" max="0.99" step="0.01" value="0.85">
+        <b id="ratioVal">0,85</b>
+      </div>
+      <div class="note">Avstanden til beste ord delt på nest beste. Lavere = strengere, flere «?». Høyere = den gjetter heller enn å la være.</div>
+
+      <div class="flab gap">Hvor mye lyden må falle før ordet er slutt</div>
+      <div class="srow">
+        <input type="range" id="drop" min="0.05" max="0.50" step="0.01" value="0.20">
+        <b id="dropVal">0,20</b>
+      </div>
+      <div class="note">Andel av ordets egen styrke. Lavere drar med etterklang og kan smelte to ord sammen. Høyere kutter svake sluttlyder som f-en i «treff».</div>
+
+      <div class="flab gap">Sperre etter et ord — dette er det som bestemmer hvor kjapt du kan si dem</div>
+      <div class="seg" id="gap">
+        <button data-g="20">200 ms</button>
+        <button data-g="35">350 ms</button>
+        <button data-g="50" class="active">500 ms</button>
       </div>
       <button class="primary" id="btnListen" disabled>Start lytting</button>
       <div class="heard">
@@ -351,8 +389,9 @@ function dtw(A,B,bandFrac,cutoff){
 const WORDS = ["treff","bom","dobbel","trippel","angre"];
 const TARGET = 8;
 const STORE = "dart_voice_templates";
+const SNIPKEY = "dart_voice_snips";
 const CFGKEY = "dart_voice_cfg";
-const RATIO = 0.85;   // beste avstand delt på nest beste må være under dette
+const MINSEG = 8;      // kortere enn 80 ms er ikke et ord
 
 /* ---- orddeteksjon ------------------------------------------------------
    Tilstandsmaskin: mates med energi per ramme, sier fra når et ord er ferdig.
@@ -380,15 +419,16 @@ function makeEndpointer(cfg){
                             refractory:50, startHold:2, warmup:20,
                             up:0.004, down:0.04 }, cfg||{});
   let floor=null, sd=0.2, n=0, on=false, startIdx=0, quiet=0, peak=-Infinity,
-      len=0, mute=-1, hold=0;
+      len=0, mute=-1, hold=0, armed=true, told=false;
   const need = () => C.start;
   return {
     get floor(){ return floor; },
     get sd(){ return sd; },
     get need(){ return need(); },
     get speaking(){ return on; },
-    reset(){ on=false; quiet=0; len=0; peak=-Infinity; mute=-1; hold=0; },
-    hush(frames, idx){ mute=Math.max(mute, idx+frames); on=false; quiet=0; len=0; peak=-Infinity; hold=0; },
+    reset(){ on=false; quiet=0; len=0; peak=-Infinity; mute=-1; hold=0; armed=true; told=false; },
+    hush(frames, idx){ mute=Math.max(mute, idx+frames); on=false; quiet=0; len=0;
+                       peak=-Infinity; hold=0; armed=false; told=false; },
     setCfg(c){ Object.assign(C, c); },
     // returnerer null, eller {from,to,why} der why er "ok" | "kort" | "lang"
     push(energy, idx){
@@ -396,7 +436,7 @@ function makeEndpointer(cfg){
       if(!on){
         // Sperren stopper både deteksjon og gulvsporing: ser gulvet halen av
         // ordet, blir det dratt opp, og neste ord druknes.
-        if(idx < mute){ hold=0; return null; }
+        if(idx < mute){ hold=0; armed=false; return null; }
         n++;
         const warm = n<40;
         if(warm){ const a=1/n; floor=floor*(1-a)+energy*a; }   // rask innkjøring
@@ -407,7 +447,17 @@ function makeEndpointer(cfg){
         const r = warm ? 1/n : 0.02;
         sd = sd*(1-r) + Math.max(0,over)*r;
         if(n < C.warmup) return null;      // hør på rommet før du dømmer
-        if(over > need()){
+        const loud = over > need();
+        // Etter en sperre må det bli stille FØR et nytt ord kan begynne.
+        // Uten dette ble ordet du sa mens sperren gikk fanget fra midten av,
+        // og en halv «trippel» ligner mest på et helt annet ord.
+        if(!armed){
+          if(!loud){ armed=true; told=false; return null; }
+          if(told) return null;
+          told=true;
+          return { from:idx, to:idx, why:"sperret" };
+        }
+        if(loud){
           if(++hold < C.startHold) return null;
           on=true; startIdx=idx-(C.startHold-1); quiet=0; peak=energy; len=C.startHold;
         } else hold=0;
@@ -425,7 +475,7 @@ function makeEndpointer(cfg){
       // Sperren regnes fra der ordet faktisk sluttet, ikke fra nå. «Nå» er
       // allerede en pauselengde senere, og la vi sperren oppå det, ble
       // dødtiden pause + sperre — da forsvant ordet du sa rett etterpå.
-      on=false; quiet=0; mute = (idx-tail) + C.refractory;
+      on=false; quiet=0; armed=false; told=false; mute = (idx-tail) + C.refractory;
       const from = startIdx-3, to = idx-tail+3;
       const seg = to-from;
       len=0; peak=-Infinity;
@@ -455,11 +505,14 @@ let snipTab=WORDS[0];
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ thr:2.5, hangover:25 }, loadCfg());
+const cfg = Object.assign({ thr:2.5, hangover:25, gap:50, ratio:0.85, drop:0.20 }, loadCfg());
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
-function epCfg(){ return { start:cfg.thr, endMin:Math.max(0.3,cfg.thr*0.35), hangover:cfg.hangover }; }
+function epCfg(){
+  return { start:cfg.thr, endMin:Math.max(0.3,cfg.thr*0.35),
+           hangover:cfg.hangover, refractory:cfg.gap, drop:cfg.drop };
+}
 
 function loadTemplates(){
   try{
@@ -480,14 +533,63 @@ function saveTemplates(){
     return true;
   }catch(e){ return false; }
 }
-// Lyden lagres ikke — bare mønsteret. Snutter fra en tidligere økt får null.
-function makeSnipStore(){
+/* ---- snuttene ----------------------------------------------------------
+   Spektrogrammet må overleve at siden lukkes, ellers kan du ikke justere
+   fasiten i morgen. Mel-verdiene ligger mellom -23 og +8, så én byte per
+   verdi med 1/7 oppløsning er rikelig — det gir ~2,5 kB per snutt i stedet
+   for ~12 kB som tekst. Selve lyden er for stor til å lagres; avspilling
+   virker derfor bare i økten opptaket ble gjort.                          */
+function packMel(mel){
+  const n=mel.length, bands=mel[0].length, buf=new Uint8Array(n*bands);
+  for(let i=0;i<n;i++) for(let b=0;b<bands;b++){
+    const v=Math.round((mel[i][b]+25)*7);
+    buf[i*bands+b] = v<0?0:(v>255?255:v);
+  }
+  let s="";
+  for(let i=0;i<buf.length;i++) s+=String.fromCharCode(buf[i]);
+  return btoa(s);
+}
+function unpackMel(str, bands){
+  const bin=atob(str), n=Math.floor(bin.length/bands), out=[];
+  for(let i=0;i<n;i++){
+    const r=new Float32Array(bands);
+    for(let b=0;b<bands;b++) r[b]=bin.charCodeAt(i*bands+b)/7-25;
+    out.push(r);
+  }
+  return out;
+}
+function loadSnips(){
   const s={ __test:[] };
-  WORDS.forEach(w=>{ s[w]=(templates[w]||[]).map(()=>null); });
+  let raw=null;
+  try{ raw=JSON.parse(localStorage.getItem(SNIPKEY)); }catch(e){}
+  WORDS.forEach(w=>{
+    const n=(templates[w]||[]).length;
+    const got=(raw && raw[w]) || [];
+    s[w]=[];
+    for(let i=0;i<n;i++){
+      const g=got[i];
+      if(!g || !g.m){ s[w].push(null); continue; }
+      const mel=unpackMel(g.m, P.melBands);
+      s[w].push({ mel, pcm:null, mark0:g.a, mark1:g.b,
+                  o0:(g.c!=null?g.c:g.a), o1:(g.d!=null?g.d:g.b), ms:(g.b-g.a)*10 });
+    }
+  });
   return s;
 }
+function saveSnips(){
+  try{
+    const out={};
+    WORDS.forEach(w=>{
+      out[w]=(snips[w]||[]).map(s=>
+        s && s.mel && s.mel.length
+          ? { m:packMel(s.mel), a:s.mark0, b:s.mark1, c:s.o0, d:s.o1 } : null);
+    });
+    localStorage.setItem(SNIPKEY, JSON.stringify(out));
+    return true;
+  }catch(e){ return false; }
+}
 let templates=loadTemplates();
-let snips=makeSnipStore();
+let snips=loadSnips();
 
 function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
 function logLine(t){
@@ -576,6 +678,14 @@ function onFrame(f){
   if(!mode) return;
   const r = ep.push(f.energy, frameNo);
   if(!r) return;
+  if(r.why==="sperret"){
+    // heller si fra enn å fange en halv stavelse
+    logLine("hoppet over et ord — sperren gikk fortsatt");
+    if(mode==="capture") flashWhy("sperret");
+    else msg("listenMsg","Du sa noe mens sperren fortsatt gikk. Vent litt lenger "+
+                         "mellom ordene, eller kort ned sperren.","err");
+    return;
+  }
   // oversett fra global rammeteller til posisjon i ringbufferet
   const base = frameNo - ring.length;
   const from = Math.max(0, r.from-base), to = Math.min(ring.length, r.to-base);
@@ -591,7 +701,9 @@ function onFrame(f){
 }
 function flashWhy(why){
   if(mode!=="capture") return;
-  $("capCue").textContent = why==="kort" ? "for kort — si det tydeligere" : "for langt — kortere pause";
+  $("capCue").textContent = why==="kort"    ? "for kort — si det tydeligere"
+                          : why==="sperret" ? "for tidlig — vent til skjermen roer seg"
+                          : "for langt — kortere pause";
   clearTimeout(flashWhy._t);
   flashWhy._t=setTimeout(()=>{ if(mode==="capture") renderCapture(); },1400);
 }
@@ -626,7 +738,9 @@ function makeSnip(from, to){
   let total=0; seg.forEach(f=>total+=f.pcm.length);
   const pcm=new Float32Array(total);
   let o=0; seg.forEach(f=>{ pcm.set(f.pcm,o); o+=f.pcm.length; });
-  return { mel:seg.map(f=>f.mel), pcm:pcm, mark0:from-a, mark1:to-a, ms:(to-from)*10 };
+  // o0/o1 er der detektoren selv mente ordet lå, så «angre» har noe å gå til
+  return { mel:seg.map(f=>f.mel), pcm:pcm, mark0:from-a, mark1:to-a,
+           o0:from-a, o1:to-a, ms:(to-from)*10 };
 }
 function gotWord(from, to){
   const probe=cmn(ring.slice(from,to));
@@ -658,7 +772,7 @@ function gotWord(from, to){
   renderLive(scores, ranked[0]);
   const best=ranked[0];
   const ratio = ranked[1]!=null ? scores[best]/scores[ranked[1]] : 0;
-  const sure = ratio<=RATIO;
+  const sure = ratio<=cfg.ratio;
   snip.label=(sure?best:"?")+" · "+snip.ms+" ms";
   snips.__test.unshift(snip);
   if(snips.__test.length>12) snips.__test.pop();
@@ -694,9 +808,10 @@ function drawSpec(cv, snip){
   const mel=snip.mel, n=mel.length;
   if(!n) return;
   const bands=mel[0].length;
-  const cw=3, ch=Math.max(2, Math.round(64/bands));
+  const cw=3, ch=Math.max(2, Math.round(76/bands));
   cv.width=n*cw; cv.height=bands*ch;
   const g=cv.getContext("2d");
+  if(!g) return;
   let hi=-Infinity;
   for(let i=0;i<n;i++) for(let b=0;b<bands;b++) if(mel[i][b]>hi) hi=mel[i][b];
   const lo=hi-9;                      // 9 logenheter dynamikk gir god kontrast
@@ -706,9 +821,42 @@ function drawSpec(cv, snip){
       g.fillRect(i*cw, (bands-1-b)*ch, cw, ch);   // lav frekvens nederst
     }
   }
-  g.fillStyle="rgba(255,255,255,.85)";
-  g.fillRect(Math.max(0,snip.mark0*cw-1), 0, 2, cv.height);
-  g.fillRect(Math.max(0,Math.min(cv.width-2,snip.mark1*cw-1)), 0, 2, cv.height);
+  // hvor ordet begynner og slutter tegnes IKKE her — det er skyggene og
+  // håndtakene over lerretet som viser det, og de kan flyttes mens du drar
+}
+/* ---- klipp fasiten på nytt etter at håndtakene er flyttet ----
+   Fasiten er MFCC, og MFCC er bare en cosinustransform av mel — som vi
+   allerede har. Da kan et nytt utsnitt regnes ut uten lyden i behold.   */
+function framesFrom(mel, a, b){
+  const out=[];
+  for(let i=a;i<b;i++) out.push({ mfcc: dct(mel[i], P.cepstra) });
+  return cmn(out);
+}
+function retrim(w, i, a, b){
+  const s=(snips[w]||[])[i], t=(templates[w]||[])[i];
+  if(!s || !t) return;
+  const n=s.mel.length;
+  a=Math.max(0, Math.min(n-MINSEG, Math.round(a)));
+  b=Math.max(a+MINSEG, Math.min(n, Math.round(b)));
+  s.mark0=a; s.mark1=b; s.ms=(b-a)*10;
+  t.frames=framesFrom(s.mel, a, b);
+  saveTemplates(); saveSnips();
+}
+// Finn selv hvor lyden faktisk er: alt under 15 % av ordets egen styrke
+// er stillhet eller etterklang, og har ingenting i fasiten å gjøre.
+function tightBounds(snip){
+  const mel=snip.mel, n=mel.length;
+  if(n<MINSEG) return [snip.mark0, snip.mark1];
+  const en=mel.map(m=>{ let s=0; for(let i=0;i<m.length;i++) s+=m[i]; return s/m.length; });
+  const sorted=en.slice().sort((x,y)=>x-y);
+  const floor=sorted[Math.floor(n*0.2)], peak=sorted[n-1];
+  if(peak-floor < 0.5) return [snip.mark0, snip.mark1];
+  const lvl=floor+(peak-floor)*0.15;
+  let a=0; while(a<n && en[a]<lvl) a++;
+  let b=n;  while(b>a && en[b-1]<lvl) b--;
+  a=Math.max(0,a-2); b=Math.min(n,b+2);          // to rammer luft, ikke mer
+  if(b-a<MINSEG) return [snip.mark0, snip.mark1];
+  return [a,b];
 }
 // Er det tydelig lyd utenfor strekene, ble ordet klippet.
 function looksCut(snip){
@@ -768,7 +916,7 @@ function dropOne(w, i){
   if(!templates[w] || i<0 || i>=templates[w].length) return;
   templates[w].splice(i,1);
   if(snips[w]) snips[w].splice(i,1);
-  saveTemplates(); renderWords(); renderSnipTabs(); renderSnips();
+  saveTemplates(); saveSnips(); renderWords(); renderSnipTabs(); renderSnips();
   msg("recMsg","Slettet opptak av «"+w+"».","ok");
 }
 function renderSnipTabs(){
@@ -786,6 +934,7 @@ function renderSnipTabs(){
 function renderSnips(){
   const box=$("snipBox"); if(!box) return;
   box.innerHTML="";
+  const tr=$("trimRow"); if(tr) tr.style.display = snipTab==="__test" ? "none" : "flex";
   const list=snips[snipTab]||[];
   const count = snipTab==="__test" ? list.length : (templates[snipTab]||[]).length;
   if(!count){
@@ -794,33 +943,114 @@ function renderSnips(){
       : "Ingen opptak av «"+snipTab+"» ennå.");
     return;
   }
-  let cut=0, missing=0;
+  const trimmable = snipTab!=="__test";
+  let cut=0, missing=0, mute=0;
   for(let i=0;i<count;i++){
     const s=list[i];
     if(!s){ missing++; continue; }
+    const idx=i;
     const wrap=document.createElement("div"); wrap.className="snip";
+    const spec=document.createElement("div"); spec.className="spec";
     const cv=document.createElement("canvas");
-    wrap.appendChild(cv);
+    const shL=document.createElement("div"); shL.className="shade";
+    const shR=document.createElement("div"); shR.className="shade";
+    spec.appendChild(cv); spec.appendChild(shL); spec.appendChild(shR);
     const foot=document.createElement("div"); foot.className="sfoot";
     foot.innerHTML='<b></b><button class="sbtn play" aria-label="Spill av">▶</button>'+
                    '<button class="sbtn del" aria-label="Slett">✕</button>';
-    wrap.appendChild(foot);
+    wrap.appendChild(spec); wrap.appendChild(foot);
     box.appendChild(wrap);
     drawSpec(cv,s);
-    const bad=looksCut(s);
-    if(bad){ wrap.classList.add("cut"); cut++; }
-    foot.querySelector("b").textContent=(s.label || ("#"+(i+1)+" · "+s.ms+" ms"))+(bad?"  ⚠":"");
-    const idx=i;
-    cv.addEventListener("click",()=>playSnip(s));
-    foot.querySelector(".play").addEventListener("click",()=>playSnip(s));
+
+    const n=s.mel.length||1;
+    const lab=foot.querySelector("b");
+    const paint=()=>{
+      const p0=100*s.mark0/n, p1=100*s.mark1/n;
+      shL.style.left="0"; shL.style.width=p0+"%";
+      shR.style.left=p1+"%"; shR.style.width=(100-p1)+"%";
+      if(g0){ g0.style.left=p0+"%"; g1.style.left=p1+"%"; }
+      const bad=looksCut(s);
+      wrap.classList.toggle("cut", bad);
+      lab.textContent=(s.label || ("#"+(idx+1)+" · "+(s.mark1-s.mark0)*10+" ms"))+(bad?"  ⚠":"");
+    };
+    let g0=null, g1=null;
+    if(trimmable){
+      g0=document.createElement("i"); g0.className="grip";
+      g1=document.createElement("i"); g1.className="grip";
+      spec.appendChild(g0); spec.appendChild(g1);
+      [[g0,0],[g1,1]].forEach(([el,which])=>{
+        el.addEventListener("pointerdown",ev=>{
+          ev.preventDefault(); ev.stopPropagation();
+          if(el.setPointerCapture && ev.pointerId!=null){
+            try{ el.setPointerCapture(ev.pointerId); }catch(e){}
+          }
+          el.classList.add("drag");
+        });
+        el.addEventListener("pointermove",ev=>{
+          if(!el.classList.contains("drag")) return;
+          const r=spec.getBoundingClientRect();
+          if(!r.width) return;
+          const f=(ev.clientX-r.left)/r.width*n;
+          if(which===0) s.mark0=Math.max(0, Math.min(s.mark1-MINSEG, Math.round(f)));
+          else          s.mark1=Math.max(s.mark0+MINSEG, Math.min(n, Math.round(f)));
+          paint();
+        });
+        const end=()=>{
+          if(!el.classList.contains("drag")) return;
+          el.classList.remove("drag");
+          retrim(snipTab, idx, s.mark0, s.mark1);
+          paint();
+          msg("snipMsg","Fasiten for «"+snipTab+"» #"+(idx+1)+" er nå "+
+              (s.mark1-s.mark0)*10+" ms.","ok");
+        };
+        el.addEventListener("pointerup",end);
+        el.addEventListener("pointercancel",end);
+      });
+    }
+    paint();
+
+    const play=foot.querySelector(".play");
+    if(!s.pcm || !s.pcm.length){ play.disabled=true; play.title="Lyden er fra en tidligere økt"; mute++; }
+    else { cv.addEventListener("click",()=>playSnip(s)); play.addEventListener("click",()=>playSnip(s)); }
+    if(wrap.classList.contains("cut")) cut++;
     foot.querySelector(".del").addEventListener("click",()=>dropOne(snipTab,idx));
   }
   const bits=[];
-  if(missing) bits.push(missing+" opptak er fra en tidligere økt — bare mønsteret ble lagret, ikke lyden.");
-  if(cut) bits.push(cut+" snutt"+(cut>1?"er":"")+" har tydelig lyd utenfor strekene (⚠). Er det stemmen din, ble ordet klippet: øk pausen eller senk terskelen.");
-  if(!bits.length) bits.push("Trykk på et bilde for å høre snutten.");
+  if(missing) bits.push(missing+" opptak ble gjort før snuttene ble lagret — de må leses inn på nytt for å kunne justeres.");
+  if(mute) bits.push(mute+" snutt"+(mute>1?"er":"")+" kan justeres, men ikke spilles av: lyden lagres ikke mellom økter.");
+  if(cut) bits.push(cut+" snutt"+(cut>1?"er":"")+" har tydelig lyd utenfor utsnittet (⚠) — dra håndtaket dit lyden faktisk slutter.");
+  if(!bits.length) bits.push("Dra i de gule håndtakene for å sette start og slutt. Trykk på bildet for å høre snutten.");
   msg("snipMsg", bits.join(" "), cut?"":"ok");
 }
+/* ---- stram inn / angre for alle snuttene av ett ord ---- */
+function trimAll(w, mode){
+  const list=snips[w]||[];
+  let n=0;
+  list.forEach((s,i)=>{
+    if(!s || !s.mel || !s.mel.length) return;
+    const b = mode==="tight" ? tightBounds(s)
+                             : [s.o0!=null?s.o0:0, s.o1!=null?s.o1:s.mel.length];
+    if(b[0]===s.mark0 && b[1]===s.mark1) return;
+    retrim(w, i, b[0], b[1]);
+    n++;
+  });
+  renderSnips();
+  const snitt=list.filter(Boolean).reduce((a,s)=>a+(s.mark1-s.mark0),0)/
+              (list.filter(Boolean).length||1);
+  msg("snipMsg", n
+    ? (mode==="tight" ? "Strammet inn " : "Tilbakestilte ")+n+" snutt"+(n>1?"er":"")+
+      ". Fasiten for «"+w+"» er nå "+Math.round(snitt*10)+" ms i snitt."
+    : "Ingen av snuttene endret seg.", "ok");
+}
+$("btnTight").addEventListener("click", ()=>{
+  if(snipTab==="__test") return;
+  trimAll(snipTab,"tight");
+});
+$("btnLoose").addEventListener("click", ()=>{
+  if(snipTab==="__test") return;
+  trimAll(snipTab,"loose");
+});
+
 function startCapture(w, queue){
   if(!micOn) return;
   mode="capture"; capWord=w; capGot=0;
@@ -842,7 +1072,7 @@ function renderCapture(){
 function nextCapture(){
   const q=capQueue, done=capWord;
   mode=null; capWord=null; capQueue=null; if(ep) ep.reset();
-  saveTemplates(); renderWords();
+  saveTemplates(); saveSnips(); renderWords();
   if(q && q.length){ startCapture(q[0], q.slice(1)); return; }
   $("cap").classList.remove("on");
   if(done) snipTab=done;
@@ -859,6 +1089,22 @@ function setThr(v){
   saveCfg();
 }
 $("thr").addEventListener("input", e=>setThr(+e.target.value));
+
+// De to finjusteringene virker likt: vis tallet, lagre det, send det inn.
+function knob(id, key, after){
+  const el=$(id), out=$(id+"Val");
+  const vis=()=>{ out.textContent=cfg[key].toFixed(2).replace(".",","); };
+  el.value=cfg[key]; vis();
+  el.addEventListener("input", e=>{
+    cfg[key]=+e.target.value; vis(); saveCfg();
+    if(ep) ep.setCfg(epCfg());
+    if(after) after();
+  });
+}
+knob("ratio","ratio",()=>msg("listenMsg",
+  "Sikkerhet "+cfg.ratio.toFixed(2).replace(".",",")+". Får du «?» på ord du sa tydelig, dra den opp.","ok"));
+knob("drop","drop",()=>msg("listenMsg",
+  "Ordslutt "+cfg.drop.toFixed(2).replace(".",",")+". Blir ett ord til to utslag, dra den ned.","ok"));
 $("btnCal").addEventListener("click", ()=>{
   if(!micOn){ msg("micMsg","Slå på mikrofonen først.","err"); return; }
   calUntil=frameNo+300; calMax=0;      // 3 sekunder
@@ -885,6 +1131,20 @@ $("pause").querySelectorAll("button").forEach(b=>{
     if(ep) ep.setCfg(epCfg());
     $("pause").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
     msg("listenMsg","Pause: "+b.textContent+". Blir ett ord til flere utslag, øk den.","ok");
+  });
+});
+
+/* ---- sperre etter et ord ----
+   Dette tallet er selve takten: sperren er ren dødtid etter at ordet slutter,
+   og det er den som avgjør hvor kjapt du kan si ord etter hverandre. Kort
+   sperre gir raskere innmating, men ekkoet i rommet kan bli et nytt ord. */
+$("gap").querySelectorAll("button").forEach(b=>{
+  b.classList.toggle("active", +b.dataset.g===cfg.gap);
+  b.addEventListener("click",()=>{
+    cfg.gap=+b.dataset.g; saveCfg();
+    if(ep) ep.setCfg(epCfg());
+    $("gap").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    msg("listenMsg","Sperre: "+b.textContent+". Leser den samme ord to ganger, øk den.","ok");
   });
 });
 
@@ -929,8 +1189,8 @@ $("btnSave").addEventListener("click",()=>{
   msg("saveMsg", ok2 ? "Fasit lagret på telefonen." : "Fikk ikke lagret.", ok2?"ok":"err");
 });
 $("btnWipe").addEventListener("click",()=>{
-  templates={}; localStorage.removeItem(STORE);
-  snips=makeSnipStore();
+  templates={}; localStorage.removeItem(STORE); localStorage.removeItem(SNIPKEY);
+  snips=loadSnips();
   renderWords(); renderSnipTabs(); renderSnips(); $("live").innerHTML="";
   $("heardWord").textContent="–"; $("heardConf").textContent="Les inn fasit først";
   msg("saveMsg","All fasit slettet.");
