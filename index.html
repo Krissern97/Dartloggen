@@ -1207,8 +1207,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 28;
-const APP_ROLLOUT = "2026-08-20T18:36:13+00:00";
+const APP_VERSION = 29;
+const APP_ROLLOUT = "2026-08-20T19:16:01+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2417,11 +2417,14 @@ function renderStats(){
   setSum("tools", "stemme, lyd, backup, sletting");
   // Fasiten bor i nettleseren på denne telefonen. Broren din leser inn sin
   // egen på sin egen — de skal ikke deles, stemmene er ulike.
-  const vs=$("voiceState"), n=(window.Voice ? Voice.ready() : 0);
-  if(vs) vs.textContent = n>=4
-    ? n+" av 5 ord lest inn — mikrofonknappen dukker opp i «rundt brettet»"
-    : (n ? n+" av 5 ord lest inn — les inn resten for å ta den i bruk"
-         : "Les inn stemmen din, så kan du taste med stemmen");
+  const vs=$("voiceState");
+  if(vs && window.Voice){
+    const ph=Voice.loadPhrases(), dekket=Voice.PHRASES.filter(a=>(ph[a.join("|")]||[]).length).length;
+    vs.textContent = Voice.phraseReady()>=4
+      ? dekket+" av 12 runder lest inn — mikrofonknappen dukker opp i «rundt brettet»"
+      : (dekket ? dekket+" av 12 runder lest inn — les inn flere for å ta den i bruk"
+                : "Les inn stemmen din, så kan du si hele runden");
+  }
 }
 
 function renderTotals(rtb,dbl,tp,co,qz,gm){
@@ -3250,12 +3253,17 @@ showTView("modePicker");
    «angre» tar tilbake forrige pil — også fra opplesingen, så du kan rette
    deg selv midt i runden.                                                 */
 const VMAP = { treff:1, dobbel:2, trippel:3, bom:0 };
-const VMIN = 4;                 // færre ord innlest enn dette gir ingen mening
+const VMIN = 4;                 // alle fire ordene må finnes biter av
+const V_STILLE = 80;            // 800 ms uten nytt ord = runden er sagt
 let vOn=false, vMic=null, vEp=null, vRing=[], vFrame=0, vSpeaking=false;
 let vSaid=[], vTimer=null, vTemplates=null;
+let vCombos=null, vSegs=[], vLast=0, vTurnDone=false;
 const VRING_MAX=260;
 
-function voiceReady(){ return window.Voice ? Voice.ready() : 0; }
+// Hele runden sies i én slurk og kjennes igjen under ett. Ordene hver for
+// seg er korte — «bom» kortest av dem — mens tre ord på rad gir tre ganger
+// så mye å kjenne igjen, og overgangene mellom dem i tillegg.
+function voiceReady(){ return window.Voice ? Voice.phraseReady() : 0; }
 // Knappen skal bare finnes der den betyr noe. T kan holde på en runde som
 // kan gjenopptas selv når du står på startskjermen, så runden alene er ikke
 // nok — brettskjermen må faktisk være framme.
@@ -3285,6 +3293,8 @@ async function voiceOn(){
   if(vOn) return;
   try{
     vTemplates = Voice.loadTemplates();
+    vCombos = Voice.buildCombos(Voice.loadPhrases(), 3);
+    vSegs=[]; vLast=0;
     vEp = Voice.makeEndpointer(Voice.epCfg());
     vRing=[]; vFrame=0; vSaid=[];
     vMic = Voice.makeMic(vFrameIn);
@@ -3302,7 +3312,7 @@ function voiceOff(){
   vOn=false;
   clearTimeout(vTimer); vTimer=null;
   try{ if(vMic) vMic.stop(); }catch(e){}
-  vMic=null; vEp=null; vRing=[]; vSaid=[];
+  vMic=null; vEp=null; vRing=[]; vSaid=[]; vSegs=[]; vCombos=null;
   try{ speechSynthesis.cancel(); }catch(e){}
   updateMicBtn();
 }
@@ -3319,24 +3329,37 @@ function vFrameIn(f){
   const bar=$("voiceLvl");
   if(bar) bar.style.width=Math.max(0,Math.min(100,Math.round(over/vEp.need*50)))+"%";
   if(sheetOpen() && vFrame%3===0) vsPaint();
+  if(vSegs.length && vFrame-vLast >= V_STILLE) vCloseTurn();
   const r = vEp.push(f.energy, vFrame);
   if(!r) return;
   if(r.why==="sperret"){ voiceMsg("Litt for tidlig — vent til den har roet seg."); return; }
   if(r.why!=="ok") return;
+  vSegs.push({from:r.from, to:r.to});
+  vLast=vFrame;
+  voiceMsg(vSegs.length+" av 3 ord …");
+  if(vSegs.length>=3) vCloseTurn();
+}
+
+function vCloseTurn(){
+  const segs=vSegs; vSegs=[];
+  if(!segs.length || !vCombos || !vCombos.length) return;
   const base = vFrame - vRing.length;
-  const from = Math.max(0, r.from-base), to = Math.min(vRing.length, r.to-base);
-  if(to-from < 8) return;
-  const res = Voice.classify(Voice.cmn(vRing.slice(from,to)), vTemplates);
-  if(!res.word || !res.sure){
+  const from = Math.max(0, segs[0].from-base);
+  const to   = Math.min(vRing.length, segs[segs.length-1].to-base);
+  if(to-from < 12) return;
+  const res = Voice.classifyPhrase(Voice.cmn(vRing.slice(from,to)), vCombos);
+  if(!res.combo || !res.sure){
     // vis hvor nær det var, ellers er det umulig å vite hvilken vei
     // «sikkerhet» skal dras
-    voiceMsg(res.word
-      ? "Usikker: «"+res.word+"» mot «"+res.ranked[1]+"» ("+res.ratio.toFixed(2).replace(".",",")+
-        " — grensa er "+Voice.cfg.ratio.toFixed(2).replace(".",",")+")"
-      : "Hørte ikke helt — si det igjen.");
+    voiceMsg(res.combo
+      ? "Usikker: "+res.combo.join(" ")+" mot "+(res.nest||[]).join(" ")+
+        " ("+res.ratio.toFixed(2).replace(".",",")+" — grensa er "+
+        Voice.cfg.ratio.toFixed(2).replace(".",",")+"). Si runden på nytt."
+      : "Hørte ikke helt — si runden på nytt.");
     return;
   }
-  vHeard(res.word);
+  vSaid=[];
+  res.combo.forEach(w=>vHeard(w));
 }
 
 function vHeard(word){
@@ -3362,10 +3385,11 @@ function vHeard(word){
   if(navigator.vibrate) navigator.vibrate(20);
   vSaid.push(word);
   tapDart(kind);
+  vTurnDone = vSaid.length>=3;
   vShowSaid();
   // Tre piler er en runde. Den er allerede registrert av tapDart, så
   // opplesingen er en kvittering — sier den feil, si «angre».
-  if(vSaid.length>=3 || !voiceUsable()){
+  if(vSaid.length>=3 || !voiceUsable() || !vSegs.length && vSaid.length && vTurnDone){
     const sagt=vSaid.slice(); vSaid=[];
     clearTimeout(vTimer);
     vTimer=setTimeout(()=>vReadBack(sagt), 1000);

@@ -451,9 +451,146 @@ function controls(el, opts){
   return { refresh(){ for(const k in rader) rader[k].vis(); } };
 }
 
+/* ============================================================
+   FRASER — tre piler i ett jafs
+   ============================================================
+   Ett ord alene er kort, og «bom» er kortest av dem. Sier du hele runden
+   i én slurk blir snutten tre ganger så lang, og da har DTW langt mer å
+   kjenne igjen på — også overgangene mellom ordene, som forsvinner helt
+   når hvert ord vurderes for seg.
+
+   Alle kombinasjoner er 4 x 4 x 4 = 64. Det er for mange å lese inn. I
+   stedet leses 12 fraser som dekker hvert ord minst to ganger i hver av
+   de tre posisjonene, og de 64 settes sammen av de bitene. Er en frase
+   faktisk lest inn, brukes det ekte opptaket framfor sammensetningen.  */
+const PWORDS = ["treff","bom","dobbel","trippel"];
+const PHRASES = [
+  ["treff","treff","treff"],   ["bom","bom","bom"],
+  ["dobbel","dobbel","dobbel"],["trippel","trippel","trippel"],
+  ["treff","bom","dobbel"],    ["bom","dobbel","trippel"],
+  ["dobbel","trippel","treff"],["trippel","treff","bom"],
+  ["treff","dobbel","bom"],    ["bom","trippel","dobbel"],
+  ["dobbel","bom","treff"],    ["trippel","dobbel","bom"]
+];
+const PKEY = "dart_voice_phrases";
+
+/* Lagres uten normalisering: et sammensatt mønster må normaliseres under
+   ett, ikke bit for bit, ellers passer ikke delene sammen.               */
+function loadPhrases(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(PKEY));
+    if(!raw) return {};
+    const out={};
+    for(const k in raw)
+      out[k]=raw[k].map(r=>({ f:r.f.map(v=>Float32Array.from(v)), b:r.b }));
+    return out;
+  }catch(e){ return {}; }
+}
+function savePhrases(ph){
+  try{
+    const out={};
+    for(const k in ph)
+      out[k]=ph[k].map(r=>({ f:r.f.map(m=>Array.from(m).map(v=>+v.toFixed(3))), b:r.b }));
+    localStorage.setItem(PKEY, JSON.stringify(out));
+    return true;
+  }catch(e){ return false; }
+}
+// Hvor mange av de fire ordene finnes det biter av? Under fire kan ikke
+// alle kombinasjonene settes sammen, og da har stemmestyring ingen mening.
+function phraseReady(ph){
+  const bank=wordBank(ph||loadPhrases());
+  return PWORDS.filter(w=>bank[w] && (bank[w][0].length||bank[w][1].length||bank[w][2].length)).length;
+}
+function phraseCount(ph){
+  let n=0; for(const k in ph) n+=ph[k].length; return n;
+}
+
+/* Hvert opptak gir tre ordbiter, og vi husker hvilken plass de sto på.
+   «bom» sist i en runde uttales ikke helt likt «bom» først.             */
+function wordBank(ph){
+  const bank={};
+  for(const key in ph){
+    const words=key.split("|");
+    ph[key].forEach(r=>{
+      const cuts=[0].concat(r.b, [r.f.length]);
+      words.forEach((w,i)=>{
+        const seg=r.f.slice(cuts[i], cuts[i+1]);
+        if(seg.length<5) return;
+        if(!bank[w]) bank[w]=[[],[],[]];
+        bank[w][i].push(seg);
+      });
+    });
+  }
+  return bank;
+}
+// Den som ligner mest på de andre er den tryggeste å bygge videre på.
+function medoid(list){
+  if(!list.length) return null;
+  if(list.length<3) return list[0];
+  let best=list[0], bestSum=Infinity;
+  list.forEach(a=>{
+    const A=cmn(a.map(m=>({mfcc:m})));
+    let sum=0;
+    list.forEach(b=>{ if(b!==a) sum+=dtw(A, cmn(b.map(m=>({mfcc:m}))), null, null); });
+    if(sum<bestSum){ bestSum=sum; best=a; }
+  });
+  return best;
+}
+function buildCombos(ph, maxLen){
+  maxLen = maxLen||3;
+  const bank=wordBank(ph);
+  const valgt={};                    // ord+plass -> beste bit
+  PWORDS.forEach(w=>{
+    for(let i=0;i<3;i++){
+      const b=bank[w];
+      let liste = b && b[i] && b[i].length ? b[i] : null;
+      if(!liste && b) liste = b[0].concat(b[1], b[2]);
+      valgt[w+i] = liste && liste.length ? medoid(liste) : null;
+    }
+  });
+  const out=[];
+  (function bygg(cur){
+    if(cur.length){
+      const key=cur.join("|");
+      if(ph[key] && ph[key].length){
+        ph[key].forEach(r=>out.push({ combo:cur.slice(),
+          frames:cmn(r.f.map(m=>({mfcc:m}))), ekte:true }));
+      } else {
+        const flat=[];
+        let helt=true;
+        cur.forEach((w,i)=>{
+          const seg=valgt[w+i];
+          if(!seg){ helt=false; return; }
+          seg.forEach(m=>flat.push({mfcc:m}));
+        });
+        if(helt && flat.length) out.push({ combo:cur.slice(), frames:cmn(flat), ekte:false });
+      }
+    }
+    if(cur.length>=maxLen) return;
+    PWORDS.forEach(w=>bygg(cur.concat([w])));
+  })([]);
+  return out;
+}
+/* Hele ytringen mot hvert kandidatmønster. Ingen tidlig avbrytelse her:
+   vi trenger den nest beste for å vite hvor sikker den var.             */
+function classifyPhrase(probe, combos){
+  let best=null, bestD=Infinity, second=Infinity, secondC=null;
+  for(let i=0;i<combos.length;i++){
+    const d=dtw(probe, combos[i].frames, null, null);
+    if(d<bestD){ second=bestD; secondC=best; bestD=d; best=combos[i]; }
+    else if(d<second){ second=d; secondC=combos[i]; }
+  }
+  if(!best) return { combo:null, ratio:1, sure:false };
+  const ratio = isFinite(second) && second>0 ? bestD/second : 0;
+  return { combo:best.combo, ekte:best.ekte, dist:bestD, ratio,
+           sure: ratio<=cfg.ratio, nest: secondC?secondC.combo:null };
+}
+
 window.Voice = {
   P, fft, dct, frameFeature, cmn, dist, dtw, makeEndpointer,
   packMel, unpackMel, classify, makeMic, ready, controls, CONTROLS,
+  PWORDS, PHRASES, PKEY, loadPhrases, savePhrases, phraseCount,
+  wordBank, buildCombos, classifyPhrase, phraseReady,
   cfg, saveCfg, epCfg, loadTemplates, saveTemplates,
   WORDS, TARGET, STORE, SNIPKEY, CFGKEY, MINSEG
 };

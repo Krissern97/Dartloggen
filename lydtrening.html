@@ -89,6 +89,13 @@
   .capture.hot{background:var(--green);color:var(--green-ink)}
   .ccue{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.8}
   .cword{font-size:clamp(46px,16vw,72px);font-weight:800;line-height:1.05}
+  .cword.ph{font-size:clamp(24px,7.5vw,38px);line-height:1.3}
+  .phrow{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
+  .phrow:first-child{border-top:0}
+  .phlab{flex:1;font-size:13px;font-weight:700}
+  .phlab i{font-style:normal;color:var(--ink2);font-weight:400;padding:0 3px}
+  .phn{flex:none;width:30px;text-align:right;font-size:12px;color:var(--ink2);
+       font-variant-numeric:tabular-nums}
   .cprog{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.8}
   .cdots{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center;max-width:260px}
   .cdots i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.25}
@@ -180,13 +187,21 @@
   </div>
 
   <div id="main" class="hide">
-    <h2>Fasit — les inn ordene</h2>
-    <div class="card" id="words"></div>
-    <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
-    <div class="msg" id="recMsg"></div>
-
-    <h2>Opptak — se og hør</h2>
+    <h2>Fasit — les inn hele runder</h2>
     <div class="card">
+      <div class="note" style="margin:0 0 12px">Si alle tre pilene i én slurk, slik du ville gjort under spill. Da blir snutten tre ganger så lang, og overgangene mellom ordene teller med — det er der «bom» skiller seg fra «dobbel».</div>
+      <div id="phList"></div>
+    </div>
+    <button class="primary" id="btnAllPh" style="margin-top:10px">Les inn alle 12 rundene</button>
+    <div class="msg" id="phMsg"></div>
+
+    <h2 class="hide" data-old>Fasit — les inn ordene</h2>
+    <div class="card hide" data-old id="words"></div>
+    <button class="primary hide" data-old id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
+    <div class="msg hide" data-old id="recMsg"></div>
+
+    <h2 class="hide" data-old>Opptak — se og hør</h2>
+    <div class="card hide" data-old>
       <div class="seg wrap" id="snipTabs"></div>
       <div class="row" id="trimRow" style="margin-top:0;margin-bottom:12px">
         <button class="ghost" id="btnTight">Stram inn alle</button>
@@ -323,7 +338,7 @@ async function startMic(){
         (info.resampled ? ", nedskalert til 16 000" : "")+
         ". Trykk «Mål rommet» for å sette terskelen etter rommet du står i.","ok");
     logLine("mikrofon på");
-    renderWords(); renderSnipTabs(); renderSnips();
+    renderWords(); renderSnipTabs(); renderSnips(); renderPhrases();
   }catch(e){
     msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
   }
@@ -345,6 +360,7 @@ function onFrame(f){
     return;
   }
   if(!mode) return;
+  phTick();
   const r = ep.push(f.energy, frameNo);
   if(!r) return;
   if(r.why==="sperret"){
@@ -358,7 +374,11 @@ function onFrame(f){
   // oversett fra global rammeteller til posisjon i ringbufferet
   const base = frameNo - ring.length;
   const from = Math.max(0, r.from-base), to = Math.min(ring.length, r.to-base);
-  if(r.why==="ok" && to-from>=8){ gotWord(from,to); return; }
+  if(r.why==="ok" && to-from>=8){
+    if(mode==="pcapture" || mode==="listen") phSeg(r.from, r.to);
+    else gotWord(from,to);
+    return;
+  }
   if(r.why==="lang"){
     // for langt: behold det kraftigste sekundet i stedet for å kaste alt
     let bi=from;
@@ -737,6 +757,136 @@ function nextCapture(){
   msg("recMsg","Fasit lagret. Se over opptakene før du tester.","ok");
 }
 
+/* ============================================================
+   FRASER — tre piler i ett jafs
+   ============================================================ */
+const PTARGET = 2;                  // to opptak per frase holder, se nedenfor
+let phrases = Voice.loadPhrases();
+let combos = null;
+let phIdx=0, phGot=0, phQueue=null;
+let phSegs=[], phLast=0;
+const PH_STILLE = 80;               // 800 ms uten nytt ord = runden er sagt
+
+function phKey(a){ return a.join("|"); }
+function phCount(a){ return (phrases[phKey(a)]||[]).length; }
+function combosOf(){
+  if(!combos) combos = Voice.buildCombos(phrases, 3);
+  return combos;
+}
+function renderPhrases(){
+  const box=$("phList"); box.innerHTML="";
+  Voice.PHRASES.forEach((a,i)=>{
+    const n=phCount(a);
+    const row=document.createElement("div"); row.className="phrow";
+    row.innerHTML='<span class="phlab"></span><span class="phn">'+n+'</span>'+
+      '<button class="wbtn undo" aria-label="Slett siste">↶</button>'+
+      '<button class="wbtn go rec" aria-label="Les inn">▶</button>';
+    row.querySelector(".phlab").innerHTML=a[0]+' <i>·</i> '+a[1]+' <i>·</i> '+a[2];
+    const u=row.querySelector(".undo");
+    u.disabled=!n;
+    u.addEventListener("click",()=>{
+      const k=phKey(a);
+      if(phrases[k] && phrases[k].length){
+        phrases[k].pop(); if(!phrases[k].length) delete phrases[k];
+        combos=null; Voice.savePhrases(phrases); renderPhrases();
+        msg("phMsg","Slettet siste opptak.","ok");
+      }
+    });
+    row.querySelector(".rec").addEventListener("click",()=>startPhrase(i,null));
+    box.appendChild(row);
+  });
+  const tot=Voice.phraseCount(phrases);
+  const dekket=Voice.PHRASES.filter(a=>phCount(a)>0).length;
+  $("btnListen").disabled = tot===0;
+  msg("phMsg", tot
+    ? tot+" opptak, "+dekket+" av 12 runder dekket. "+
+      (dekket>=12 ? "Alle 64 kombinasjonene kan settes sammen."
+                  : "Les inn resten, ellers mangler noen ord en plass de kan stå på.")
+    : "Ingen runder lest inn ennå.", dekket>=12?"ok":"");
+}
+function startPhrase(i, queue){
+  if(!micOn) return;
+  mode="pcapture"; phIdx=i; phGot=0; phQueue=queue;
+  phSegs=[]; if(ep) ep.reset();
+  $("capWord").classList.add("ph");
+  $("cap").classList.add("on");
+  renderPhCapture();
+}
+function renderPhCapture(){
+  const a=Voice.PHRASES[phIdx];
+  $("capWord").textContent=a.join(" · ");
+  $("capCue").textContent = phGot ? "Si den én gang til" : "Si hele runden i én slurk";
+  $("capProg").textContent = phGot+" / "+PTARGET;
+  const d=$("capDots");
+  if(d.children.length!==PTARGET){
+    d.innerHTML="";
+    for(let k=0;k<PTARGET;k++) d.appendChild(document.createElement("i"));
+  }
+  [...d.children].forEach((x,k)=>x.classList.toggle("done", k<phGot));
+}
+function nextPhrase(){
+  const q=phQueue;
+  mode=null; phQueue=null; phSegs=[]; if(ep) ep.reset();
+  Voice.savePhrases(phrases); renderPhrases();
+  if(q && q.length){ startPhrase(q[0], q.slice(1)); return; }
+  $("cap").classList.remove("on");
+  $("capWord").classList.remove("ph");
+}
+
+/* Ordene samles opp til det blir stille. Da er runden sagt, og HELE
+   spennet er mønsteret — ikke tre biter som vurderes hver for seg.    */
+function phSeg(from, to){
+  phSegs.push({from, to});
+  phLast = frameNo;
+  if(mode==="pcapture"){
+    $("capCue").textContent = phSegs.length+" av 3 ord";
+    if(phSegs.length>=3) closePhrase();
+  } else if(phSegs.length>=3) closePhrase();
+}
+function phTick(){
+  if(!phSegs.length) return;
+  if(frameNo - phLast < PH_STILLE) return;
+  closePhrase();
+}
+function closePhrase(){
+  const segs=phSegs; phSegs=[];
+  if(!segs.length) return;
+  const base = frameNo - ring.length;
+  const from = Math.max(0, segs[0].from - base);
+  const to   = Math.min(ring.length, segs[segs.length-1].to - base);
+  if(to-from < 12) return;
+  const raw = ring.slice(from,to).map(f=>f.mfcc);
+
+  if(mode==="pcapture"){
+    if(segs.length!==3){
+      $("capCue").textContent="fikk "+segs.length+" ord — si alle tre samlet";
+      if(ep) ep.reset();
+      return;
+    }
+    // skill mellom ordene midt i pausen, så stillheten deles likt
+    const b=[1,2].map(i=>Math.round(((segs[i-1].to + segs[i].from)/2) - base) - from);
+    const k=phKey(Voice.PHRASES[phIdx]);
+    (phrases[k]=phrases[k]||[]).push({ f:raw, b });
+    combos=null; phGot++;
+    if(navigator.vibrate) navigator.vibrate(30);
+    logLine("fanget «"+Voice.PHRASES[phIdx].join(" ")+"» ("+(to-from)*10+" ms)");
+    renderPhCapture(); renderPhrases();
+    if(phGot>=PTARGET) nextPhrase();
+    return;
+  }
+  // test
+  const r = Voice.classifyPhrase(Voice.cmn(ring.slice(from,to)), combosOf());
+  if(!r.combo){ msg("listenMsg","Ingen fasit å sammenligne med.","err"); return; }
+  $("heardWord").textContent = r.sure ? r.combo.join(" · ") : "?";
+  $("heardConf").textContent =
+    (r.sure ? "" : "for jevnt: "+r.combo.join(" ")+" mot "+(r.nest||[]).join(" ")+" · ")+
+    "klaring "+r.ratio.toFixed(2).replace(".",",")+
+    " · "+(r.ekte?"ekte opptak":"satt sammen")+
+    " · "+segs.length+" ord, "+(to-from)*10+" ms";
+  logLine((r.sure?"hørte «"+r.combo.join(" ")+"»":"usikker")+" ("+r.ratio.toFixed(2)+")");
+  if(navigator.vibrate) navigator.vibrate(30);
+}
+
 /* ---- skyverne ----
    Bygges av den delte motoren, så panelet under spill og panelet her viser
    nøyaktig de samme tallene og virker likt. */
@@ -762,7 +912,10 @@ function finishCal(){
   logLine("kalibrert: rom +"+calMax.toFixed(1)+", terskel "+cfg.thr.toFixed(1));
 }
 
-$("capStop").addEventListener("click", nextCapture);
+$("capStop").addEventListener("click", ()=>{ if(mode==="pcapture") nextPhrase(); else nextCapture(); });
+$("btnAllPh").addEventListener("click", ()=>{
+  if(micOn) startPhrase(0, Voice.PHRASES.map((_,i)=>i).slice(1));
+});
 $("btnMic").addEventListener("click", startMic);
 $("btnAll").addEventListener("click", ()=>{
   if(micOn) startCapture(WORDS[0], WORDS.slice(1));
@@ -809,7 +962,7 @@ $("btnWipe").addEventListener("click",()=>{
   $("heardWord").textContent="–"; $("heardConf").textContent="Les inn fasit først";
   msg("saveMsg","All fasit slettet.");
 });
-renderSnipTabs(); renderSnips();
+renderSnipTabs(); renderSnips(); renderPhrases();
 if(Object.keys(templates).length){
   $("main").classList.remove("hide");
   renderWords(); renderSnipTabs(); renderSnips();
