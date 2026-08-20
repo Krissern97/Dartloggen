@@ -116,7 +116,7 @@
   <div class="card">
     <div class="step"><b>1</b><span>Trykk <b>Last modellen</b>. Den hentes én gang (~2 MB), og kjører deretter uten nett.</span></div>
     <div class="step"><b>2</b><span>Trykk <b>Kjør gjennom alle ordene</b>. Den tar opp automatisk med en halv sekunds pause mellom hvert, og viser stort hvilket ord du skal si og akkurat når.</span></div>
-    <div class="step"><b>3</b><span><b>Si ordet hver gang skjermen blir grønn</b> — men med <b>litt ulik timing</b>. Noen ganger med en gang, noen ganger et lite øyeblikk etter. Sier du det på nøyaktig samme tidspunkt hver gang, lærer modellen bare å kjenne igjen ordet der, og bommer når du sier det litt annerledes. Blir et opptak feil, trykk <b>↶</b> på raden for å slette det siste.</span></div>
+    <div class="step"><b>3</b><span><b>Si ordet mens skjermen er grønn.</b> Vinduet er romslig, så du trenger ikke treffe presist — treningen finner selv ordet i opptaket og lærer det på mange ulike plasseringer. Blir et opptak feil, trykk <b>↶</b> på raden for å slette det siste.</span></div>
     <div class="step"><b>4</b><span>Trykk <b>Tren</b>, og test nederst. Gjør det <b>der skiva står</b> — rom og avstand betyr mye.</span></div>
     <button class="primary" id="btnLoad">Last modellen</button>
     <div class="msg" id="loadMsg"></div>
@@ -188,12 +188,12 @@ const BG = "_background_noise_";
 const WORDS = [
   // Bakgrunn står først med vilje: den er referansen vi måler ordopptakene mot,
   // så den bør være på plass før ordene tas opp.
-  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, long:true},
-  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:20},
-  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:20},
-  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:20},
-  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:20},
-  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:20}
+  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, dur:3},
+  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:20, dur:1.5},
+  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:20, dur:1.5},
+  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:20, dur:1.5},
+  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:20, dur:1.5},
+  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:20, dur:1.5}
 ];
 // Pausen varieres med vilje. Opptaket er et fast 1-sekunds vindu, og sier du
 // ordet på nøyaktig samme tidspunkt hver gang, lærer modellen bare å kjenne
@@ -334,7 +334,7 @@ function refreshCounts(){
 async function collectOne(w){
   if(auto || listening) return;
   try{
-    await transfer.collectExample(w.k, w.long ? {durationSec:2} : undefined);
+    await transfer.collectExample(w.k, {durationMultiplier:w.dur});
     logLine("opptak: "+w.label);
     const q=isSilent(w.k);
     if(q){ suspects.push(q); reportSuspects(); }
@@ -386,7 +386,7 @@ async function runAuto(list){
         autoUI("rec", w.label, i, w.burst);
         if(navigator.vibrate) navigator.vibrate(25);
         try{
-          await transfer.collectExample(w.k, w.long ? {durationSec:2} : undefined);
+          await transfer.collectExample(w.k, {durationMultiplier:w.dur});
         }catch(e){
           msg("recMsg","Opptak feilet: "+(e.message||e),"err");
           auto=false; break;
@@ -425,6 +425,12 @@ $("btnTrain").addEventListener("click", async () => {
   try{
     await transfer.train({
       epochs:30,
+      // Opptakene er lengre enn modellvinduet. Da klipper treningen ut flere
+      // vinduer fra hvert opptak, sentrert rundt den kraftigste delen — altså
+      // rundt selve ordet — men med ordet plassert litt ulikt i hvert vindu.
+      // Det er dette som gjør modellen upåvirket av NÅR i vinduet du sier det.
+      // Liten hopplengde = flere utsnitt per opptak.
+      windowHopRatio:0.1,
       // Blander bakgrunnsopptakene inn i ordene, så modellen lærer å kjenne
       // igjen et ord selv når vinduet er halvt fylt med romstøy.
       augmentByMixingNoiseRatio:0.5,
