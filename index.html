@@ -1162,8 +1162,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 26;
-const APP_ROLLOUT = "2026-08-20T17:42:38+00:00";
+const APP_VERSION = 27;
+const APP_ROLLOUT = "2026-08-20T17:48:37+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -3290,6 +3290,16 @@ function vHeard(word){
   }
   const kind = VMAP[word];
   if(kind==null) return;
+  // Ordene må følge de samme reglene som knappene: dobbeltrening har bare
+  // treff og bom, og bullseye har ingen trippel.
+  if(T.mode==="dbl" && kind>1){
+    voiceMsg("I dobbeltrening er det bare «treff» og «bom».");
+    return;
+  }
+  if(kind===3 && T.idx===SEQ.length-1){
+    voiceMsg("Bullseye har ingen trippel — si «treff» eller «dobbel».");
+    return;
+  }
   if(navigator.vibrate) navigator.vibrate(20);
   vSaid.push(word);
   tapDart(kind);
