@@ -1,8 +1,8 @@
 // Dartloggen service worker — gjør appen tilgjengelig uten nett
 // NB: nummeret her må følge APP_VERSION i index.html, som viser det på
 // startskjermen. Bump begge to i samme endring.
-const CACHE = "dartloggen-v13";
-const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
+const CACHE = "dartloggen-v14";
+const FILES = ["./", "./index.html", "./lydtrening.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-180.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(
@@ -27,6 +27,7 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const req = e.request;
   if (req.method !== "GET") return;
+  if (new URL(req.url).origin !== self.location.origin) return;
 
   const isHtml = req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
 

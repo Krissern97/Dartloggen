@@ -328,47 +328,6 @@
   }
   .verline b{font-weight:800;color:var(--ink2);letter-spacing:.04em}
 
-  /* ---------- stemmestyring ---------- */
-  .micbtn{
-    border:1.5px solid var(--line);background:var(--surface);color:var(--ink2);
-    font:inherit;font-size:17px;line-height:1;padding:7px 11px;border-radius:20px;cursor:pointer;
-    margin-left:8px;flex:none;
-  }
-  .micbtn.on{background:var(--green);border-color:var(--green);color:var(--green-ink)}
-  .micbtn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
-  .backrow .rowend{display:flex;align-items:center;min-width:0}
-
-  #voiceBar{
-    position:fixed;left:0;right:0;top:0;z-index:30;
-    display:none;align-items:center;gap:9px;
-    background:var(--green);color:var(--green-ink);
-    padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px;
-    font-size:12.5px;font-weight:700;box-shadow:0 1px 6px rgba(0,0,0,.18);
-  }
-  #voiceBar.on{display:flex}
-  #voiceBar.err{background:var(--red);color:#fff}
-  #voiceBar .vdot{
-    width:9px;height:9px;border-radius:50%;background:currentColor;flex:none;
-    animation:vpulse 1.4s ease-in-out infinite;
-  }
-  #voiceBar.err .vdot{animation:none}
-  @keyframes vpulse{0%,100%{opacity:.25;transform:scale(.75)}50%{opacity:1;transform:scale(1.2)}}
-  #voiceBar .vheard{
-    margin-left:auto;font-weight:600;opacity:.9;max-width:26%;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  }
-  #voiceBar .vlang{
-    display:flex;flex:none;border:1px solid currentColor;border-radius:13px;overflow:hidden;margin-left:6px;
-  }
-  #voiceBar .vlang button{
-    border:0;background:transparent;color:inherit;font:inherit;font-size:10.5px;font-weight:800;
-    letter-spacing:.06em;padding:4px 7px;cursor:pointer;touch-action:none;
-  }
-  #voiceBar .vlang button.active{background:var(--green-ink);color:var(--green)}
-  #voiceBar.err .vlang button.active{background:#fff;color:var(--red)}
-  body.voiceon #app{padding-top:calc(44px + env(safe-area-inset-top,0px))}
-  @media (prefers-reduced-motion: reduce){ #voiceBar .vdot{animation:none} }
-
   /* ---------- statistikkfilter ---------- */
   .filtcard{
     background:var(--surface);border:1px solid var(--line);border-radius:14px;
@@ -475,8 +434,7 @@
       <div id="boardTraining" style="display:none">
         <div class="backrow">
           <button class="backbtn" data-back>‹ Velg trening</button>
-          <span class="rowend"><span class="eyebrow" id="btModeName"></span>
-            <button class="micbtn" data-mic aria-label="Stemmestyring" aria-pressed="false">🎤</button></span>
+          <span class="eyebrow" id="btModeName"></span>
         </div>
         <div class="roundline">Runde <span class="num" id="tRound">1</span></div>
         <div class="statrow">
@@ -542,8 +500,7 @@
       <div id="tpView" style="display:none">
         <div class="backrow">
           <button class="backbtn" data-back>‹ Velg trening</button>
-          <span class="rowend"><span class="eyebrow">Måltrening</span>
-            <button class="micbtn" data-mic aria-label="Stemmestyring" aria-pressed="false">🎤</button></span>
+          <span class="eyebrow">Måltrening</span>
         </div>
         <div id="tpSetup">
           <div class="card">
@@ -949,14 +906,6 @@
           <label for="soundToggle">Lydeffekter (klapping)</label>
           <input type="checkbox" id="soundToggle">
         </div>
-        <div id="voiceSetting" style="display:none;border-top:1px solid var(--line);padding-top:12px">
-          <div class="eyebrow" style="margin-bottom:6px">Stemmestyring</div>
-          <div class="note" id="voiceWords"></div>
-        </div>
-        <div class="note" id="voiceUnsupported" style="display:none">
-          Nettleseren din støtter ikke talegjenkjenning, så stemmestyring er skjult.
-          Prøv Safari på iPhone eller Chrome på Android.
-        </div>
         <div class="rowbtns" style="margin-top:12px">
           <button class="ghost" id="btnExport">Eksporter backup</button>
           <button class="ghost" id="btnImport">Importer backup</button>
@@ -976,17 +925,6 @@
   </nav>
 </div>
 
-<div id="voiceBar" role="status" aria-live="polite">
-  <span class="vdot"></span>
-  <span id="voiceTxt">Lytter …</span>
-  <span class="vheard" id="voiceHeard"></span>
-  <span class="vlang" id="voiceLangSeg">
-    <button data-vl="nb-NO" aria-label="Norske kommandoer">NO</button><button data-vl="en-US" aria-label="English commands">EN</button>
-  </span>
-  <span class="vlang" id="voiceNumSeg">
-    <button data-vn="0" aria-label="Ord som kommandoer">ABC</button><button data-vn="1" aria-label="Tall som kommandoer">123</button>
-  </span>
-</div>
 
 <div id="faceFx"><span></span></div>
 
@@ -1004,8 +942,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 13;
-const APP_ROLLOUT = "2026-08-20T05:46:07+00:00";
+const APP_VERSION = 14;
+const APP_ROLLOUT = "2026-08-20T06:44:18+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1039,7 +977,7 @@ function fmtDur(ms){
 }
 // lokal dato → heltall dagnummer (trygt over sommertid)
 const dayNum = ts => { const d=new Date(ts); return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000; };
-let SET = load(LS.set,{sound:true,coDiff:"alle",voice:false,voiceNums:false});
+let SET = load(LS.set,{sound:true,coDiff:"alle"});
 function saveSet(){ save(LS.set,SET); }
 
 // registrer på pointerdown: trykket telles i det fingeren treffer skjermen,
@@ -1083,8 +1021,7 @@ document.querySelectorAll("nav.tabs button").forEach(b=>{
     document.querySelectorAll("main section").forEach(s=>s.classList.remove("active"));
     $("view-"+b.dataset.v).classList.add("active");
     stopQuiz();
-    if(typeof voiceSync==="function") voiceSync();
-    if(b.dataset.v==="stats") renderStats();
+      if(b.dataset.v==="stats") renderStats();
   });
 });
 
@@ -1150,7 +1087,6 @@ const TVIEWS=["modePicker","boardTraining","tpView","coView","quizView"];
 function showTView(id){
   TVIEWS.forEach(v=>$(v).style.display = v===id?"block":"none");
   if(id==="modePicker") updateResume();
-  if(typeof voiceSync==="function") voiceSync();
 }
 function updateResume(){
   const lbl = c => {
@@ -1187,10 +1123,10 @@ let T = null; // {mode,idx,darts,miss,s,d,t,turnHits:[],num:{},undo:[],pending,d
 function cfg(){ return MODECFG[T.mode]; }
 function freshRound(mode){
   return {mode,idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],
-          pending:false,done:false,start:null,prevBest:null};
+          turnIdx0:0,pending:false,done:false,start:null,prevBest:null};
 }
 function snapshot(){
-  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,
+  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,turnIdx0:T.turnIdx0,
                turnHits:[...T.turnHits],num:JSON.parse(JSON.stringify(T.num))});
   if(T.undo.length>200) T.undo.shift();
 }
@@ -1217,6 +1153,7 @@ function enterBoard(mode){
   }
   saved.mode = mode;
   saved.pending = !!saved.pending;
+  if(typeof saved.turnIdx0!=="number") saved.turnIdx0 = saved.idx || 0;
   if(saved.start===undefined) saved.start = null;
   T = saved;
   $("btModeName").textContent = MODECFG[mode].name;
@@ -1296,6 +1233,7 @@ function renderTraining(){
 function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
   if(T.done || T.pending || T.turnHits.length>=3) return;
   if(!T.start) T.start = Date.now();
+  if(T.turnHits.length===0) T.turnIdx0 = T.idx;   // målet runden faktisk startet på
   snapshot();
   T.turnHits.push(kind);
   if(kind===0){
@@ -1332,10 +1270,14 @@ function confirmTurn(snap){ // registrer runden; utastede piler telles som bom
   if(snap) snapshot();
   const pts = T.turnHits.reduce((a,k)=>a+k,0);
   const fillN = 3 - T.turnHits.length;
-  numMiss(SEQ[T.idx], fillN);
+  // De utastede pilene ble kastet på målet runden startet på. Traff du og gikk
+  // videre, hørte bommene fortsatt til det forrige tallet — ikke det nye.
+  const missIdx = (T.turnHits.length>0 && typeof T.turnIdx0==="number") ? T.turnIdx0 : T.idx;
+  numMiss(SEQ[missIdx], fillN);
   T.miss  += fillN;
   T.darts += 3;
   T.turnHits = [];
+  T.turnIdx0 = T.idx;
   saveCur(); renderTraining();
   showRoundFace(pts, T.mode);
 }
@@ -1440,7 +1382,7 @@ function boardUndo(){
   if(T.done || T.pending) return false;
   const u = T.undo.pop(); if(!u) return false;
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
-  T.turnHits=u.turnHits; T.num=u.num;
+  T.turnHits=u.turnHits; T.num=u.num; T.turnIdx0=u.turnIdx0;
   saveCur(); renderTraining();
   return true;
 }
@@ -1455,7 +1397,7 @@ onTap($("btnUndoCo"),()=>{ // «kom bare borti» — angre den siste pilen og fo
   const u = T.undo.pop();
   if(!u){ T.pending=false; T.endTs=null; saveCur(); renderTraining(); return; }
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
-  T.turnHits=u.turnHits; T.num=u.num;
+  T.turnHits=u.turnHits; T.num=u.num; T.turnIdx0=u.turnIdx0;
   T.pending=false; T.endTs=null; T.prevBest=null;
   saveCur(); renderTraining();
 });
@@ -1971,435 +1913,6 @@ armConfirm($("btnGameQuit"),()=>{
 onTap($("btnRematch"),()=>{
   $("gameOver").style.display="none"; $("gameSetup").style.display="block";
 });
-
-/* ================= STEMMESTYRING =================
-   Web Speech API. Krever nett (lyden gjenkjennes hos Google/Apple).
-   Knappene fungerer nøyaktig som før — stemme er kun et tillegg. */
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition || null;
-
-// To språk, så dere kan måle hvilket som faktisk treffer best. Byttes med
-// NO/EN-knappen i lyttestripa — også midt i en økt.
-//
-// «hit» er kommandoen for treff i BEGGE språk: det er et vanlig ord på norsk
-// også («kom hit»), og har en lang, tydelig vokal som bærer gjennom støy. Ett
-// ord mindre å tenke på når man bytter.
-//
-// Svært vanlige småord («no», «en», «back», «feil») er bevisst utelatt. Ett
-// slikt ord er nok til at vanlig prat i rommet fører piler inn i runden.
-const VOICE_LANGS = {
-  "nb-NO":{
-    label:"NO",
-    words:{
-      0:["bom","bomm","båm","bomb","bommet","bommer","boms"],
-      1:["hit","hitt","treff","traff","tref","treffer","enkel","enkelt"],
-      2:["dobbel","dobbelt","dobel","dobbla","dobbelen"],
-      3:["trippel","tripel","tripell","trippelt","trebbel","tripling"],
-      undo:["angre","angra","angrer","slett"]
-    },
-    say:["bom","hit","dobbel","trippel"], undoSay:"angre",
-    // Sifrene er selve poengsummen: 0 bom, 1 enkel, 2 dobbel, 3 trippel.
-    // Motoren skriver dem snart som ord, snart som tall — begge godtas.
-    nums:{
-      0:["null","0","nuller"],
-      1:["en","én","1","in"],
-      2:["to","2","tå"],
-      3:["tre","3","tres"],
-      undo:["angre","angra","angrer","slett"]
-    },
-    numSay:["null","en","to","tre"],
-    ready:"klar", again:"gjenta",
-    help:'Si <b>«hit»</b>, <b>«bom»</b>, <b>«dobbel»</b> eller <b>«trippel»</b>. Mest treffsikkert er <b>ett ord per pil</b>, med en liten pause mellom — sier du «hit bom hit» i ett strekk, hender det motoren slår ordene sammen. Si <b>«angre»</b> for å ta tilbake siste pil. «Treff» godtas også.',
-    numHelp:'Si poengsummen: <b>«null»</b> bom, <b>«en»</b> enkel, <b>«to»</b> dobbel, <b>«tre»</b> trippel. Hele runden i ett strekk fungerer ofte bedre med tall enn med ord — «en null en» — fordi gjenkjenningen er spesialtrent på sifferrekker. Si <b>«angre»</b> for å ta tilbake siste pil.'
-  },
-  "en-US":{
-    label:"EN",
-    words:{
-      0:["miss","missed","mis","misses"],
-      1:["hit","hits","hitt","heat"],
-      2:["double","doubles","doubled"],
-      3:["triple","triples","tripled","treble","trebles"],
-      undo:["undo","cancel","delete"]
-    },
-    say:["miss","hit","double","triple"], undoSay:"undo",
-    nums:{
-      0:["zero","0","oh","nought"],
-      1:["one","1","won"],
-      2:["two","2","too"],
-      3:["three","3"],
-      undo:["undo","cancel","delete"]
-    },
-    numSay:["zero","one","two","three"],
-    ready:"ready", again:"repeat",
-    help:'Say <b>«hit»</b>, <b>«miss»</b>, <b>«double»</b> or <b>«triple»</b>. Most reliable is <b>one word per dart</b>, with a short pause between — said in one breath, «hit miss hit» sometimes gets merged. Say <b>«undo»</b> to take back the last dart.',
-    numHelp:'Say the score: <b>«zero»</b> miss, <b>«one»</b> single, <b>«two»</b> double, <b>«three»</b> triple. A whole turn in one breath often works better with digits than with words — «one zero one» — because recognition is specifically trained on digit strings. Say <b>«undo»</b> to take back the last dart.'
-  }
-};
-const VOICE_MAXWORDS = 6;   // lengre ytringer er noen som prater, ikke en runde
-function voiceLangKey(){ return SET.voiceLang==="en-US" ? "en-US" : "nb-NO"; }
-function voiceNums(){ return !!SET.voiceNums; }
-// Slår sammen språk- og vokabularvalget, så resten av koden bare spør VL().
-function VL(){
-  const L=VOICE_LANGS[voiceLangKey()], d=voiceNums();
-  return {
-    label:L.label, ready:L.ready, again:L.again, undoSay:L.undoSay,
-    words: d ? L.nums    : L.words,
-    say:   d ? L.numSay  : L.say,
-    help:  d ? L.numHelp : L.help
-  };
-}
-
-const VOICE = {on:false, rec:null, stopping:false, speaking:false, echoUntil:0, lastSaid:"", lastInterim:"", againTs:0,
-               errN:0, errTs:0, wake:null, hideT:null};
-
-/* ---- tilbakelesing: appen sier hva den registrerte ----
-   Viktig: mikrofonen må døves mens den snakker, ellers hører den seg selv
-   og registrerer kommandoene en gang til. */
-const TTS = window.speechSynthesis || null;
-let ttsVoices = [];
-function loadTtsVoices(){
-  if(!TTS) return;
-  try{ ttsVoices = TTS.getVoices() || []; }catch(e){ ttsVoices = []; }
-}
-function ttsVoiceFor(lang){
-  if(!ttsVoices.length) loadTtsVoices();
-  const fam = lang==="en-US" ? /^en\b/i : /^(nb|nn|no)\b/i;
-  return ttsVoices.filter(v=>v.lang===lang)[0]
-      || ttsVoices.filter(v=>fam.test(v.lang||""))[0]
-      || null;
-}
-if(TTS){
-  loadTtsVoices();
-  try{ TTS.addEventListener("voiceschanged",loadTtsVoices); }catch(e){ TTS.onvoiceschanged=loadTtsVoices; }
-}
-// Mikrofonen skrus ALDRI av mens appen snakker — den bare filtrerer bort det
-// den hører av sin egen stemme. Å stoppe og starte økten ga et merkbart hakk
-// mellom hver runde, og på iOS koster hver ny økt ekstra oppstartstid.
-// Motoren slår sifre på rad sammen til ett tall — «en null tre» kommer som
-// «103». Vi deler dem opp igjen, så lenge hvert siffer er en gyldig poengsum
-// (0-3). Da spiller det ingen rolle om motoren skriver ord eller tall.
-function tokenize(text){
-  const raw=String(text).toLowerCase().replace(/[.,!?;:–—-]/g," ").split(/\s+/).filter(Boolean);
-  const out=[];
-  raw.forEach(t=>{
-    if(t.length>1 && /^[0-3]+$/.test(t)) t.split("").forEach(d=>out.push(d));
-    else out.push(t);
-  });
-  return out;
-}
-function cmdSeq(text){
-  return tokenize(text).map(matchWord).filter(k=>k!==null).join(",");
-}
-function isEcho(heard){
-  if(!VOICE.lastSaid) return false;
-  const norm=t=>String(t).toLowerCase().replace(/[^a-zæøå0-9]+/g," ").trim();
-  if(norm(heard)===norm(VOICE.lastSaid)) return true;   // fanger også "klar"/"gjenta"
-  const a=cmdSeq(heard);
-  return a!=="" && a===cmdSeq(VOICE.lastSaid);
-}
-function voiceHush(){                    // stopp lyttingen uten å slå av modusen
-  const rec=VOICE.rec;
-  if(rec){ try{ rec.abort(); }catch(e){} }
-}
-function voiceAfterSpeak(){
-  if(!VOICE.speaking) return;
-  VOICE.speaking=false;
-  // Mikrofonen var av mens vi snakket, så det eneste som kan lekke er halen
-  // av vår egen lyd rett før den er oppe igjen. 500 ms er for kort til å
-  // spise en ekte gjentakelse: motoren bruker uansett lengre tid på å avgjøre
-  // at DU er ferdig å snakke.
-  VOICE.echoUntil=Date.now()+500;
-  if(VOICE.on && VOICE.rec) voiceTryStart(VOICE.rec);
-}
-function voiceSay(text){
-  if(!TTS || !text){ return; }
-  VOICE.speaking=true;
-  VOICE.lastSaid=text;
-  voiceHush();          // appen skal aldri kunne høre sin egen stemme
-  let u;
-  try{
-    TTS.cancel();
-    u=new SpeechSynthesisUtterance(text);
-  }catch(e){ voiceAfterSpeak(); return; }
-  u.lang=voiceLangKey();
-  const v=ttsVoiceFor(voiceLangKey());
-  if(v) u.voice=v;
-  u.rate=1.25;                             // litt rask, så dødtiden blir kort
-  u.onend=voiceAfterSpeak;
-  u.onerror=voiceAfterSpeak;
-  try{ TTS.speak(u); }catch(e){ voiceAfterSpeak(); return; }
-  // sikkerhetsnett hvis verken onend eller onerror kommer
-  setTimeout(()=>{ if(VOICE.speaking) voiceAfterSpeak(); }, 400+text.length*110);
-}
-
-function lev(a,b){ // redigeringsavstand, for å tåle nesten-treff fra gjenkjenningen
-  if(a===b) return 0;
-  const m=a.length, n=b.length;
-  if(!m) return n;
-  if(!n) return m;
-  let prev=Array.from({length:n+1},(_,i)=>i), cur=new Array(n+1);
-  for(let i=1;i<=m;i++){
-    cur[0]=i;
-    for(let j=1;j<=n;j++)
-      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1));
-    const tmp=prev; prev=cur; cur=tmp;
-  }
-  return prev[n];
-}
-function matchWord(tok){
-  const W=VL().words;
-  for(const k in W) if(W[k].indexOf(tok)>=0) return k;
-  // Fuzzy-match bare lange ord. På korte ord er én bokstavs slingring altfor
-  // vidt: «som» og «kom» ligger da ett steg fra «bom», og «tre» fra «treff».
-  if(tok.length<5) return null;
-  let best=null, bestD=99;
-  for(const k in W) for(const w of W[k]){
-    if(w.length<5) continue;
-    const d=lev(tok,w);
-    if(d<bestD){ bestD=d; best=k; }
-  }
-  return bestD<=1 ? best : null;
-}
-
-// hvilken treningsside er åpen akkurat nå?
-function voiceTarget(){
-  if(!$("view-trening").classList.contains("active")) return null;
-  if($("boardTraining").style.display!=="none") return "board";
-  if($("tpView").style.display!=="none") return "tp";
-  return null;
-}
-function voiceApply(cmd){
-  const tgt=voiceTarget();
-  if(!tgt) return false;
-  if(cmd==="undo") return tgt==="board" ? boardUndo() : tpUndoStep();
-  const kind=+cmd;
-  if(tgt==="board"){
-    if(T.done || T.pending) return false;
-    tapDart(kind);
-  } else {
-    if(!TP || TP.left<=0) return false;
-    if(kind===3 && TP.n===25) return false;   // trippel finnes ikke på bull
-    tpDartTap(kind);
-  }
-  return true;
-}
-// Hvor mange piler er det plass til å registrere akkurat nå? Brukes til å
-// forkaste tolkninger som inneholder flere piler enn en runde kan ta.
-function voiceRoom(){
-  const t=voiceTarget();
-  if(t==="board") return (T && !T.done && !T.pending) ? Math.max(0,3-T.turnHits.length) : 0;
-  if(t==="tp")    return TP ? Math.max(0,Math.min(3,TP.left)) : 0;
-  return 0;
-}
-function parseCmds(transcript){
-  const toks=tokenize(transcript);
-  if(!toks.length || toks.length>VOICE_MAXWORDS) return null;   // hel setning = samtale
-  const cmds=[];
-  toks.forEach(t=>{ const k=matchWord(t); if(k!==null) cmds.push(k); });
-  if(!cmds.length) return null;
-  return {cmds, ratio:cmds.length/toks.length};
-}
-// Motoren gir flere tolkningsforslag av samme ytring. Tidligere tok vi det
-// FØRSTE som ga et gyldig resultat — så når forslag 1 var "miss miss" og
-// forslag 2 "miss hit miss", vant det første og midterste pilen forsvant.
-// Nå vurderes alle, og den som fanger flest kommandoer vinner.
-function bestParse(cands){
-  const room=voiceRoom();
-  let best=null;
-  cands.forEach(txt=>{
-    if(!txt) return;
-    const p=parseCmds(txt);
-    if(!p) return;
-    if(p.cmds.filter(c=>c!=="undo").length>room) return;
-    if(!best || p.cmds.length>best.cmds.length ||
-       (p.cmds.length===best.cmds.length && p.ratio>best.ratio)) best=p;
-  });
-  return best;
-}
-function applyCmds(cmds){
-  let n=0;
-  const label=[];
-  cmds.forEach(c=>{
-    if(voiceApply(c)){ n++; label.push(c==="undo" ? VL().undoSay : VL().say[+c]); }
-  });
-  if(n){
-    voiceStatus("Registrert", label.join(" · "));
-    // kort dunk i lomma så du vet det gikk inn uten å måtte se på skjermen.
-    // (iOS støtter ikke vibrate — der er tilbakelesingen tilbakemeldingen.)
-    if(navigator.vibrate) navigator.vibrate(35);
-    voiceSay(label.join(", "));
-  }
-  return n>0;
-}
-
-function voiceStatus(txt, heard){
-  const bar=$("voiceBar");
-  $("voiceTxt").textContent=txt;
-  $("voiceHeard").textContent=heard||"";
-  bar.classList.remove("err");
-  clearTimeout(VOICE.hideT);
-  VOICE.hideT=setTimeout(()=>{ if(VOICE.on){ $("voiceTxt").textContent="Lytter …"; $("voiceHeard").textContent=""; } },2500);
-}
-function voiceError(txt){
-  $("voiceBar").classList.add("on","err");
-  $("voiceTxt").textContent=txt;
-  $("voiceHeard").textContent="";
-  document.body.classList.add("voiceon");
-  clearTimeout(VOICE.hideT);
-  VOICE.hideT=setTimeout(()=>{ if(!VOICE.on) renderVoice(); },5000);
-}
-function renderVoiceLang(){
-  $("voiceLangSeg").querySelectorAll("button").forEach(b=>
-    b.classList.toggle("active", b.dataset.vl===voiceLangKey()));
-  $("voiceNumSeg").querySelectorAll("button").forEach(b=>
-    b.classList.toggle("active", (b.dataset.vn==="1")===voiceNums()));
-  if($("voiceWords")) $("voiceWords").innerHTML=VL().help;
-}
-// Vokabularbytte trenger ingen ny lytteøkt — rec.lang er den samme, det er
-// bare hvilke ord vi godtar som endrer seg.
-function setVoiceNums(on){
-  if(voiceNums()===on) return;
-  SET.voiceNums=on; saveSet();
-  renderVoiceLang();
-  if(VOICE.on) voiceSay(VL().ready);
-}
-function setVoiceLang(key){
-  if(voiceLangKey()===key) return;
-  SET.voiceLang=key; saveSet();
-  renderVoiceLang();
-  // rec.lang kan ikke endres på en økt som allerede kjører — den må startes
-  // på nytt. «klar»/«ready» på det nye språket bekrefter at byttet gikk.
-  if(VOICE.on){ voiceStop(); voiceStart(); }
-}
-function renderVoice(){
-  renderVoiceLang();
-  document.querySelectorAll("[data-mic]").forEach(b=>{
-    b.classList.toggle("on", VOICE.on);
-    b.setAttribute("aria-pressed", VOICE.on?"true":"false");
-  });
-  const bar=$("voiceBar");
-  bar.classList.toggle("on", VOICE.on);
-  if(VOICE.on) bar.classList.remove("err");
-  document.body.classList.toggle("voiceon", VOICE.on);
-  if(VOICE.on){ $("voiceTxt").textContent="Lytter …"; $("voiceHeard").textContent=""; }
-}
-
-function voiceStart(){
-  if(!SR || VOICE.on) return;
-  let rec;
-  try{ rec=new SR(); }catch(e){ voiceError("Fikk ikke startet talegjenkjenning"); return; }
-  rec.lang=voiceLangKey();
-  rec.continuous=true;        // ignoreres på iOS — derfor restarter vi i onend
-  rec.interimResults=true;
-  rec.maxAlternatives=4;
-  rec.onresult=e=>{
-    if(VOICE.speaking) return;            // vår egen stemme — skal aldri registreres
-    let interim="";
-    for(let i=e.resultIndex;i<e.results.length;i++){
-      const r=e.results[i];
-      if(r.isFinal){
-        // vår egen stemme, enten mens vi snakker eller som etterslep rett etterpå
-        if(Date.now()<VOICE.echoUntil && isEcho((r[0]&&r[0].transcript)||"")) continue;
-        // Alle alternativene fra motoren er kandidater — og den siste interim-
-        // teksten i tillegg, siden ord ofte er intakte der før motorens siste
-        // språkmodell-runde slår dem sammen ("miss hit miss" -> "miss miss").
-        const cands=[];
-        for(let a=0;a<r.length;a++) if(r[a] && r[a].transcript) cands.push(r[a].transcript);
-        if(VOICE.lastInterim) cands.push(VOICE.lastInterim);
-        VOICE.lastInterim="";
-        const best=bestParse(cands);
-        const done = best ? applyCmds(best.cmds) : false;
-        if(!done){
-          const heard=((r[0]&&r[0].transcript)||"").trim();
-          voiceStatus("Hørte ikke en kommando", heard);
-          if(navigator.vibrate) navigator.vibrate([50,70,50]);   // annen rytme = si det på nytt
-          // si bare fra hvis det lignet et forsøk. Lange setninger er noen
-          // andre som prater i rommet, og da skal appen holde munn.
-          if(heard && heard.split(/\s+/).length<=4) voiceSay(VL().again);
-        }
-      } else interim+=r[0].transcript;
-    }
-    if(interim.trim()){ VOICE.lastInterim=interim.trim(); voiceStatus("Lytter …", interim.trim()); }
-  };
-  rec.onerror=e=>{
-    const t=e.error;
-    if(t==="no-speech"||t==="aborted") return;          // onend starter på nytt
-    if(t==="not-allowed"||t==="service-not-allowed"){
-      SET.voice=false; saveSet(); voiceStop();
-      voiceError("Mikrofonen er blokkert — gi tilgang i innstillingene");
-      return;
-    }
-    const now=Date.now();
-    VOICE.errN = (now-VOICE.errTs<10000) ? VOICE.errN+1 : 1;
-    VOICE.errTs=now;
-    if(VOICE.errN>=5){
-      SET.voice=false; saveSet(); voiceStop();
-      voiceError(t==="network" ? "Mistet nettforbindelsen — stemme slått av" : "Stemmestyring stoppet");
-    }
-  };
-  // iOS avslutter økten etter hver ytring uansett. Start igjen umiddelbart —
-  // men ikke mens appen snakker, for da ville den hørt seg selv.
-  rec.onend=()=>{
-    if(VOICE.on && !VOICE.stopping && !VOICE.speaking) setTimeout(()=>voiceTryStart(rec),60);
-  };
-  VOICE.rec=rec; VOICE.on=true; VOICE.stopping=false; VOICE.speaking=false; VOICE.errN=0;
-  voiceTryStart(rec);
-  renderVoice();
-  voiceWake();
-  // «Klar» bekrefter at modusen er på — og låser samtidig opp talesyntesen,
-  // som på iOS må startes fra et trykk første gang.
-  voiceSay(VL().ready);
-}
-function voiceTryStart(rec){
-  if(!VOICE.on || VOICE.rec!==rec) return;
-  try{ rec.start(); }catch(e){}   // kaster hvis den allerede kjører — ufarlig
-}
-function voiceStop(){
-  VOICE.stopping=true; VOICE.on=false; VOICE.speaking=false;
-  const rec=VOICE.rec; VOICE.rec=null;
-  if(rec){ try{ rec.onend=null; rec.stop(); }catch(e){} try{ rec.abort(); }catch(e){} }
-  if(TTS){ try{ TTS.cancel(); }catch(e){} }
-  renderVoice();
-  voiceUnwake();
-}
-function toggleVoice(){
-  if(!SR){ voiceError("Nettleseren støtter ikke talegjenkjenning"); return; }
-  if(VOICE.on){ SET.voice=false; saveSet(); voiceStop(); }
-  else { SET.voice=true; saveSet(); voiceStart(); }
-}
-// start/stopp automatisk når du går inn og ut av en treningsside.
-// Kallet skjer inne i et trykk, så iOS godtar mikrofonstarten.
-function voiceSync(){
-  if(!SR) return;
-  if(voiceTarget() && SET.voice){ if(!VOICE.on) voiceStart(); }
-  else if(VOICE.on) voiceStop();
-}
-
-// hold skjermen våken — låser telefonen seg, dør mikrofonen midt i økta
-function voiceWake(){
-  try{
-    if(navigator.wakeLock && !VOICE.wake)
-      navigator.wakeLock.request("screen").then(w=>{ VOICE.wake=w; }).catch(()=>{});
-  }catch(e){}
-}
-function voiceUnwake(){
-  try{ if(VOICE.wake){ VOICE.wake.release(); VOICE.wake=null; } }catch(e){}
-}
-document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){ if(VOICE.on) voiceStop(); }
-  else voiceSync();
-});
-
-document.querySelectorAll("[data-mic]").forEach(b=>onTap(b,toggleVoice));
-$("voiceLangSeg").querySelectorAll("button").forEach(b=>onTap(b,()=>setVoiceLang(b.dataset.vl)));
-$("voiceNumSeg").querySelectorAll("button").forEach(b=>onTap(b,()=>setVoiceNums(b.dataset.vn==="1")));
-if(SR){
-  renderVoiceLang();
-  $("voiceSetting").style.display="block";
-} else {
-  document.querySelectorAll("[data-mic]").forEach(b=>b.style.display="none");
-  $("voiceUnsupported").style.display="block";
-  SET.voice=false;
-}
 
 /* ================= STATISTIKK ================= */
 /* ---- filtertilstand (egen lagringsnøkkel — rører ikke eksisterende data) ---- */
@@ -3203,8 +2716,7 @@ armConfirm($("btnWipe"),()=>{
     if(k && k.startsWith("dart_")) keys.push(k);
   }
   keys.forEach(k=>localStorage.removeItem(k));
-  SET={sound:true,coDiff:"alle",voice:false};
-  if(VOICE.on) voiceStop();
+  SET={sound:true,coDiff:"alle"};
   F=JSON.parse(JSON.stringify(DEF_F));
   T=freshRound("rtb");
   renderStats(); updateResume();
