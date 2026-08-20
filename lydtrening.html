@@ -116,7 +116,7 @@
   <div class="card">
     <div class="step"><b>1</b><span>Trykk <b>Last modellen</b>. Den hentes én gang (~2 MB), og kjører deretter uten nett.</span></div>
     <div class="step"><b>2</b><span>Trykk <b>Kjør gjennom alle ordene</b>. Den tar opp automatisk med en halv sekunds pause mellom hvert, og viser stort hvilket ord du skal si og akkurat når.</span></div>
-    <div class="step"><b>3</b><span><b>Si ordet hver gang skjermen blir grønn.</b> Blir et opptak feil — du sa ingenting, eller sa feil ord — trykk <b>↶</b> på den raden for å slette det siste. Et stille opptak ødelegger modellen mer enn et manglende.</span></div>
+    <div class="step"><b>3</b><span><b>Si ordet hver gang skjermen blir grønn</b> — men med <b>litt ulik timing</b>. Noen ganger med en gang, noen ganger et lite øyeblikk etter. Sier du det på nøyaktig samme tidspunkt hver gang, lærer modellen bare å kjenne igjen ordet der, og bommer når du sier det litt annerledes. Blir et opptak feil, trykk <b>↶</b> på raden for å slette det siste.</span></div>
     <div class="step"><b>4</b><span>Trykk <b>Tren</b>, og test nederst. Gjør det <b>der skiva står</b> — rom og avstand betyr mye.</span></div>
     <button class="primary" id="btnLoad">Last modellen</button>
     <div class="msg" id="loadMsg"></div>
@@ -126,6 +126,7 @@
     <h2>Ordene</h2>
     <div class="card" id="words"></div>
     <button class="primary" id="btnAutoAll">Kjør gjennom alle ordene</button>
+    <button class="ghost hide" id="btnDropSilent" style="width:100%;margin-top:9px"></button>
     <div class="msg" id="recMsg"></div>
 
     <h2>Tren modellen</h2>
@@ -185,14 +186,21 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
    "ingen kommando", altså rommet slik det er. */
 const BG = "_background_noise_";
 const WORDS = [
-  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:15},
-  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:15},
-  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:15},
-  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:15},
-  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:15},
-  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, long:true}
+  // Bakgrunn står først med vilje: den er referansen vi måler ordopptakene mot,
+  // så den bør være på plass før ordene tas opp.
+  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, long:true},
+  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:20},
+  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:20},
+  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:20},
+  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:20},
+  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:20}
 ];
-const GAP = 500;                        // pause mellom hvert opptak
+// Pausen varieres med vilje. Opptaket er et fast 1-sekunds vindu, og sier du
+// ordet på nøyaktig samme tidspunkt hver gang, lærer modellen bare å kjenne
+// igjen ordet DER. Ved gjenkjenning glir vinduet fritt, og ordet kan havne hvor
+// som helst i det. Litt ujevn rytme sprer treningsdataene utover vinduet.
+const GAP_MIN = 350, GAP_MAX = 800;
+const gap = () => GAP_MIN + Math.random()*(GAP_MAX-GAP_MIN);
 const STORE = "indexeddb://dartloggen-lyd";
 
 let base=null, transfer=null, listening=false, auto=false;
@@ -207,6 +215,56 @@ function logLine(t){
   el.textContent = stamp+"  "+t+"\n"+el.textContent;
 }
 const wordOf = k => WORDS.filter(w=>w.k===k)[0];
+
+/* Et opptak uten lyd i lærer modellen at stillhet betyr det ordet, og da
+   svarer den ordet hele tiden. Vi måler nivået i hvert opptak og sammenligner
+   med bakgrunnsopptakene: er ordet like stille som rommet, kom det ikke med. */
+function sampleLevel(rec){
+  try{
+    const d=rec.example.spectrogram.data;
+    let sum=0;
+    for(let i=0;i<d.length;i++) sum+=d[i];
+    return sum/d.length;
+  }catch(e){ return null; }
+}
+function examplesOf(k){
+  if(!(counts()[k]||0)) return [];
+  try{ return transfer.getExamples(k)||[]; }catch(e){ return []; }
+}
+function bgLevel(){
+  const vals=examplesOf(BG).map(sampleLevel).filter(v=>v!==null).sort((a,b)=>a-b);
+  return vals.length ? vals[Math.floor(vals.length/2)] : null;   // median
+}
+// Konservativ med vilje: flagger bare opptak som er like stille som rommet.
+// Da blir det få falske alarmer, og det fanger nettopp det tomme opptaket.
+function isSilent(k){
+  if(k===BG) return null;
+  const ref=bgLevel();
+  if(ref===null) return null;
+  const ex=examplesOf(k);
+  if(!ex.length) return null;
+  const last=ex[ex.length-1];
+  const lvl=sampleLevel(last);
+  if(lvl===null) return null;
+  return lvl<=ref ? {uid:last.uid, lvl, ref} : null;
+}
+let suspects=[];
+function reportSuspects(){
+  const btn=$("btnDropSilent");
+  if(!suspects.length){ btn.classList.add("hide"); return; }
+  btn.classList.remove("hide");
+  btn.textContent="Slett "+suspects.length+" stille opptak";
+  msg("recMsg", suspects.length+" av opptakene var like stille som rommet — der kom nok ikke ordet med. "+
+      "Slett dem, eller ta dem opp på nytt.", "warn");
+}
+$("btnDropSilent").addEventListener("click", ()=>{
+  let n=0;
+  suspects.forEach(sx=>{ try{ transfer.removeExample(sx.uid); n++; }catch(e){} });
+  suspects=[];
+  refreshCounts(); reportSuspects();
+  msg("recMsg","Slettet "+n+" stille opptak. Ta dem opp på nytt før du trener.","ok");
+  logLine("slettet "+n+" stille opptak");
+});
 
 /* ---------- 1. last basismodellen ---------- */
 $("btnLoad").addEventListener("click", async () => {
@@ -278,7 +336,9 @@ async function collectOne(w){
   try{
     await transfer.collectExample(w.k, w.long ? {durationSec:2} : undefined);
     logLine("opptak: "+w.label);
-    msg("recMsg","Tok opp «"+w.label+"».","ok");
+    const q=isSilent(w.k);
+    if(q){ suspects.push(q); reportSuspects(); }
+    else msg("recMsg","Tok opp «"+w.label+"».","ok");
   }catch(e){ msg("recMsg","Opptak feilet: "+(e.message||e),"err"); }
   refreshCounts();
 }
@@ -332,9 +392,11 @@ async function runAuto(list){
           auto=false; break;
         }
         refreshCounts();
+        const q=isSilent(w.k);
+        if(q) suspects.push(q);
         if(!auto) break;
         autoUI("wait", w.label, i+1, w.burst);
-        await sleep(GAP);
+        await sleep(gap());
       }
       logLine("autoopptak: "+w.label);
     }
@@ -342,7 +404,8 @@ async function runAuto(list){
     auto=false;
     $("autoPanel").classList.remove("on","rec");
     refreshCounts();
-    msg("recMsg","Ferdig med opptak. Sjekk tallene over — er noe feil, bruk ↶ på den raden.","ok");
+    if(suspects.length) reportSuspects();
+    else msg("recMsg","Ferdig med opptak. Sjekk tallene over — er noe feil, bruk ↶ på den raden.","ok");
   }
 }
 $("btnAutoStop").addEventListener("click", ()=>{ auto=false; });
@@ -463,6 +526,7 @@ $("btnExport").addEventListener("click", async () => {
 $("btnClear").addEventListener("click", () => {
   if(auto || listening) return;
   WORDS.forEach(w => { try{ transfer.clearExamples(w.k); }catch(e){} });
+  suspects=[]; reportSuspects();
   refreshCounts();
   msg("saveMsg","Alle opptak er slettet.");
 });
