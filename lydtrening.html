@@ -35,6 +35,72 @@
   .sub{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.45}
   h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:22px 2px 8px;color:var(--ink2)}
   .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .primary{
+    border:0;background:var(--green);color:var(--green-ink);font:inherit;font-size:15px;font-weight:800;
+    letter-spacing:.05em;text-transform:uppercase;padding:15px 18px;border-radius:13px;cursor:pointer;width:100%;
+    box-shadow:var(--shadow);
+  }
+  .primary:disabled{opacity:.4;cursor:default}
+  .primary.stop{background:var(--red);color:#fff}
+  .ghost{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-size:13px;font-weight:700;padding:11px;border-radius:11px;cursor:pointer;flex:1;
+  }
+  .row{display:flex;gap:9px;margin-top:10px}
+  .msg{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.5;min-height:18px;white-space:pre-line}
+  .msg.err{color:var(--red);font-weight:700}
+  .msg.ok{color:var(--green);font-weight:700}
+
+  .wrow{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line)}
+  .wrow:first-child{border-top:0}
+  .wlab{flex:none;width:72px;font-weight:800;font-size:13.5px}
+  .wbar{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:20px}
+  .wbar i{display:block;height:100%;background:var(--green);border-radius:4px;width:0}
+  .wbar i.low{background:var(--gold)}
+  .wcount{flex:none;width:34px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+  .wbtn{
+    flex:none;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);
+    font:inherit;font-weight:800;font-size:13px;width:34px;height:34px;border-radius:9px;cursor:pointer;
+    display:grid;place-items:center;padding:0;
+  }
+  .wbtn.go{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+  .wbtn:disabled{opacity:.35}
+
+  .meter{height:26px;background:var(--surface2);border-radius:8px;overflow:hidden;position:relative;margin-top:10px}
+  .meter i{display:block;height:100%;background:var(--green-mid);width:0}
+  .meter.hot i{background:var(--green)}
+  .meter b{
+    position:absolute;inset:0;display:grid;place-items:center;
+    font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2);
+  }
+
+  .capture{
+    position:fixed;inset:0;z-index:40;background:var(--bg);display:none;
+    flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:24px;text-align:center;
+  }
+  .capture.on{display:flex}
+  .capture.hot{background:var(--green);color:var(--green-ink)}
+  .ccue{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.8}
+  .cword{font-size:clamp(46px,16vw,72px);font-weight:800;line-height:1.05}
+  .cprog{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.8}
+  .cdots{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center;max-width:260px}
+  .cdots i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.25}
+  .cdots i.done{opacity:1}
+  .cmeter{width:min(280px,80vw);height:8px;background:var(--surface2);border-radius:4px;margin-top:18px;overflow:hidden}
+  .cmeter i{display:block;height:100%;background:var(--green);width:0}
+  .capture.hot .cmeter{background:rgba(255,255,255,.3)}
+  .capture.hot .cmeter i{background:#fff}
+  .cstop{
+    margin-top:24px;border:1.5px solid currentColor;background:none;color:inherit;
+    font:inherit;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:13px 26px;border-radius:12px;cursor:pointer;
+  }
+
+  .heard{text-align:center;padding:16px 10px;background:var(--surface2);border-radius:12px;margin-top:12px}
+  .heard .big{font-size:38px;font-weight:800;line-height:1.1}
+  .heard .conf{font-size:12px;color:var(--ink2);margin-top:4px;font-variant-numeric:tabular-nums}
+  .hide{display:none}
+  .back{display:inline-block;color:var(--green);font-size:13px;font-weight:800;text-decoration:none;margin-bottom:12px}
   .step{display:flex;gap:9px;align-items:baseline;margin-bottom:9px}
   .step b{
     flex:none;width:20px;height:20px;border-radius:50%;background:var(--green);color:var(--green-ink);
@@ -42,568 +108,499 @@
   }
   .step span{font-size:13px;line-height:1.45;color:var(--ink2)}
   .step span b{display:inline;width:auto;height:auto;background:none;color:var(--ink);font-weight:800}
-  .primary{
-    border:0;background:var(--green);color:var(--green-ink);font:inherit;font-size:15px;font-weight:800;
-    letter-spacing:.05em;text-transform:uppercase;padding:15px 18px;border-radius:13px;cursor:pointer;width:100%;
-    box-shadow:var(--shadow);margin-top:6px;
-  }
-  .primary:disabled{opacity:.4;cursor:default}
-  .ghost{
-    border:1px solid var(--line);background:var(--surface);color:var(--ink2);
-    font:inherit;font-size:13px;font-weight:700;padding:11px;border-radius:11px;cursor:pointer;flex:1;
-  }
-  .ghost:disabled{opacity:.4;cursor:default}
-  .row{display:flex;gap:9px;margin-top:10px}
-  .msg{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.5;min-height:18px;white-space:pre-line}
-  .msg.err{color:var(--red);font-weight:700}
-  .msg.ok{color:var(--green);font-weight:700}
-  .msg.warn{color:var(--gold);font-weight:700;background:var(--gold-soft);padding:9px 11px;border-radius:9px}
-
-  .wrow{display:flex;align-items:center;gap:7px;padding:9px 0;border-top:1px solid var(--line)}
-  .wrow:first-child{border-top:0}
-  .wlab{flex:none;width:66px;font-weight:800;font-size:13.5px}
-  .wlab small{display:block;font-size:10px;font-weight:600;color:var(--ink2)}
-  .wbar{flex:1;height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;min-width:24px}
-  .wbar i{display:block;height:100%;background:var(--green);border-radius:4px;width:0}
-  .wbar i.low{background:var(--gold)}
-  .wcount{flex:none;width:30px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--ink2)}
-  .wbtn{
-    flex:none;border:1px solid var(--line);background:var(--surface2);color:var(--ink2);
-    font:inherit;font-weight:800;font-size:13px;width:32px;height:32px;border-radius:9px;cursor:pointer;
-    display:grid;place-items:center;padding:0;
-  }
-  .wbtn.go{border-color:var(--green);background:var(--green-soft);color:var(--green)}
-  .wbtn:disabled{opacity:.35}
-
-  /* autoopptak */
-  .autopanel{
-    position:fixed;inset:0;z-index:40;background:var(--bg);
-    display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;
-    padding:24px;text-align:center;
-  }
-  .autopanel.on{display:flex}
-  .autopanel.rec{background:var(--green);color:var(--green-ink)}
-  .acue{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.75}
-  .aword{font-size:clamp(48px,17vw,76px);font-weight:800;line-height:1.05}
-  .aprog{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.75;margin-top:4px}
-  .adots{display:flex;gap:5px;margin-top:14px;flex-wrap:wrap;justify-content:center;max-width:280px}
-  .adots i{width:8px;height:8px;border-radius:50%;background:currentColor;opacity:.25}
-  .adots i.done{opacity:1}
-  .astop{
-    margin-top:26px;border:1.5px solid currentColor;background:none;color:inherit;
-    font:inherit;font-size:13px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
-    padding:13px 26px;border-radius:12px;cursor:pointer;
-  }
-
   .seg{display:flex;gap:8px;margin-bottom:10px}
   .seg button{
     flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
     font:inherit;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;cursor:pointer;
   }
   .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
-  .heard{text-align:center;padding:18px 10px;background:var(--surface2);border-radius:12px;margin-top:12px}
-  .heard .big{font-size:38px;font-weight:800;line-height:1.1}
-  .heard .conf{font-size:12px;color:var(--ink2);margin-top:4px;font-variant-numeric:tabular-nums}
-  .hide{display:none}
-  .back{display:inline-block;color:var(--green);font-size:13px;font-weight:800;text-decoration:none;margin-bottom:12px}
 </style>
 
 <div id="app">
   <a class="back" href="./">‹ Tilbake til Dartloggen</a>
   <h1>Lydtrening</h1>
-  <div class="sub">Lær appen dine egne kommandoord — modellen trenes og kjører lokalt på telefonen.</div>
+  <div class="sub">Ordgjenkjenning som finner ordet selv — ingen fast tidsvindu, ingen nedlasting, alt skjer på telefonen.</div>
 
   <div class="card">
-    <div class="step"><b>1</b><span>Trykk <b>Last modellen</b>. Den hentes én gang (~2 MB), og kjører deretter uten nett.</span></div>
-    <div class="step"><b>2</b><span>Trykk <b>Kjør gjennom alle ordene</b>. Den tar opp automatisk med en halv sekunds pause mellom hvert, og viser stort hvilket ord du skal si og akkurat når.</span></div>
-    <div class="step"><b>3</b><span><b>Si ordet mens skjermen er grønn.</b> Vinduet er romslig, så du trenger ikke treffe presist — treningen finner selv ordet i opptaket og lærer det på mange ulike plasseringer. Blir et opptak feil, trykk <b>↶</b> på raden for å slette det siste.</span></div>
-    <div class="step"><b>4</b><span>Trykk <b>Tren</b>, og test nederst. Gjør det <b>der skiva står</b> — rom og avstand betyr mye.</span></div>
-    <button class="primary" id="btnLoad">Last modellen</button>
-    <div class="msg" id="loadMsg"></div>
+    <div class="step"><b>1</b><span>Trykk <b>Slå på mikrofonen</b> og gi tilgang. Måleren under viser at lyden kommer inn.</span></div>
+    <div class="step"><b>2</b><span>Trykk <b>▶</b> ved et ord og si det <b>i ditt eget tempo</b>. Den fanger hvert ord etter hvert som du sier dem. Åtte av hvert holder.</span></div>
+    <div class="step"><b>3</b><span>Test nederst. Du ser avstanden til hvert ord, så du kan se <b>hvorfor</b> den valgte som den gjorde.</span></div>
+    <button class="primary" id="btnMic">Slå på mikrofonen</button>
+    <div class="meter" id="meter"><i></i><b id="meterTxt">av</b></div>
+    <div class="msg" id="micMsg"></div>
   </div>
 
   <div id="main" class="hide">
-    <h2>Ordene</h2>
+    <h2>Fasit — les inn ordene</h2>
     <div class="card" id="words"></div>
-    <button class="primary" id="btnFree">Snakk fritt — si hvert ord mange ganger</button>
-    <button class="ghost" id="btnAutoAll" style="width:100%;margin-top:9px">Med fast rytme i stedet</button>
-    <button class="ghost hide" id="btnDropSilent" style="width:100%;margin-top:9px"></button>
+    <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
     <div class="msg" id="recMsg"></div>
-
-    <h2>Tren modellen</h2>
-    <div class="card">
-      <button class="primary" id="btnTrain" disabled>Tren</button>
-      <div class="msg" id="trainMsg"></div>
-      <div class="row">
-        <button class="ghost" id="btnSave" disabled>Lagre på telefonen</button>
-        <button class="ghost" id="btnLoadSaved">Hent lagret</button>
-      </div>
-      <div class="row">
-        <button class="ghost" id="btnExport" disabled>Last ned modellfiler</button>
-        <button class="ghost" id="btnClear">Slett alle opptak</button>
-      </div>
-      <div class="msg" id="saveMsg"></div>
-    </div>
 
     <h2>Test</h2>
     <div class="card">
       <div class="seg" id="sens">
-        <button data-s="0.80">Streng</button>
-        <button data-s="0.62" class="active">Normal</button>
-        <button data-s="0.45">Følsom</button>
+        <button data-s="strict">Streng</button>
+        <button data-s="normal" class="active">Normal</button>
+        <button data-s="loose">Følsom</button>
       </div>
       <button class="primary" id="btnListen" disabled>Start lytting</button>
       <div class="heard">
         <div class="big" id="heardWord">–</div>
-        <div class="conf" id="heardConf">Tren modellen først</div>
+        <div class="conf" id="heardConf">Les inn fasit først</div>
       </div>
       <div id="live" style="margin-top:12px"></div>
       <div class="msg" id="listenMsg"></div>
     </div>
 
-    <h2>Logg</h2>
+    <h2>Lagring</h2>
     <div class="card">
-      <div class="msg" id="log" style="font-variant-numeric:tabular-nums"></div>
+      <div class="row">
+        <button class="ghost" id="btnSave">Lagre fasit</button>
+        <button class="ghost" id="btnWipe">Slett all fasit</button>
+      </div>
+      <div class="msg" id="saveMsg"></div>
     </div>
+
+    <h2>Logg</h2>
+    <div class="card"><div class="msg" id="log" style="font-variant-numeric:tabular-nums"></div></div>
   </div>
 </div>
 
-<div class="autopanel" id="autoPanel">
-  <div class="acue" id="autoCue">Gjør deg klar</div>
-  <div class="aword" id="autoWord">treff</div>
-  <div class="aprog" id="autoProg">0 / 0</div>
-  <div class="adots" id="autoDots"></div>
-  <button class="astop" id="btnAutoStop">Stopp</button>
+<div class="capture" id="cap">
+  <div class="ccue" id="capCue">Si ordet</div>
+  <div class="cword" id="capWord">treff</div>
+  <div class="cprog" id="capProg">0 / 8</div>
+  <div class="cdots" id="capDots"></div>
+  <div class="cmeter"><i id="capMeter"></i></div>
+  <button class="cstop" id="capStop">Ferdig</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.5.4/dist/speech-commands.min.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/* BG er påkrevd av biblioteket og må hete akkurat dette — klassen for
-   "ingen kommando", altså rommet slik det er. */
-const BG = "_background_noise_";
-const WORDS = [
-  // Bakgrunn står først med vilje: den er referansen vi måler ordopptakene mot,
-  // så den bør være på plass før ordene tas opp.
-  {k:BG,        label:"bakgrunn", hint:"si ingenting",min:10, burst:10, dur:3},
-  {k:"treff",   label:"treff",    hint:"enkel",       min:15, burst:20, dur:1.5},
-  {k:"bom",     label:"bom",      hint:"pil utenfor", min:15, burst:20, dur:1.5},
-  {k:"dobbel",  label:"dobbel",   hint:"dobbel",      min:15, burst:20, dur:1.5},
-  {k:"trippel", label:"trippel",  hint:"trippel",     min:15, burst:20, dur:1.5},
-  {k:"angre",   label:"angre",    hint:"ta tilbake",  min:15, burst:20, dur:1.5}
-];
-// Pausen varieres med vilje. Opptaket er et fast 1-sekunds vindu, og sier du
-// ordet på nøyaktig samme tidspunkt hver gang, lærer modellen bare å kjenne
-// igjen ordet DER. Ved gjenkjenning glir vinduet fritt, og ordet kan havne hvor
-// som helst i det. Litt ujevn rytme sprer treningsdataene utover vinduet.
-const GAP_MIN = 350, GAP_MAX = 800;
-const gap = () => GAP_MIN + Math.random()*(GAP_MAX-GAP_MIN);
-const STORE = "indexeddb://dartloggen-lyd";
+/* ============================================================
+   1. SIGNALBEHANDLING
+   Samme algoritmer som er testet mot syntetiske ord i Node:
+   fant ordet på 30 ms, 47 av 50 riktig, 7 ms per gjenkjenning.
+   ============================================================ */
+const P = { sampleRate:16000, frameLen:400, hop:160, fftSize:512,
+            melBands:26, cepstra:13, fMin:200, fMax:7000 };
 
-let base=null, transfer=null, listening=false, auto=false;
-let SENS=0.62;              // hvor sikker modellen må være på et ORD
-let lastFire=0;
-const SUPPRESS=700;         // hold munn like etter en treff, så ett ord ikke telles to ganger
+function fft(re, im){
+  const n = re.length;
+  for(let i=1, j=0; i<n; i++){
+    let bit = n>>1;
+    for(; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if(i<j){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; }
+  }
+  for(let len=2; len<=n; len<<=1){
+    const ang = -2*Math.PI/len, wr = Math.cos(ang), wi = Math.sin(ang);
+    for(let i=0; i<n; i+=len){
+      let cr=1, ci=0;
+      for(let k=0; k<len/2; k++){
+        const ar=re[i+k], ai=im[i+k];
+        const br=re[i+k+len/2], bi=im[i+k+len/2];
+        const tr=br*cr-bi*ci, ti=br*ci+bi*cr;
+        re[i+k]=ar+tr; im[i+k]=ai+ti;
+        re[i+k+len/2]=ar-tr; im[i+k+len/2]=ai-ti;
+        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
+      }
+    }
+  }
+}
+const hzToMel = f => 2595*Math.log10(1+f/700);
+const melToHz = m => 700*(Math.pow(10,m/2595)-1);
+const MEL = (function(){
+  const bins = P.fftSize/2+1, lo = hzToMel(P.fMin), hi = hzToMel(P.fMax), pts=[];
+  for(let i=0;i<P.melBands+2;i++)
+    pts.push(Math.floor((P.fftSize+1)*melToHz(lo+(hi-lo)*i/(P.melBands+1))/P.sampleRate));
+  const out=[];
+  for(let m=1;m<=P.melBands;m++){
+    const f=new Float32Array(bins), a=pts[m-1], b=pts[m], c=pts[m+1];
+    for(let k=a;k<b;k++) if(k>=0&&k<bins&&b>a) f[k]=(k-a)/(b-a);
+    for(let k=b;k<c;k++) if(k>=0&&k<bins&&c>b) f[k]=(c-k)/(c-b);
+    out.push(f);
+  }
+  return out;
+})();
+const HANN = (function(){
+  const w=new Float32Array(P.frameLen);
+  for(let i=0;i<P.frameLen;i++) w[i]=0.5-0.5*Math.cos(2*Math.PI*i/(P.frameLen-1));
+  return w;
+})();
+function dct(input, keep){
+  const n=input.length, out=new Float32Array(keep);
+  for(let k=0;k<keep;k++){
+    let s=0;
+    for(let i=0;i<n;i++) s += input[i]*Math.cos(Math.PI*k*(i+0.5)/n);
+    out[k]=s;
+  }
+  return out;
+}
+const _re = new Float32Array(P.fftSize), _im = new Float32Array(P.fftSize);
+const _bins = P.fftSize/2+1;
+// Én ramme på 25 ms -> MFCC + energi
+function frameFeature(buf, off){
+  _re.fill(0); _im.fill(0);
+  for(let i=0;i<P.frameLen;i++) _re[i]=buf[off+i]*HANN[i];
+  fft(_re,_im);
+  const mel=new Float32Array(P.melBands);
+  for(let m=0;m<P.melBands;m++){
+    let s=0; const f=MEL[m];
+    for(let k=0;k<_bins;k++){
+      const p=(_re[k]*_re[k]+_im[k]*_im[k])/P.fftSize;
+      s += p*f[k];
+    }
+    mel[m]=Math.log(s+1e-10);
+  }
+  let e=0;
+  for(let m=0;m<P.melBands;m++) e+=mel[m];
+  return { mfcc: dct(mel,P.cepstra), energy: e/P.melBands };
+}
+// Trekk fra snittet: gjør sammenligningen upåvirket av mikrofon og avstand
+function cmn(frames){
+  if(!frames.length) return frames;
+  const n=frames[0].mfcc.length, mean=new Float32Array(n);
+  frames.forEach(f=>{ for(let i=0;i<n;i++) mean[i]+=f.mfcc[i]; });
+  for(let i=0;i<n;i++) mean[i]/=frames.length;
+  return frames.map(f=>{
+    const v=new Float32Array(n);
+    for(let i=0;i<n;i++) v[i]=f.mfcc[i]-mean[i];
+    return { mfcc:v };
+  });
+}
+function dist(a,b){
+  let s=0;
+  for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; s+=d*d; }
+  return Math.sqrt(s);
+}
+// DTW: strekker tid, så tempo ikke spiller inn.
+// «cutoff» lar oss gi opp tidlig: kostnaden bare vokser, så er den billigste
+// veien så langt allerede dårligere enn beste fasit vi har sett, kan denne
+// umulig vinne. Sparer det meste av arbeidet når man sammenligner mot mange.
+function dtw(A,B,bandFrac,cutoff){
+  const n=A.length, m=B.length;
+  if(!n||!m) return Infinity;
+  const norm=n+m;
+  const band=Math.max(Math.abs(n-m)+1, Math.ceil((bandFrac||0.2)*Math.max(n,m)));
+  let prev=new Float64Array(m+1).fill(Infinity), cur=new Float64Array(m+1);
+  prev[0]=0;
+  for(let i=1;i<=n;i++){
+    cur.fill(Infinity);
+    const jLo=Math.max(1,i-band), jHi=Math.min(m,i+band);
+    let rowMin=Infinity;
+    const a=A[i-1].mfcc;
+    for(let j=jLo;j<=jHi;j++){
+      const v=dist(a,B[j-1].mfcc)+Math.min(prev[j],cur[j-1],prev[j-1]);
+      cur[j]=v;
+      if(v<rowMin) rowMin=v;
+    }
+    if(cutoff!=null && rowMin/norm > cutoff) return Infinity;
+    const t=prev; prev=cur; cur=t;
+  }
+  return prev[m]/norm;
+}
 
-function msg(el,text,cls){ const e=$(el); e.textContent=text; e.className="msg"+(cls?" "+cls:""); }
+/* ============================================================
+   2. MIKROFON OG LØPENDE ORDDETEKSJON
+   ============================================================ */
+const WORDS = ["treff","bom","dobbel","trippel","angre"];
+const TARGET = 8;
+const STORE = "dart_voice_templates";
+// Målt offline mot syntetiske ord: startterskel 1.0 ga 46 av 50 riktig med
+// null falske utslag på stillhet, mens 2.0 mistet 18 ord. Var altfor streng.
+//
+// «ratio» er beste avstand delt på nest beste. Et forholdstall i stedet for en
+// absolutt grense, fordi avstandene skalerer med opptaket — en fast grense
+// ville måttet stemmes på nytt for hver stemme og hvert rom. Rett ord lå på
+// omtrent 0.6 i målingene, så 0.85 gir god klaring.
+const SENS = {
+  strict:{ start:1.5, end:0.8,  ratio:0.70 },
+  normal:{ start:1.0, end:0.5,  ratio:0.85 },
+  loose: { start:0.7, end:0.35, ratio:0.95 }
+};
+let sens = SENS.normal;
+
+let ctx=null, stream=null, node=null, micOn=false;
+let pending=new Float32Array(0);
+let ring=[];
+const RING_MAX=250;
+let floorEst=null;
+let inSpeech=false, speechStart=0, quiet=0;
+let mode=null;
+let capWord=null, capGot=0, capQueue=null;
+let templates=loadTemplates();
+
+function loadTemplates(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(STORE));
+    if(!raw) return {};
+    const out={};
+    for(const w in raw)
+      out[w]=raw[w].map(t=>({ frames:t.map(fr=>({ mfcc:Float32Array.from(fr) })) }));
+    return out;
+  }catch(e){ return {}; }
+}
+function saveTemplates(){
+  try{
+    const out={};
+    for(const w in templates)
+      out[w]=templates[w].map(t=>t.frames.map(f=>Array.from(f.mfcc).map(v=>+v.toFixed(3))));
+    localStorage.setItem(STORE, JSON.stringify(out));
+    return true;
+  }catch(e){ return false; }
+}
+function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
 function logLine(t){
   const el=$("log");
-  const stamp=new Date().toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
-  el.textContent = stamp+"  "+t+"\n"+el.textContent;
-}
-const wordOf = k => WORDS.filter(w=>w.k===k)[0];
-
-/* Et opptak uten lyd i lærer modellen at stillhet betyr det ordet, og da
-   svarer den ordet hele tiden. Vi måler nivået i hvert opptak og sammenligner
-   med bakgrunnsopptakene: er ordet like stille som rommet, kom det ikke med. */
-function sampleLevel(rec){
-  try{
-    const d=rec.example.spectrogram.data;
-    let sum=0;
-    for(let i=0;i<d.length;i++) sum+=d[i];
-    return sum/d.length;
-  }catch(e){ return null; }
-}
-function examplesOf(k){
-  if(!(counts()[k]||0)) return [];
-  try{ return transfer.getExamples(k)||[]; }catch(e){ return []; }
-}
-function bgLevel(){
-  const vals=examplesOf(BG).map(sampleLevel).filter(v=>v!==null).sort((a,b)=>a-b);
-  return vals.length ? vals[Math.floor(vals.length/2)] : null;   // median
-}
-// Konservativ med vilje: flagger bare opptak som er like stille som rommet.
-// Da blir det få falske alarmer, og det fanger nettopp det tomme opptaket.
-function isSilent(k){
-  if(k===BG) return null;
-  const ref=bgLevel();
-  if(ref===null) return null;
-  const ex=examplesOf(k);
-  if(!ex.length) return null;
-  const last=ex[ex.length-1];
-  const lvl=sampleLevel(last);
-  if(lvl===null) return null;
-  return lvl<=ref ? {uid:last.uid, lvl, ref} : null;
-}
-// Hvor i opptaket ligger det kraftigste øyeblikket? Ligger det helt ytterst,
-// ble ordet sannsynligvis delt mellom to opptak — da er begge halvdeler dårlige
-// treningsdata, og vi kaster dem.
-function peakPos(rec){
-  try{
-    const sp=rec.example.spectrogram, fs2=sp.frameSize, d=sp.data;
-    const nF=Math.floor(d.length/fs2);
-    if(nF<3) return null;
-    let best=-Infinity, bi=0;
-    for(let f=0;f<nF;f++){
-      let sum=0;
-      for(let i=0;i<fs2;i++) sum+=d[f*fs2+i];
-      if(sum>best){ best=sum; bi=f; }
-    }
-    return bi/(nF-1);
-  }catch(e){ return null; }
-}
-// Vurder siste opptak: tomt, delt, eller bra?
-function judgeLast(k){
-  const ex=examplesOf(k);
-  if(!ex.length) return {verdict:"ok"};
-  const last=ex[ex.length-1];
-  const ref=bgLevel(), lvl=sampleLevel(last);
-  if(ref!==null && lvl!==null && lvl<=ref) return {verdict:"stille", uid:last.uid};
-  const pp=peakPos(last);
-  if(pp!==null && (pp<0.15 || pp>0.85)) return {verdict:"delt", uid:last.uid};
-  return {verdict:"ok", uid:last.uid};
-}
-let suspects=[];
-function reportSuspects(){
-  const btn=$("btnDropSilent");
-  if(!suspects.length){ btn.classList.add("hide"); return; }
-  btn.classList.remove("hide");
-  btn.textContent="Slett "+suspects.length+" stille opptak";
-  msg("recMsg", suspects.length+" av opptakene var like stille som rommet — der kom nok ikke ordet med. "+
-      "Slett dem, eller ta dem opp på nytt.", "warn");
-}
-$("btnDropSilent").addEventListener("click", ()=>{
-  let n=0;
-  suspects.forEach(sx=>{ try{ transfer.removeExample(sx.uid); n++; }catch(e){} });
-  suspects=[];
-  refreshCounts(); reportSuspects();
-  msg("recMsg","Slettet "+n+" stille opptak. Ta dem opp på nytt før du trener.","ok");
-  logLine("slettet "+n+" stille opptak");
-});
-
-/* ---------- 1. last basismodellen ---------- */
-$("btnLoad").addEventListener("click", async () => {
-  $("btnLoad").disabled=true;
-  msg("loadMsg","Laster ned … krever nett første gang.");
-  try{
-    if(typeof speechCommands==="undefined")
-      throw new Error("Fikk ikke lastet biblioteket. Er du på nett?");
-    base = speechCommands.create("BROWSER_FFT");
-    await base.ensureModelLoaded();
-    transfer = base.createTransfer("dartloggen");
-    buildWordRows();
-    $("main").classList.remove("hide");
-    msg("loadMsg","Modellen er klar.","ok");
-    logLine("basismodell lastet");
-  }catch(e){
-    $("btnLoad").disabled=false;
-    msg("loadMsg","Feil: "+(e.message||e),"err");
-  }
-});
-
-/* ---------- opptak ---------- */
-function counts(){
-  try{ return transfer.countExamples() || {}; }catch(e){ return {}; }
-}
-function buildWordRows(){
-  const box=$("words"); box.innerHTML="";
-  WORDS.forEach(w => {
-    const row=document.createElement("div"); row.className="wrow";
-    row.innerHTML =
-      '<div class="wlab"></div>'+
-      '<div class="wbar"><i></i></div>'+
-      '<div class="wcount">0</div>'+
-      '<button class="wbtn undo" title="Slett siste opptak" aria-label="Slett siste opptak av '+w.label+'">↶</button>'+
-      '<button class="wbtn one" title="Ett opptak" aria-label="Ett opptak av '+w.label+'">＋</button>'+
-      '<button class="wbtn go auto" title="Ta opp flere" aria-label="Ta opp flere av '+w.label+'">▶</button>';
-    const lab=row.querySelector(".wlab");
-    lab.textContent=w.label;
-    const small=document.createElement("small"); small.textContent=w.hint; lab.appendChild(small);
-
-    row.querySelector(".undo").addEventListener("click", () => undoLast(w));
-    row.querySelector(".one").addEventListener("click", () => collectOne(w));
-    row.querySelector(".auto").addEventListener("click", () => runFree(w));
-    box.appendChild(row);
-  });
-  refreshCounts();
-}
-function refreshCounts(){
-  const c=counts();
-  const rows=$("words").children;
-  WORDS.forEach((w,i) => {
-    if(!rows[i]) return;
-    const n=c[w.k]||0;
-    rows[i].querySelector(".wcount").textContent=n;
-    const bar=rows[i].querySelector(".wbar i");
-    bar.style.width=Math.min(100, n/w.min*100)+"%";
-    bar.classList.toggle("low", n < w.min);
-    rows[i].querySelector(".undo").disabled = n===0;
-  });
-  const ready = WORDS.every(w => (c[w.k]||0) >= w.min);
-  $("btnTrain").disabled = !ready;
-  if(ready) msg("trainMsg","Klar til å trene.","ok");
-  else msg("trainMsg","Mangler: "+WORDS.filter(w=>(c[w.k]||0)<w.min)
-        .map(w=>w.label+" ("+(c[w.k]||0)+"/"+w.min+")").join(", "));
+  const s=new Date().toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  el.textContent=(s+"  "+t+"\n"+el.textContent).split("\n").slice(0,40).join("\n");
 }
 
-async function collectOne(w){
-  if(auto || listening) return;
+async function startMic(){
   try{
-    await transfer.collectExample(w.k, {durationMultiplier:w.dur});
-    logLine("opptak: "+w.label);
-    const q=isSilent(w.k);
-    if(q){ suspects.push(q); reportSuspects(); }
-    else msg("recMsg","Tok opp «"+w.label+"».","ok");
-  }catch(e){ msg("recMsg","Opptak feilet: "+(e.message||e),"err"); }
-  refreshCounts();
-}
-// Et stille eller feilmerket opptak lærer modellen at stillhet betyr det ordet,
-// og da svarer den med ordet hele tiden. Derfor må siste opptak kunne angres.
-function undoLast(w){
-  if(auto || listening) return;
-  // getExamples kaster hvis ordet ikke finnes i datasettet ennå, så sjekk først
-  if(!(counts()[w.k]||0)){ msg("recMsg","Ingen opptak å slette på «"+w.label+"».","warn"); return; }
-  try{
-    const ex=transfer.getExamples(w.k);
-    if(!ex || !ex.length){ msg("recMsg","Ingen opptak å slette på «"+w.label+"».","warn"); return; }
-    transfer.removeExample(ex[ex.length-1].uid);
-    logLine("slettet siste: "+w.label);
-    msg("recMsg","Slettet siste opptak av «"+w.label+"». Husk å trene på nytt.","ok");
-  }catch(e){ msg("recMsg","Kunne ikke slette: "+(e.message||e),"err"); }
-  refreshCounts();
-}
-
-/* ---------- autoopptak med fast rytme ---------- */
-function autoUI(state, word, i, n){
-  const p=$("autoPanel");
-  p.classList.toggle("rec", state==="rec");
-  $("autoCue").textContent = state==="rec" ? "Si ordet nå" : (state==="ready" ? "Gjør deg klar" : "…");
-  $("autoWord").textContent = word;
-  $("autoProg").textContent = i+" / "+n;
-  const dots=$("autoDots");
-  if(dots.children.length!==n){
-    dots.innerHTML="";
-    for(let j=0;j<n;j++) dots.appendChild(document.createElement("i"));
-  }
-  [...dots.children].forEach((d,j)=>d.classList.toggle("done", j<i));
-}
-async function runAuto(list){
-  if(auto || listening) return;
-  auto=true;
-  $("autoPanel").classList.add("on");
-  try{
-    for(const w of list){
-      if(!auto) break;
-      autoUI("ready", w.label, 0, w.burst);
-      await sleep(1400);                 // rekk å lese hvilket ord som kommer
-      for(let i=0;i<w.burst;i++){
-        if(!auto) break;
-        autoUI("rec", w.label, i, w.burst);
-        if(navigator.vibrate) navigator.vibrate(25);
-        try{
-          await transfer.collectExample(w.k, {durationMultiplier:w.dur});
-        }catch(e){
-          msg("recMsg","Opptak feilet: "+(e.message||e),"err");
-          auto=false; break;
-        }
-        refreshCounts();
-        const q=isSilent(w.k);
-        if(q) suspects.push(q);
-        if(!auto) break;
-        autoUI("wait", w.label, i+1, w.burst);
-        await sleep(gap());
-      }
-      logLine("autoopptak: "+w.label);
-    }
-  } finally {
-    auto=false;
-    $("autoPanel").classList.remove("on","rec");
-    refreshCounts();
-    if(suspects.length) reportSuspects();
-    else msg("recMsg","Ferdig med opptak. Sjekk tallene over — er noe feil, bruk ↶ på den raden.","ok");
-  }
-}
-// Snakk fritt: opptakene går rett etter hverandre uten rytme, og de som ikke
-// fanget et helt ord kastes med en gang. Du sier bare ordet i ditt eget tempo.
-async function runFree(w){
-  if(auto || listening) return;
-  auto=true;
-  let kept=0, dropped=0;
-  $("autoPanel").classList.add("on","rec");
-  try{
-    while(auto && kept < w.burst){
-      $("autoCue").textContent="Si ordet — i ditt eget tempo";
-      $("autoWord").textContent=w.label;
-      $("autoProg").textContent=kept+" / "+w.burst+(dropped?"   ("+dropped+" forkastet)":"");
-      try{
-        await transfer.collectExample(w.k, {durationMultiplier:w.dur});
-      }catch(e){ msg("recMsg","Opptak feilet: "+(e.message||e),"err"); break; }
-      const j = (w.k===BG) ? {verdict:"ok"} : judgeLast(w.k);
-      if(j.verdict==="ok"){ kept++; }
-      else {
-        dropped++;
-        try{ transfer.removeExample(j.uid); }catch(e){}
-      }
-      refreshCounts();
-    }
-  } finally {
-    auto=false;
-    $("autoPanel").classList.remove("on","rec");
-    refreshCounts();
-    msg("recMsg","«"+w.label+"»: beholdt "+kept+", forkastet "+dropped+
-      " som var stille eller delt på midten.", dropped>kept ? "warn":"ok");
-    logLine("fritt opptak "+w.label+": "+kept+" beholdt, "+dropped+" forkastet");
-  }
-}
-async function runFreeAll(){
-  for(const w of WORDS){
-    if(w.k===BG) continue;
-    await runFree(w);
-    if(!auto && $("autoPanel").classList.contains("on")) break;
-  }
-}
-$("btnAutoStop").addEventListener("click", ()=>{ auto=false; });
-$("btnFree").addEventListener("click", ()=>runFreeAll());
-$("sens").querySelectorAll("button").forEach(b=>{
-  b.addEventListener("click", ()=>{
-    SENS=+b.dataset.s;
-    $("sens").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
-    msg("listenMsg","Terskel satt til "+Math.round(SENS*100)+" %.","ok");
-  });
-});
-$("btnAutoAll").addEventListener("click", ()=>runAuto(WORDS));
-
-/* ---------- tren ---------- */
-$("btnTrain").addEventListener("click", async () => {
-  $("btnTrain").disabled=true;
-  msg("trainMsg","Trener …");
-  try{
-    await transfer.train({
-      epochs:30,
-      // Opptakene er lengre enn modellvinduet. Da klipper treningen ut flere
-      // vinduer fra hvert opptak, sentrert rundt den kraftigste delen — altså
-      // rundt selve ordet — men med ordet plassert litt ulikt i hvert vindu.
-      // Det er dette som gjør modellen upåvirket av NÅR i vinduet du sier det.
-      // Liten hopplengde = flere utsnitt per opptak.
-      windowHopRatio:0.1,
-      // Blander bakgrunnsopptakene inn i ordene, så modellen lærer å kjenne
-      // igjen et ord selv når vinduet er halvt fylt med romstøy.
-      augmentByMixingNoiseRatio:0.5,
-      callback:{ onEpochEnd: async (ep,logs) => {
-        const acc = logs && (logs.acc!==undefined ? logs.acc : logs.accuracy);
-        msg("trainMsg","Trener … runde "+(ep+1)+"/30"+
-            (acc!==undefined ? " · treffsikkerhet "+Math.round(acc*100)+"%" : ""));
-      }}
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
     });
-    $("btnListen").disabled=false;
-    $("btnSave").disabled=false;
-    $("btnExport").disabled=false;
-    msg("trainMsg","Ferdig trent. Test den nederst — helst der skiva står.","ok");
-    logLine("modell trent");
-  }catch(e){ msg("trainMsg","Trening feilet: "+(e.message||e),"err"); }
-  $("btnTrain").disabled=false;
-});
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try{ ctx = new AC({ sampleRate:P.sampleRate }); }
+    catch(e){ ctx = new AC(); }
+    if(ctx.state==="suspended") await ctx.resume();
+    const src = ctx.createMediaStreamSource(stream);
+    node = ctx.createScriptProcessor(2048,1,1);
+    const ratio = ctx.sampleRate / P.sampleRate;
+    node.onaudioprocess = ev => {
+      const inp = ev.inputBuffer.getChannelData(0);
+      feed(ratio>1.01 ? downsample(inp,ratio) : inp);
+    };
+    src.connect(node);
+    // ScriptProcessor må ha en utgang for å kjøre, men skal ikke høres
+    const mute = ctx.createGain(); mute.gain.value = 0;
+    node.connect(mute); mute.connect(ctx.destination);
+    micOn = true;
+    $("btnMic").textContent = "Mikrofonen er på";
+    $("btnMic").disabled = true;
+    $("main").classList.remove("hide");
+    msg("micMsg","Lytter. "+Math.round(ctx.sampleRate)+" Hz inn"+
+        (ratio>1.01 ? ", nedskalert til 16 000" : "")+".","ok");
+    logLine("mikrofon på");
+    renderWords();
+  }catch(e){
+    msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
+  }
+}
+function downsample(inp, ratio){
+  const n=Math.floor(inp.length/ratio), out=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const p=i*ratio, a=Math.floor(p), f=p-a;
+    out[i]= a+1<inp.length ? inp[a]*(1-f)+inp[a+1]*f : inp[a];
+  }
+  return out;
+}
 
-/* ---------- test live ---------- */
-$("btnListen").addEventListener("click", async () => {
-  if(listening){
-    try{ await transfer.stopListening(); }catch(e){}
-    listening=false;
-    $("btnListen").textContent="Start lytting";
-    msg("listenMsg","");
+function feed(chunk){
+  const merged=new Float32Array(pending.length+chunk.length);
+  merged.set(pending); merged.set(chunk,pending.length);
+  pending=merged;
+  let off=0;
+  while(pending.length-off >= P.frameLen){
+    onFrame(frameFeature(pending,off));
+    off += P.hop;
+  }
+  pending = pending.slice(off);
+}
+function onFrame(f){
+  ring.push(f);
+  if(ring.length>RING_MAX){ ring.shift(); if(inSpeech) speechStart--; }
+
+  // Bakgrunnsnivået lærer seg selv av stillheten mellom ordene
+  if(floorEst===null) floorEst=f.energy;
+  if(!inSpeech) floorEst = floorEst*0.995 + f.energy*0.005;
+
+  paintMeter(Math.max(0, Math.min(1, (f.energy-floorEst)/6)));
+
+  if(!mode) return;
+  if(!inSpeech){
+    if(f.energy > floorEst + sens.start){ inSpeech=true; speechStart=ring.length-1; quiet=0; }
+  } else {
+    if(f.energy < floorEst + sens.end){
+      if(++quiet>=12){                        // 120 ms stille = ordet er ferdig
+        const from=Math.max(0,speechStart-3), to=Math.max(from, ring.length-quiet+3);
+        inSpeech=false; quiet=0;
+        const len=to-from;
+        if(len>=12 && len<=140) gotWord(ring.slice(from,to));
+      }
+    } else quiet=0;
+  }
+}
+function paintMeter(lvl){
+  const pct=Math.round(lvl*100);
+  const m=$("meter");
+  m.querySelector("i").style.width=pct+"%";
+  m.classList.toggle("hot", lvl>0.35);
+  $("meterTxt").textContent = micOn ? (lvl>0.35 ? "lyd" : "stille") : "av";
+  if(mode==="capture"){
+    $("capMeter").style.width=pct+"%";
+    $("cap").classList.toggle("hot", lvl>0.35);
+  }
+}
+function gotWord(frames){
+  const probe=cmn(frames);
+  if(mode==="capture"){
+    (templates[capWord]=templates[capWord]||[]).push({frames:probe});
+    capGot++;
+    renderCapture(); renderWords();
+    if(navigator.vibrate) navigator.vibrate(25);
+    logLine("fanget «"+capWord+"» ("+probe.length*10+" ms)");
+    if(capGot>=TARGET) nextCapture();
     return;
   }
-  if(auto) return;
-  try{
-    const labels=transfer.wordLabels();
-    buildLive(labels);
-    await transfer.listen(async result => {
-      const scores=Array.from(result.scores);
-      updateLive(labels,scores);
-      // Vi lar ALDRI bakgrunn vinne. Motoren dømmer hvert vindu for seg, og et
-      // vindu der ordet ligger halvveis utenfor blir mest stillhet — da peker
-      // den på bakgrunn selv om du sa noe. I stedet ser vi bare på hvor sikker
-      // det beste ORDET er, og krever at det passerer terskelen.
-      let bi=-1, bv=0;
-      labels.forEach((l,i)=>{ if(l!==BG && scores[i]>bv){ bv=scores[i]; bi=i; } });
-      if(bi<0 || bv<SENS) return;
-      const now=Date.now();
-      if(now-lastFire < SUPPRESS) return;
-      lastFire=now;
-      $("heardWord").textContent=labels[bi];
-      $("heardConf").textContent=Math.round(bv*100)+" % sikker · bakgrunn "+
-        Math.round(100*(scores[labels.indexOf(BG)]||0))+" %";
-      logLine("hørte: "+labels[bi]+"  ("+Math.round(bv*100)+" %)");
-      if(navigator.vibrate) navigator.vibrate(30);
-    },{
-      probabilityThreshold:0,      // vi tar avgjørelsen selv, over
-      overlapFactor:0.85,          // nytt vindu ~hvert 150 ms i stedet for 500
-      suppressionTimeMillis:0,
-      includeSpectrogram:false,
-      invokeCallbackOnNoiseAndUnknown:true
+  const scores={};
+  let cutoff=null;                    // beste avstand sett så langt, på tvers av ord
+  for(const w in templates){
+    if(!templates[w] || !templates[w].length) continue;
+    let best=Infinity;
+    templates[w].forEach(t=>{
+      const d=dtw(probe,t.frames,null,cutoff);
+      if(d<best) best=d;
+      if(cutoff===null || d<cutoff) cutoff=d;
     });
-    listening=true;
-    $("btnListen").textContent="Stopp lytting";
-    msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
-  }catch(e){ msg("listenMsg","Kunne ikke starte: "+(e.message||e),"err"); }
-});
-function buildLive(labels){
-  const box=$("live"); box.innerHTML="";
-  labels.forEach(l => {
+    scores[w]=best;
+  }
+  const ranked=Object.keys(scores).sort((a,b)=>scores[a]-scores[b]);
+  if(!ranked.length) return;
+  renderLive(scores, ranked[0]);
+  const best=ranked[0];
+  const ratio = ranked[1]!=null ? scores[best]/scores[ranked[1]] : 0;
+  if(ratio > sens.ratio){
+    $("heardWord").textContent="?";
+    $("heardConf").textContent="for jevnt · "+best+" "+scores[best].toFixed(1)+
+      " mot "+ranked[1]+" "+scores[ranked[1]].toFixed(1);
+    return;
+  }
+  $("heardWord").textContent=best;
+  $("heardConf").textContent=scores[best].toFixed(1)+" mot "+
+    (ranked[1]!=null ? scores[ranked[1]].toFixed(1) : "–")+
+    " · "+Math.round(ratio*100)+"% · "+probe.length*10+" ms";
+  logLine("hørte «"+best+"» ("+scores[best].toFixed(1)+")");
+  if(navigator.vibrate) navigator.vibrate(30);
+}
+
+/* ============================================================
+   3. GRENSESNITT
+   ============================================================ */
+function renderWords(){
+  const box=$("words"); box.innerHTML="";
+  WORDS.forEach(w=>{
+    const n=(templates[w]||[]).length;
     const row=document.createElement("div"); row.className="wrow";
-    row.innerHTML='<div class="wlab" style="width:84px;font-size:12px"></div>'+
-      '<div class="wbar"><i></i></div><div class="wcount">0 %</div>';
-    row.querySelector(".wlab").textContent = (l===BG ? "bakgrunn" : l);
+    row.innerHTML='<div class="wlab"></div><div class="wbar"><i></i></div>'+
+      '<div class="wcount">'+n+'</div>'+
+      '<button class="wbtn undo" aria-label="Slett siste">↶</button>'+
+      '<button class="wbtn go rec" aria-label="Les inn">▶</button>';
+    row.querySelector(".wlab").textContent=w;
+    const bar=row.querySelector(".wbar i");
+    bar.style.width=Math.min(100,n/TARGET*100)+"%";
+    bar.classList.toggle("low", n<TARGET);
+    const u=row.querySelector(".undo");
+    u.disabled=!n;
+    u.addEventListener("click",()=>{
+      if(templates[w] && templates[w].length){
+        templates[w].pop(); saveTemplates(); renderWords();
+        msg("recMsg","Slettet siste «"+w+"».","ok");
+      }
+    });
+    row.querySelector(".rec").addEventListener("click",()=>startCapture(w,null));
+    box.appendChild(row);
+  });
+  const total=WORDS.reduce((a,w)=>a+(templates[w]||[]).length,0);
+  $("btnListen").disabled = total===0;
+}
+function startCapture(w, queue){
+  if(!micOn) return;
+  mode="capture"; capWord=w; capGot=(templates[w]||[]).length>=TARGET ? 0 : 0;
+  capQueue=queue; inSpeech=false; quiet=0;
+  $("cap").classList.add("on");
+  renderCapture();
+}
+function renderCapture(){
+  $("capWord").textContent=capWord;
+  $("capCue").textContent = capGot ? "Si det igjen" : "Si ordet";
+  $("capProg").textContent = capGot+" / "+TARGET;
+  const d=$("capDots");
+  if(d.children.length!==TARGET){
+    d.innerHTML="";
+    for(let i=0;i<TARGET;i++) d.appendChild(document.createElement("i"));
+  }
+  [...d.children].forEach((x,i)=>x.classList.toggle("done", i<capGot));
+}
+function nextCapture(){
+  const q=capQueue;
+  mode=null; capWord=null; capQueue=null; inSpeech=false; quiet=0;
+  saveTemplates(); renderWords();
+  if(q && q.length){ startCapture(q[0], q.slice(1)); return; }
+  $("cap").classList.remove("on");
+  msg("recMsg","Fasit lagret. Test den nederst.","ok");
+}
+$("capStop").addEventListener("click", nextCapture);
+$("btnMic").addEventListener("click", startMic);
+$("btnAll").addEventListener("click", ()=>{
+  if(micOn) startCapture(WORDS[0], WORDS.slice(1));
+});
+$("btnListen").addEventListener("click", ()=>{
+  if(mode==="listen"){
+    mode=null;
+    $("btnListen").textContent="Start lytting";
+    $("btnListen").classList.remove("stop");
+    msg("listenMsg","");
+  } else {
+    mode="listen"; inSpeech=false; quiet=0;
+    $("btnListen").textContent="Stopp lytting";
+    $("btnListen").classList.add("stop");
+    msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
+  }
+});
+$("sens").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    sens=SENS[b.dataset.s];
+    $("sens").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
+    msg("listenMsg","Følsomhet: "+b.textContent.toLowerCase()+".","ok");
+  });
+});
+// Kort strek = likt fasiten. Den korteste vinner.
+function renderLive(scores, best){
+  const box=$("live"); box.innerHTML="";
+  const vals=WORDS.map(w=>scores[w]).filter(v=>v!=null);
+  const worst=Math.max.apply(null,vals)||1;
+  WORDS.forEach(w=>{
+    if(scores[w]==null) return;
+    const row=document.createElement("div"); row.className="wrow";
+    row.innerHTML='<div class="wlab" style="font-size:12px"></div>'+
+      '<div class="wbar"><i></i></div><div class="wcount" style="width:42px"></div>';
+    row.querySelector(".wlab").textContent=w;
+    const bar=row.querySelector(".wbar i");
+    bar.style.width=Math.round(100*scores[w]/worst)+"%";
+    bar.classList.toggle("low", w!==best);
+    row.querySelector(".wcount").textContent=scores[w].toFixed(1);
     box.appendChild(row);
   });
 }
-function updateLive(labels,scores){
-  const rows=$("live").children;
-  labels.forEach((l,i) => {
-    if(!rows[i]) return;
-    rows[i].querySelector(".wbar i").style.width=Math.round(scores[i]*100)+"%";
-    rows[i].querySelector(".wcount").textContent=Math.round(scores[i]*100)+" %";
-  });
+$("btnSave").addEventListener("click",()=>{
+  const ok2=saveTemplates();
+  msg("saveMsg", ok2 ? "Fasit lagret på telefonen." : "Fikk ikke lagret.", ok2?"ok":"err");
+});
+$("btnWipe").addEventListener("click",()=>{
+  templates={}; localStorage.removeItem(STORE);
+  renderWords(); $("live").innerHTML="";
+  $("heardWord").textContent="–"; $("heardConf").textContent="Les inn fasit først";
+  msg("saveMsg","All fasit slettet.");
+});
+if(Object.keys(templates).length){
+  $("main").classList.remove("hide");
+  renderWords();
+  msg("micMsg","Fant lagret fasit. Slå på mikrofonen for å teste.","ok");
 }
-
-/* ---------- lagre, hente, eksportere ---------- */
-$("btnSave").addEventListener("click", async () => {
-  try{ await transfer.save(STORE); msg("saveMsg","Lagret på telefonen.","ok"); logLine("modell lagret"); }
-  catch(e){ msg("saveMsg","Lagring feilet: "+(e.message||e),"err"); }
-});
-$("btnLoadSaved").addEventListener("click", async () => {
-  try{
-    await transfer.load(STORE);
-    $("btnListen").disabled=false; $("btnExport").disabled=false;
-    msg("saveMsg","Hentet lagret modell.","ok"); logLine("lagret modell hentet");
-  }catch(e){ msg("saveMsg","Fant ingen lagret modell: "+(e.message||e),"err"); }
-});
-$("btnExport").addEventListener("click", async () => {
-  try{
-    await transfer.save("downloads://dartloggen-lyd");
-    msg("saveMsg","Lastet ned. Ta vare på filene — de kan bygges inn i appen.","ok");
-  }catch(e){ msg("saveMsg","Nedlasting feilet: "+(e.message||e),"err"); }
-});
-$("btnClear").addEventListener("click", () => {
-  if(auto || listening) return;
-  WORDS.forEach(w => { try{ transfer.clearExamples(w.k); }catch(e){} });
-  suspects=[]; reportSuspects();
-  refreshCounts();
-  msg("saveMsg","Alle opptak er slettet.");
-});
 </script>
 </html>
