@@ -312,6 +312,27 @@
   .nrow .npct{font-weight:800;text-align:right}
   .nrow .ndt{font-size:11px;color:var(--ink2);text-align:right;white-space:nowrap}
 
+  /* ---------- fordeling, bolker og fremgang ---------- */
+  .nrow.wide{grid-template-columns:52px 1fr 44px 104px}
+  .drow{display:grid;grid-template-columns:66px 1fr 34px;gap:8px;align-items:center;padding:5px 0;font-size:12.5px}
+  .drow .dlab{font-variant-numeric:tabular-nums;color:var(--ink2)}
+  .drow .dbar{height:13px;background:var(--surface2);border-radius:4px;overflow:hidden}
+  .drow .dbar i{display:block;height:100%;background:var(--green);border-radius:4px}
+  .drow .dbar i.best{background:var(--gold)}
+  .drow .dn{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+  .prow{
+    display:grid;grid-template-columns:34px 1fr 52px;gap:8px;align-items:center;
+    padding:8px 0;border-top:1px solid var(--line);font-size:13px;
+  }
+  .prow:first-child{border-top:0}
+  .prow .nlab{font-weight:800}
+  .prow .pmid{font-variant-numeric:tabular-nums;color:var(--ink2);font-size:12px;line-height:1.5}
+  .prow .pmid b{color:var(--ink);font-weight:800}
+  .prow .pd{text-align:right;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+  .prow .pd.up{color:var(--green)}
+  .prow .pd.down{color:var(--red)}
+  .prow .pd.flat{color:var(--ink2)}
+
   .weakchips{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .weakchips button{
     border:1.5px solid var(--red);background:var(--red-soft);color:var(--red);
@@ -797,6 +818,26 @@
         </div>
 
         <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Fordeling av runder — hvor jevn er du</div>
+          <div id="distBox"></div>
+          <div class="empty" id="distEmpty">Fullfør noen runder, så vises spredningen her.</div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow">Piler per bolk — hvor går runden</div>
+          <div id="segBox"></div>
+          <div class="empty" id="segEmpty">Trenger detaljdata per tall.</div>
+          <div class="note" id="segNote" style="display:none"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="eyebrow" id="progHead">Fremgang per tall</div>
+          <div id="progBox"></div>
+          <div class="empty" id="progEmpty">Trenger runder i to sammenlignbare perioder.</div>
+          <div class="note" id="progNote" style="display:none"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
           <div class="eyebrow">Rekordutvikling</div>
           <ul class="hist" id="pbList"></ul>
           <div class="empty" id="pbEmpty">Ingen rekorder ennå.</div>
@@ -946,8 +987,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 16;
-const APP_ROLLOUT = "2026-08-20T08:33:07+00:00";
+const APP_VERSION = 17;
+const APP_ROLLOUT = "2026-08-20T08:45:03+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2119,6 +2160,9 @@ function renderStats(){
   renderRtbKeys(rtb);
   renderChart(rtb);
   renderTrend(rtb);
+  renderDist(rtb);
+  renderSeg();
+  renderProgress();
   renderPb(rtb);
   renderWeak();
   renderHistList(rtb);
@@ -2261,6 +2305,169 @@ function renderPb(h){
     li.querySelector(".d").textContent = fmtDate(r.ts);
     ul.appendChild(li);
   });
+}
+
+/* ---- fordeling av runder: snitt og median skjuler spredningen ---- */
+function renderDist(h){
+  const box=$("distBox"); box.innerHTML="";
+  const few = h.length < 3;
+  $("distEmpty").style.display = few ? "block":"none";
+  if(few) return;
+
+  const v=h.map(r=>r.darts);
+  const min=Math.min(...v), max=Math.max(...v);
+  const span=Math.max(1, max-min);
+  // velg en bolkbredde som gir omtrent 4-7 stolper
+  const w=[2,5,10,15,20,25,50,100].find(x=>span/x<=6) || 100;
+  const lo=Math.floor(min/w)*w;
+  const nb=Math.floor((max-lo)/w)+1;
+  const buckets=new Array(nb).fill(0);
+  v.forEach(x=>buckets[Math.min(nb-1, Math.floor((x-lo)/w))]++);
+  const peak=Math.max(...buckets);
+
+  buckets.forEach((c,i)=>{
+    const a=lo+i*w, b=a+w-1;
+    const hasRecord = min>=a && min<=b;
+    const row=document.createElement("div"); row.className="drow";
+    row.innerHTML='<span class="dlab"></span>'+
+      '<div class="dbar"><i class="'+(hasRecord?"best":"")+'" style="width:'+
+        (peak?Math.round(100*c/peak):0)+'%"></i></div>'+
+      '<span class="dn">'+c+'</span>';
+    row.querySelector(".dlab").textContent=a+"–"+b;
+    box.appendChild(row);
+  });
+
+  const med=median(v);
+  const info=document.createElement("div"); info.className="note";
+  info.textContent="Median "+med.toFixed(0)+" piler · spenn "+min+"–"+max+
+    " ("+(max-min)+" piler fra beste til verste). Gullstolpen inneholder rekorden.";
+  box.appendChild(info);
+}
+
+/* ---- piler per bolk: er du rusten i starten eller nervøs mot slutten? ---- */
+const SEGMENTS=[
+  {lab:"1–5",   nums:[1,2,3,4,5]},
+  {lab:"6–10",  nums:[6,7,8,9,10]},
+  {lab:"11–15", nums:[11,12,13,14,15]},
+  {lab:"16–20", nums:[16,17,18,19,20]},
+  {lab:"Bull",  nums:[25]}
+];
+function renderSeg(){
+  const {agg,fellback}=numAgg();
+  const box=$("segBox"); box.innerHTML="";
+  const rows=SEGMENTS.map(sg=>{
+    let att=0, hit=0;
+    sg.nums.forEach(n=>{ const o=agg[n]; if(o){ att+=o.att; hit+=o.s+o.d+o.t; } });
+    return {lab:sg.lab, att, hit, per:att/sg.nums.length};
+  });
+  const any=rows.some(r=>r.att>0);
+  $("segEmpty").style.display=any?"none":"block";
+  const note=$("segNote");
+  if(!any){ note.style.display="none"; return; }
+
+  const peak=Math.max(...rows.map(r=>r.per));
+  rows.forEach(r=>{
+    const row=document.createElement("div"); row.className="nrow wide";
+    row.innerHTML='<span class="nlab" style="font-size:11.5px"></span>'+
+      '<div class="nbar"><i style="width:'+(peak?Math.round(100*r.per/peak):0)+'%"></i></div>'+
+      '<span class="npct num">'+(r.att?r.per.toFixed(1):"–")+'</span>'+
+      '<span class="ndt num">'+(r.att? "piler/mål · "+Math.round(100*r.hit/r.att)+"% treff" : "ingen kast")+'</span>';
+    row.querySelector(".nlab").textContent=r.lab;
+    box.appendChild(row);
+  });
+
+  // hvilken bolk koster mest, normalisert per mål
+  const worst=rows.filter(r=>r.att>0).sort((a,b)=>b.per-a.per)[0];
+  const best =rows.filter(r=>r.att>0).sort((a,b)=>a.per-b.per)[0];
+  const bits=[];
+  if(worst && best && worst.lab!==best.lab)
+    bits.push("Dyrest: "+worst.lab+" ("+worst.per.toFixed(1)+" piler/mål). Billigst: "+
+              best.lab+" ("+best.per.toFixed(1)+").");
+  bits.push("Tallet er piler brukt per mål, så bolkene kan sammenlignes selv om bull bare er ett mål.");
+  if(fellback) bits.push("Bygger på livstidstall — rundene i perioden mangler detaljdata.");
+  note.textContent=bits.join(" ");
+  note.className="note"+(fellback?" warn":"");
+  note.style.display="block";
+}
+
+/* ---- fremgang per tall: denne perioden mot forrige like lange ---- */
+function periodWindow(){
+  const nowTs=Date.now();
+  if(F.period==="custom" && F.from){
+    const a=new Date(F.from+"T00:00:00").getTime();
+    const b=F.to ? new Date(F.to+"T00:00:00").getTime()+86400000 : nowTs;
+    if(isFinite(a) && b>a) return [a,b,b-a,"valgt periode"];
+  }
+  if(F.period!=="all" && F.period!=="custom"){
+    const len=(+F.period)*86400000;
+    return [nowTs-len, nowTs, len, "siste "+F.period+" dager"];
+  }
+  const len=30*86400000;                    // «alt» har ingen naturlig todeling
+  return [nowTs-len, nowTs, len, "siste 30 dager"];
+}
+function numAggWindow(a,b){
+  const agg={};
+  const add=(n,o)=>{
+    const x=agg[n]||(agg[n]={att:0,s:0,d:0,t:0});
+    x.att+=o.att||0; x.s+=o.s||0; x.d+=o.d||0; x.t+=o.t||0;
+  };
+  let rounds=0, missing=0;
+  load(LS.hist,[]).forEach(r=>{
+    if(!r || typeof r.ts!=="number" || r.ts<a || r.ts>=b) return;
+    rounds++;
+    if(r.num && typeof r.num==="object"){ for(const k in r.num) add(k,r.num[k]); }
+    else missing++;
+  });
+  load(LS.tph,[]).forEach(r=>{
+    if(!r || typeof r.ts!=="number" || r.ts<a || r.ts>=b) return;
+    add(r.n,{att:r.total,s:r.s,d:r.d,t:r.t});
+  });
+  return {agg, rounds, missing};
+}
+const PROG_MIN=4;   // færre kast enn dette sier mer om flaks enn om form
+function renderProgress(){
+  const w=periodWindow(), a=w[0], b=w[1], len=w[2], lab=w[3];
+  $("progHead").textContent="Fremgang per tall — "+lab+" mot forrige";
+  const cur=numAggWindow(a,b), prev=numAggWindow(a-len,a);
+
+  const rows=SEQ.map(n=>{
+    const c=cur.agg[n], p=prev.agg[n];
+    if(!c || !p || c.att<PROG_MIN || p.att<PROG_MIN) return null;
+    const cp=100*(c.s+c.d+c.t)/c.att, pp=100*(p.s+p.d+p.t)/p.att;
+    return {n, cp, pp, d:cp-pp, ca:c.att, pa:p.att};
+  }).filter(Boolean).sort((x,y)=>y.d-x.d);
+
+  const box=$("progBox"); box.innerHTML="";
+  const note=$("progNote");
+  $("progEmpty").style.display = rows.length ? "none":"block";
+  if(!rows.length){
+    $("progEmpty").textContent =
+      (cur.rounds===0 || prev.rounds===0)
+        ? "Trenger runder i begge periodene — spilte du ikke i forrige periode, er det ingenting å måle mot."
+        : (cur.missing===cur.rounds || prev.missing===prev.rounds)
+          ? "Rundene i én av periodene ble spilt før appen lagret detaljdata per tall."
+          : "Trenger minst "+PROG_MIN+" kast på samme tall i begge periodene.";
+    note.style.display="none";
+    return;
+  }
+
+  rows.forEach(r=>{
+    const row=document.createElement("div"); row.className="prow";
+    const cls = r.d>=2 ? "up" : (r.d<=-2 ? "down" : "flat");
+    const sign = r.d>0 ? "+" : "";
+    row.innerHTML='<span class="nlab"></span>'+
+      '<span class="pmid">'+Math.round(r.pp)+' % → <b>'+Math.round(r.cp)+' %</b>'+
+        '<br><span style="font-size:11px">'+r.pa+' → '+r.ca+' kast</span></span>'+
+      '<span class="pd '+cls+'">'+sign+Math.round(r.d)+'</span>';
+    row.querySelector(".nlab").textContent = r.n===25 ? "Bull" : r.n;
+    box.appendChild(row);
+  });
+
+  const up=rows.filter(r=>r.d>=2).length, down=rows.filter(r=>r.d<=-2).length;
+  note.textContent = up+" tall bedre, "+down+" svakere, "+(rows.length-up-down)+
+    " omtrent uendret. Bare tall med minst "+PROG_MIN+" kast i begge periodene er med.";
+  note.className="note";
+  note.style.display="block";
 }
 
 /* per-tall-aggregat: livstid når ingen periodefilter er satt, ellers regnet ut fra runder i perioden */
