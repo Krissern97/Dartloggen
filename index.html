@@ -942,8 +942,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 14;
-const APP_ROLLOUT = "2026-08-20T06:44:18+00:00";
+const APP_VERSION = 15;
+const APP_ROLLOUT = "2026-08-20T06:55:29+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1123,10 +1123,10 @@ let T = null; // {mode,idx,darts,miss,s,d,t,turnHits:[],num:{},undo:[],pending,d
 function cfg(){ return MODECFG[T.mode]; }
 function freshRound(mode){
   return {mode,idx:0,darts:0,miss:0,s:0,d:0,t:0,turnHits:[],num:{},undo:[],
-          turnIdx0:0,pending:false,done:false,start:null,prevBest:null};
+          pending:false,done:false,start:null,prevBest:null};
 }
 function snapshot(){
-  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,turnIdx0:T.turnIdx0,
+  T.undo.push({idx:T.idx,darts:T.darts,miss:T.miss,s:T.s,d:T.d,t:T.t,
                turnHits:[...T.turnHits],num:JSON.parse(JSON.stringify(T.num))});
   if(T.undo.length>200) T.undo.shift();
 }
@@ -1153,7 +1153,6 @@ function enterBoard(mode){
   }
   saved.mode = mode;
   saved.pending = !!saved.pending;
-  if(typeof saved.turnIdx0!=="number") saved.turnIdx0 = saved.idx || 0;
   if(saved.start===undefined) saved.start = null;
   T = saved;
   $("btModeName").textContent = MODECFG[mode].name;
@@ -1233,7 +1232,6 @@ function renderTraining(){
 function tapDart(kind){ // én pil: 0 bom, 1 enkel/treff, 2 dobbel, 3 trippel
   if(T.done || T.pending || T.turnHits.length>=3) return;
   if(!T.start) T.start = Date.now();
-  if(T.turnHits.length===0) T.turnIdx0 = T.idx;   // målet runden faktisk startet på
   snapshot();
   T.turnHits.push(kind);
   if(kind===0){
@@ -1270,14 +1268,13 @@ function confirmTurn(snap){ // registrer runden; utastede piler telles som bom
   if(snap) snapshot();
   const pts = T.turnHits.reduce((a,k)=>a+k,0);
   const fillN = 3 - T.turnHits.length;
-  // De utastede pilene ble kastet på målet runden startet på. Traff du og gikk
-  // videre, hørte bommene fortsatt til det forrige tallet — ikke det nye.
-  const missIdx = (T.turnHits.length>0 && typeof T.turnIdx0==="number") ? T.turnIdx0 : T.idx;
-  numMiss(SEQ[missIdx], fillN);
+  // Pilene tastes i rekkefølge, så de utastede kom sist — altså etter et
+  // eventuelt treff som allerede flyttet oss videre. Da hører de til målet vi
+  // står på nå, ikke det runden startet på.
+  numMiss(SEQ[T.idx], fillN);
   T.miss  += fillN;
   T.darts += 3;
   T.turnHits = [];
-  T.turnIdx0 = T.idx;
   saveCur(); renderTraining();
   showRoundFace(pts, T.mode);
 }
@@ -1382,7 +1379,7 @@ function boardUndo(){
   if(T.done || T.pending) return false;
   const u = T.undo.pop(); if(!u) return false;
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
-  T.turnHits=u.turnHits; T.num=u.num; T.turnIdx0=u.turnIdx0;
+  T.turnHits=u.turnHits; T.num=u.num;
   saveCur(); renderTraining();
   return true;
 }
@@ -1397,7 +1394,7 @@ onTap($("btnUndoCo"),()=>{ // «kom bare borti» — angre den siste pilen og fo
   const u = T.undo.pop();
   if(!u){ T.pending=false; T.endTs=null; saveCur(); renderTraining(); return; }
   T.idx=u.idx; T.darts=u.darts; T.miss=u.miss; T.s=u.s; T.d=u.d; T.t=u.t;
-  T.turnHits=u.turnHits; T.num=u.num; T.turnIdx0=u.turnIdx0;
+  T.turnHits=u.turnHits; T.num=u.num;
   T.pending=false; T.endTs=null; T.prevBest=null;
   saveCur(); renderTraining();
 });
