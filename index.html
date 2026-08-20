@@ -465,6 +465,39 @@
   .modal .box p{margin:0 0 14px;font-weight:600}
   .modal .box .opts{display:flex;gap:10px}
   .modal .box .opts button{flex:1;font:inherit;font-size:22px;font-weight:800;padding:16px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer}
+
+  /* ---- stemmestyring ---- */
+  #btnVoice{
+    position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom));
+    width:58px; height:58px; border-radius:50%; z-index:35; display:none; place-items:center;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink2);
+    box-shadow:0 3px 10px rgba(42,36,27,.18); cursor:pointer; padding:0;
+  }
+  #btnVoice svg{width:26px;height:26px;fill:none;stroke:currentColor;stroke-width:1.8;
+                stroke-linecap:round;stroke-linejoin:round}
+  #btnVoice.on{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+  #btnVoice.on::after{
+    content:""; position:absolute; inset:-5px; border-radius:50%;
+    border:2px solid var(--green); opacity:.5; animation:vpulse 1.8s ease-out infinite;
+  }
+  @keyframes vpulse{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.25);opacity:0}}
+  #voiceStrip{
+    position:fixed; left:12px; right:86px; bottom:calc(20px + env(safe-area-inset-bottom));
+    z-index:34; display:none; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:9px 12px; box-shadow:0 3px 10px rgba(42,36,27,.14);
+  }
+  .vlvl{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:6px}
+  .vlvl i{display:block;height:100%;width:0;background:var(--green);border-radius:2px}
+  .vsaid{font-size:14px;font-weight:800;line-height:1.2;min-height:17px}
+  .voicelink{
+    display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;
+    border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:12px;
+  }
+  .voicelink b{display:block;font-size:14px;font-weight:800}
+  .voicelink small{display:block;font-size:11.5px;color:var(--ink2);margin-top:2px}
+  .voicelink span:first-child{flex:1}
+  .voicelink .chev{font-size:20px;color:var(--ink2);line-height:1}
+  .vmsg{font-size:11.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
 </style>
 
 <div id="app">
@@ -1071,6 +1104,13 @@
           <label for="soundToggle">Lydeffekter (klapping)</label>
           <input type="checkbox" id="soundToggle">
         </div>
+        <a class="voicelink" href="./lydtrening.html">
+          <span>
+            <b>Stemmestyring</b>
+            <small id="voiceState">Les inn stemmen din</small>
+          </span>
+          <span class="chev">›</span>
+        </a>
         <div class="rowbtns" style="margin-top:12px">
           <button class="ghost" id="btnExport">Eksporter backup</button>
           <button class="ghost" id="btnImport">Importer backup</button>
@@ -1104,13 +1144,26 @@
   </div>
 </div>
 
+<button id="btnVoice" aria-label="Stemmestyring">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/>
+    <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+  </svg>
+</button>
+<div id="voiceStrip">
+  <div class="vlvl"><i id="voiceLvl"></i></div>
+  <div class="vsaid" id="voiceSaid"></div>
+  <div class="vmsg" id="voiceMsg"></div>
+</div>
+
+<script src="./voice.js"></script>
 <script>
 "use strict";
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 25;
-const APP_ROLLOUT = "2026-08-20T17:18:39+00:00";
+const APP_VERSION = 26;
+const APP_ROLLOUT = "2026-08-20T17:42:38+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1253,6 +1306,7 @@ function applause(){
 const TVIEWS=["modePicker","boardTraining","tpView","coView","quizView"];
 function showTView(id){
   TVIEWS.forEach(v=>$(v).style.display = v===id?"block":"none");
+  if(typeof updateMicBtn==="function") updateMicBtn();
   if(id==="modePicker") updateResume();
 }
 function updateResume(){
@@ -1328,6 +1382,7 @@ function enterBoard(mode){
 }
 
 function renderTraining(){
+  updateMicBtn();
   const best = bestScore(T.mode);
   $("tBest").textContent = best ?? "–";
   const effDarts = T.darts + T.turnHits.length;
@@ -2314,7 +2369,14 @@ function renderStats(){
   renderQuizStats(qz);
   renderGameStats(gm);
   $("soundToggle").checked = SET.sound!==false;
-  setSum("tools", "lyd, backup, sletting");
+  setSum("tools", "stemme, lyd, backup, sletting");
+  // Fasiten bor i nettleseren på denne telefonen. Broren din leser inn sin
+  // egen på sin egen — de skal ikke deles, stemmene er ulike.
+  const vs=$("voiceState"), n=(window.Voice ? Voice.ready() : 0);
+  if(vs) vs.textContent = n>=4
+    ? n+" av 5 ord lest inn — mikrofonknappen dukker opp i «rundt brettet»"
+    : (n ? n+" av 5 ord lest inn — les inn resten for å ta den i bruk"
+         : "Les inn stemmen din, så kan du taste med stemmen");
 }
 
 function renderTotals(rtb,dbl,tp,co,qz,gm){
@@ -3134,6 +3196,162 @@ showTView("modePicker");
 </script>
 
 <script>
+
+/* ================= STEMMESTYRING =================
+   Motoren ligger i voice.js, delt med innlesingssiden. Det som er lest inn
+   og finjustert der gjelder derfor her uten videre.
+
+   Ordene treffer «rundt brettet» rett: treff=enkel, dobbel, trippel, bom.
+   «angre» tar tilbake forrige pil — også fra opplesingen, så du kan rette
+   deg selv midt i runden.                                                 */
+const VMAP = { treff:1, dobbel:2, trippel:3, bom:0 };
+const VMIN = 4;                 // færre ord innlest enn dette gir ingen mening
+let vOn=false, vMic=null, vEp=null, vRing=[], vFrame=0, vSpeaking=false;
+let vSaid=[], vTimer=null, vTemplates=null;
+const VRING_MAX=260;
+
+function voiceReady(){ return window.Voice ? Voice.ready() : 0; }
+// Knappen skal bare finnes der den betyr noe. T kan holde på en runde som
+// kan gjenopptas selv når du står på startskjermen, så runden alene er ikke
+// nok — brettskjermen må faktisk være framme.
+function voiceUsable(){
+  if(!T || T.done || T.pending) return false;
+  if(T.mode!=="rtb" && T.mode!=="dbl") return false;
+  const bt=$("boardTraining"), sec=$("view-trening");
+  if(!bt || bt.style.display==="none") return false;
+  return !!sec && sec.classList.contains("active");
+}
+
+function updateMicBtn(){
+  const b=$("btnVoice");
+  if(!b) return;
+  const vis = voiceUsable() && voiceReady()>=VMIN;
+  b.style.display = vis ? "grid" : "none";
+  b.classList.toggle("on", vOn);
+  if(!vis && vOn) voiceOff();
+  const strip=$("voiceStrip");
+  if(strip) strip.style.display = (vis && vOn) ? "block" : "none";
+}
+
+async function voiceOn(){
+  if(vOn) return;
+  try{
+    vTemplates = Voice.loadTemplates();
+    vEp = Voice.makeEndpointer(Voice.epCfg());
+    vRing=[]; vFrame=0; vSaid=[];
+    vMic = Voice.makeMic(vFrameIn);
+    await vMic.start();
+    vOn = true;
+    vSay("Klar");
+    voiceMsg("Si treff, bom, dobbel eller trippel.");
+  }catch(e){
+    voiceMsg("Fikk ikke mikrofontilgang.");
+    vOn=false;
+  }
+  updateMicBtn();
+}
+function voiceOff(){
+  vOn=false;
+  clearTimeout(vTimer); vTimer=null;
+  try{ if(vMic) vMic.stop(); }catch(e){}
+  vMic=null; vEp=null; vRing=[]; vSaid=[];
+  try{ speechSynthesis.cancel(); }catch(e){}
+  updateMicBtn();
+}
+function voiceMsg(t){ const e=$("voiceMsg"); if(e) e.textContent=t; }
+
+function vFrameIn(f){
+  vRing.push(f);
+  if(vRing.length>VRING_MAX) vRing.shift();
+  vFrame++;
+  if(vSpeaking) return;                      // appen skal ikke høre seg selv
+  const over = f.energy - (vEp.floor===null ? f.energy : vEp.floor);
+  const bar=$("voiceLvl");
+  if(bar) bar.style.width=Math.max(0,Math.min(100,Math.round(over/vEp.need*50)))+"%";
+  const r = vEp.push(f.energy, vFrame);
+  if(!r) return;
+  if(r.why==="sperret"){ voiceMsg("Litt for tidlig — vent til den har roet seg."); return; }
+  if(r.why!=="ok") return;
+  const base = vFrame - vRing.length;
+  const from = Math.max(0, r.from-base), to = Math.min(vRing.length, r.to-base);
+  if(to-from < 8) return;
+  const res = Voice.classify(Voice.cmn(vRing.slice(from,to)), vTemplates);
+  if(!res.word || !res.sure){ voiceMsg("Hørte ikke helt — si det igjen."); return; }
+  vHeard(res.word);
+}
+
+function vHeard(word){
+  if(!voiceUsable()){ voiceOff(); return; }
+  if(word==="angre"){
+    if(boardUndo()){ vSaid.pop(); voiceMsg("Angret."); }
+    else voiceMsg("Ingenting å angre.");
+    vShowSaid();
+    return;
+  }
+  const kind = VMAP[word];
+  if(kind==null) return;
+  if(navigator.vibrate) navigator.vibrate(20);
+  vSaid.push(word);
+  tapDart(kind);
+  vShowSaid();
+  // Tre piler er en runde. Den er allerede registrert av tapDart, så
+  // opplesingen er en kvittering — sier den feil, si «angre».
+  if(vSaid.length>=3 || !voiceUsable()){
+    const sagt=vSaid.slice(); vSaid=[];
+    clearTimeout(vTimer);
+    vTimer=setTimeout(()=>vReadBack(sagt), 1000);
+  }
+}
+function vShowSaid(){
+  const e=$("voiceSaid");
+  if(e) e.textContent = vSaid.length ? vSaid.join(" · ") : "";
+}
+
+/* ---- pling og opplesing ---- */
+function vPling(){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    if(AC.state==="suspended") AC.resume();
+    const t=AC.currentTime;
+    [[880,0],[1320,0.09]].forEach(([f,d])=>{
+      const o=AC.createOscillator(), g=AC.createGain();
+      o.type="sine"; o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t+d);
+      g.gain.exponentialRampToValueAtTime(0.25,t+d+0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+d+0.13);
+      o.connect(g); g.connect(AC.destination);
+      o.start(t+d); o.stop(t+d+0.15);
+    });
+  }catch(e){}
+}
+function vSay(text){
+  try{
+    if(!window.speechSynthesis) return;
+    vSpeaking=true;
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="nb-NO"; u.rate=1.15;
+    const slutt=()=>{
+      vSpeaking=false;
+      // la ekkoet fra høyttaleren dø ut før den lytter igjen
+      if(vEp) vEp.hush(30, vFrame);
+    };
+    u.onend=slutt; u.onerror=slutt;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    // sikkerhetsnett hvis onend aldri kommer
+    setTimeout(()=>{ if(vSpeaking) slutt(); }, 400+text.length*120);
+  }catch(e){ vSpeaking=false; }
+}
+function vReadBack(sagt){
+  if(!vOn || !sagt.length) return;
+  vPling();
+  voiceMsg("Registrert: "+sagt.join(", "));
+  setTimeout(()=>vSay(sagt.join(", ")), 260);
+}
+
+/* ---- knapp og stripe ---- */
+onTap($("btnVoice"), ()=>{ if(vOn) voiceOff(); else voiceOn(); });
+
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
 }

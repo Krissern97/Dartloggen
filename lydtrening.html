@@ -260,237 +260,25 @@
   <button class="cstop" id="capStop">Ferdig</button>
 </div>
 
+<script src="./voice.js"></script>
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 
 /* ============================================================
-   1. SIGNALBEHANDLING
+   1. MOTOREN
+   Signalbehandling, orddeteksjon og gjenkjenning ligger i voice.js, som
+   appen bruker akkurat likt. Det du stiller inn her gjelder derfor også
+   under spill. Navnene hentes ut hit, så resten av siden leser som før.
    ============================================================ */
-const P = { sampleRate:16000, frameLen:400, hop:160, fftSize:512,
-            melBands:26, cepstra:13, fMin:200, fMax:7000 };
+const { P, frameFeature, cmn, dct, dtw, makeEndpointer, packMel, unpackMel,
+        classify, loadTemplates, cfg, saveCfg, epCfg,
+        WORDS, TARGET, STORE, SNIPKEY, CFGKEY, MINSEG } = Voice;
 
-function fft(re, im){
-  const n = re.length;
-  for(let i=1, j=0; i<n; i++){
-    let bit = n>>1;
-    for(; j & bit; bit >>= 1) j ^= bit;
-    j ^= bit;
-    if(i<j){ let t=re[i]; re[i]=re[j]; re[j]=t; t=im[i]; im[i]=im[j]; im[j]=t; }
-  }
-  for(let len=2; len<=n; len<<=1){
-    const ang = -2*Math.PI/len, wr = Math.cos(ang), wi = Math.sin(ang);
-    for(let i=0; i<n; i+=len){
-      let cr=1, ci=0;
-      for(let k=0; k<len/2; k++){
-        const ar=re[i+k], ai=im[i+k];
-        const br=re[i+k+len/2], bi=im[i+k+len/2];
-        const tr=br*cr-bi*ci, ti=br*ci+bi*cr;
-        re[i+k]=ar+tr; im[i+k]=ai+ti;
-        re[i+k+len/2]=ar-tr; im[i+k+len/2]=ai-ti;
-        const ncr=cr*wr-ci*wi; ci=cr*wi+ci*wr; cr=ncr;
-      }
-    }
-  }
-}
-const hzToMel = f => 2595*Math.log10(1+f/700);
-const melToHz = m => 700*(Math.pow(10,m/2595)-1);
-const MEL = (function(){
-  const bins = P.fftSize/2+1, lo = hzToMel(P.fMin), hi = hzToMel(P.fMax), pts=[];
-  for(let i=0;i<P.melBands+2;i++)
-    pts.push(Math.floor((P.fftSize+1)*melToHz(lo+(hi-lo)*i/(P.melBands+1))/P.sampleRate));
-  const out=[];
-  for(let m=1;m<=P.melBands;m++){
-    const f=new Float32Array(bins), a=pts[m-1], b=pts[m], c=pts[m+1];
-    for(let k=a;k<b;k++) if(k>=0&&k<bins&&b>a) f[k]=(k-a)/(b-a);
-    for(let k=b;k<c;k++) if(k>=0&&k<bins&&c>b) f[k]=(c-k)/(c-b);
-    out.push(f);
-  }
-  return out;
-})();
-const HANN = (function(){
-  const w=new Float32Array(P.frameLen);
-  for(let i=0;i<P.frameLen;i++) w[i]=0.5-0.5*Math.cos(2*Math.PI*i/(P.frameLen-1));
-  return w;
-})();
-function dct(input, keep){
-  const n=input.length, out=new Float32Array(keep);
-  for(let k=0;k<keep;k++){
-    let s=0;
-    for(let i=0;i<n;i++) s += input[i]*Math.cos(Math.PI*k*(i+0.5)/n);
-    out[k]=s;
-  }
-  return out;
-}
-const _re = new Float32Array(P.fftSize), _im = new Float32Array(P.fftSize);
-const _bins = P.fftSize/2+1;
-// Én ramme på 25 ms -> mel-spekter (til spektrogrammet), MFCC og energi
-function frameFeature(buf, off){
-  _re.fill(0); _im.fill(0);
-  for(let i=0;i<P.frameLen;i++) _re[i]=buf[off+i]*HANN[i];
-  fft(_re,_im);
-  const mel=new Float32Array(P.melBands);
-  for(let m=0;m<P.melBands;m++){
-    let s=0; const f=MEL[m];
-    for(let k=0;k<_bins;k++){
-      const p=(_re[k]*_re[k]+_im[k]*_im[k])/P.fftSize;
-      s += p*f[k];
-    }
-    mel[m]=Math.log(s+1e-10);
-  }
-  let e=0;
-  for(let m=0;m<P.melBands;m++) e+=mel[m];
-  return { mfcc: dct(mel,P.cepstra), mel: mel, energy: e/P.melBands };
-}
-// Trekk fra snittet: gjør sammenligningen upåvirket av mikrofon og avstand
-function cmn(frames){
-  if(!frames.length) return frames;
-  const n=frames[0].mfcc.length, mean=new Float32Array(n);
-  frames.forEach(f=>{ for(let i=0;i<n;i++) mean[i]+=f.mfcc[i]; });
-  for(let i=0;i<n;i++) mean[i]/=frames.length;
-  return frames.map(f=>{
-    const v=new Float32Array(n);
-    for(let i=0;i<n;i++) v[i]=f.mfcc[i]-mean[i];
-    return { mfcc:v };
-  });
-}
-function dist(a,b){
-  let s=0;
-  for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; s+=d*d; }
-  return Math.sqrt(s);
-}
-// DTW: strekker tid, så tempo ikke spiller inn. «cutoff» lar oss gi opp tidlig.
-function dtw(A,B,bandFrac,cutoff){
-  const n=A.length, m=B.length;
-  if(!n||!m) return Infinity;
-  const norm=n+m;
-  const band=Math.max(Math.abs(n-m)+1, Math.ceil((bandFrac||0.2)*Math.max(n,m)));
-  let prev=new Float64Array(m+1).fill(Infinity), cur=new Float64Array(m+1);
-  prev[0]=0;
-  for(let i=1;i<=n;i++){
-    cur.fill(Infinity);
-    const jLo=Math.max(1,i-band), jHi=Math.min(m,i+band);
-    let rowMin=Infinity;
-    const a=A[i-1].mfcc;
-    for(let j=jLo;j<=jHi;j++){
-      const v=dist(a,B[j-1].mfcc)+Math.min(prev[j],cur[j-1],prev[j-1]);
-      cur[j]=v;
-      if(v<rowMin) rowMin=v;
-    }
-    if(cutoff!=null && rowMin/norm > cutoff) return Infinity;
-    const t=prev; prev=cur; cur=t;
-  }
-  return prev[m]/norm;
-}
-
-/* ============================================================
-   2. ORDDETEKSJON
-   ============================================================ */
-const WORDS = ["treff","bom","dobbel","trippel","angre"];
-const TARGET = 8;
-const STORE = "dart_voice_templates";
-const SNIPKEY = "dart_voice_snips";
-const CFGKEY = "dart_voice_cfg";
-const MINSEG = 8;      // kortere enn 80 ms er ikke et ord
-
-/* ---- orddeteksjon ------------------------------------------------------
-   Tilstandsmaskin: mates med energi per ramme, sier fra når et ord er ferdig.
-   Fri for DOM og mikrofon, så den kan testes i Node.
-
-   Tre ting holder den i sjakk i et stille rom:
-
-   1) Gulvet spores med faste små skritt, og oppover ti ganger tregere enn
-      nedover. Da legger det seg på omtrent 9. persentil av romlyden — altså
-      ekte stillhet — uten å jage hvert enkelt støyminimum, og uten å krype
-      oppover mens du snakker.
-   2) Ett enkelt sprett er aldri et ord. Det kreves to rammer på rad over
-      terskelen, og det gjør et falskt utslag usannsynlig i annen potens.
-   3) Etter hvert ord er det en sperre på et halvt sekund. Halen av ordet,
-      ekkoet i rommet og pusten etterpå rekker ikke å bli et nytt utslag.
-
-   Selve terskelen er brukerens, ikke min. Jeg forsøkte først å heve den
-   automatisk når rommet svingte mye — men det målet lot seg bare beregne av
-   lyden som kom inn, og da talte ordet ditt med: terskelen steg FORDI du
-   snakket, og ordet ble aldri utløst. «sd» måles fortsatt, men bare for å
-   vises på skjermen og for å foreslå en verdi når du måler rommet.          */
-function makeEndpointer(cfg){
-  const C = Object.assign({ start:2.5, endMin:0.8, drop:0.20, hangover:25,
-                            minLen:10, maxLen:140, hardStop:150,
-                            refractory:50, startHold:2, warmup:20,
-                            up:0.004, down:0.04 }, cfg||{});
-  let floor=null, sd=0.2, n=0, on=false, startIdx=0, quiet=0, peak=-Infinity,
-      len=0, mute=-1, hold=0, armed=true, told=false;
-  const need = () => C.start;
-  return {
-    get floor(){ return floor; },
-    get sd(){ return sd; },
-    get need(){ return need(); },
-    get speaking(){ return on; },
-    reset(){ on=false; quiet=0; len=0; peak=-Infinity; mute=-1; hold=0; armed=true; told=false; },
-    hush(frames, idx){ mute=Math.max(mute, idx+frames); on=false; quiet=0; len=0;
-                       peak=-Infinity; hold=0; armed=false; told=false; },
-    setCfg(c){ Object.assign(C, c); },
-    // returnerer null, eller {from,to,why} der why er "ok" | "kort" | "lang"
-    push(energy, idx){
-      if(floor===null){ floor=energy; n=1; }
-      if(!on){
-        // Sperren stopper både deteksjon og gulvsporing: ser gulvet halen av
-        // ordet, blir det dratt opp, og neste ord druknes.
-        if(idx < mute){ hold=0; armed=false; return null; }
-        n++;
-        const warm = n<40;
-        if(warm){ const a=1/n; floor=floor*(1-a)+energy*a; }   // rask innkjøring
-        else floor += energy>floor ? C.up : -C.down;
-        const over = energy-floor;
-        // hvor høyt rommet vanligvis spretter over sitt eget gulv — bare til
-        // visning og til forslaget «Mål rommet» gir
-        const r = warm ? 1/n : 0.02;
-        sd = sd*(1-r) + Math.max(0,over)*r;
-        if(n < C.warmup) return null;      // hør på rommet før du dømmer
-        const loud = over > need();
-        // Etter en sperre må det bli stille FØR et nytt ord kan begynne.
-        // Uten dette ble ordet du sa mens sperren gikk fanget fra midten av,
-        // og en halv «trippel» ligner mest på et helt annet ord.
-        if(!armed){
-          if(!loud){ armed=true; told=false; return null; }
-          if(told) return null;
-          told=true;
-          return { from:idx, to:idx, why:"sperret" };
-        }
-        if(loud){
-          if(++hold < C.startHold) return null;
-          on=true; startIdx=idx-(C.startHold-1); quiet=0; peak=energy; len=C.startHold;
-        } else hold=0;
-        return null;
-      }
-      len++;
-      if(energy>peak) peak=energy;
-      // slutt-terskelen følger ordets egen styrke, ikke en fast avstand
-      const endLvl = floor + Math.max(C.endMin, (peak-floor)*C.drop);
-      const below = energy < endLvl;
-      quiet = below ? quiet+1 : 0;
-      const done = quiet>=C.hangover, forced = len>=C.hardStop;
-      if(!done && !forced) return null;
-      const tail = done ? quiet : 0;
-      // Sperren regnes fra der ordet faktisk sluttet, ikke fra nå. «Nå» er
-      // allerede en pauselengde senere, og la vi sperren oppå det, ble
-      // dødtiden pause + sperre — da forsvant ordet du sa rett etterpå.
-      on=false; quiet=0; armed=false; told=false; mute = (idx-tail) + C.refractory;
-      const from = startIdx-3, to = idx-tail+3;
-      const seg = to-from;
-      len=0; peak=-Infinity;
-      if(seg < C.minLen) return { from, to, why:"kort" };
-      if(seg > C.maxLen) return { from, to, why:"lang" };
-      return { from, to, why:"ok" };
-    }
-  };
-}
 
 /* ============================================================
    3. TILSTAND
    ============================================================ */
-let ctx=null, stream=null, node=null, micOn=false;
-let pending=new Float32Array(0);
 let ring=[];
 const RING_MAX=260;
 const PAD=15;                  // rammer med rom rundt snutten, så du ser klippet
@@ -502,62 +290,9 @@ let calUntil=0, calMax=0;
 let peakHold=0, peakAt=0;
 let snipTab=WORDS[0];
 
-function loadCfg(){
-  try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
-}
-const cfg = Object.assign({ thr:2.5, hangover:25, gap:50, ratio:0.85, drop:0.20 }, loadCfg());
-function saveCfg(){
-  try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
-}
-function epCfg(){
-  return { start:cfg.thr, endMin:Math.max(0.3,cfg.thr*0.35),
-           hangover:cfg.hangover, refractory:cfg.gap, drop:cfg.drop };
-}
 
-function loadTemplates(){
-  try{
-    const raw=JSON.parse(localStorage.getItem(STORE));
-    if(!raw) return {};
-    const out={};
-    for(const w in raw)
-      out[w]=raw[w].map(t=>({ frames:t.map(fr=>({ mfcc:Float32Array.from(fr) })) }));
-    return out;
-  }catch(e){ return {}; }
-}
-function saveTemplates(){
-  try{
-    const out={};
-    for(const w in templates)
-      out[w]=templates[w].map(t=>t.frames.map(f=>Array.from(f.mfcc).map(v=>+v.toFixed(3))));
-    localStorage.setItem(STORE, JSON.stringify(out));
-    return true;
-  }catch(e){ return false; }
-}
-/* ---- snuttene ----------------------------------------------------------
-   Spektrogrammet må overleve at siden lukkes, ellers kan du ikke justere
-   fasiten i morgen. Mel-verdiene ligger mellom -23 og +8, så én byte per
-   verdi med 1/7 oppløsning er rikelig — det gir ~2,5 kB per snutt i stedet
-   for ~12 kB som tekst. Selve lyden er for stor til å lagres; avspilling
-   virker derfor bare i økten opptaket ble gjort.                          */
-function packMel(mel){
-  const n=mel.length, bands=mel[0].length, buf=new Uint8Array(n*bands);
-  for(let i=0;i<n;i++) for(let b=0;b<bands;b++){
-    const v=Math.round((mel[i][b]+25)*7);
-    buf[i*bands+b] = v<0?0:(v>255?255:v);
-  }
-  let s="";
-  for(let i=0;i<buf.length;i++) s+=String.fromCharCode(buf[i]);
-  return btoa(s);
-}
-function unpackMel(str, bands){
-  const bin=atob(str), n=Math.floor(bin.length/bands), out=[];
-  for(let i=0;i<n;i++){
-    const r=new Float32Array(bands);
-    for(let b=0;b<bands;b++) r[b]=bin.charCodeAt(i*bands+b)/7-25;
-    out.push(r);
-  }
-  return out;
-}
+// Fasiten leses og lagres av den delte motoren; her holder vi bare på den.
+const saveTemplates = () => Voice.saveTemplates(templates);
 function loadSnips(){
   const s={ __test:[] };
   let raw=null;
@@ -601,63 +336,26 @@ function logLine(t){
 /* ============================================================
    4. MIKROFON
    ============================================================ */
+/* ============================================================
+   4. MIKROFON
+   ============================================================ */
+let mic=null, micOn=false;
 async function startMic(){
   try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      // Rå lyd. Automatisk volumkontroll skrur opp følsomheten når det blir
-      // stille, så romlyden ETTER et ord måles høyere enn romlyden FØR — og
-      // da faller nivået aldri tilbake dit det var. Støydemping og
-      // ekkokansellering pumper på samme måte.
-      audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
-    });
-    const AC = window.AudioContext || window.webkitAudioContext;
-    try{ ctx = new AC({ sampleRate:P.sampleRate }); }
-    catch(e){ ctx = new AC(); }
-    if(ctx.state==="suspended") await ctx.resume();
-    const src = ctx.createMediaStreamSource(stream);
-    node = ctx.createScriptProcessor(2048,1,1);
-    const ratio = ctx.sampleRate / P.sampleRate;
-    node.onaudioprocess = ev => {
-      const inp = ev.inputBuffer.getChannelData(0);
-      feed(ratio>1.01 ? downsample(inp,ratio) : inp);
-    };
-    src.connect(node);
-    // ScriptProcessor må ha en utgang for å kjøre, men skal ikke høres
-    const dead = ctx.createGain(); dead.gain.value = 0;
-    node.connect(dead); dead.connect(ctx.destination);
+    mic = Voice.makeMic(onFrame);
+    const info = await mic.start();
     micOn = true;
     $("btnMic").textContent = "Mikrofonen er på";
     $("btnMic").disabled = true;
     $("main").classList.remove("hide");
-    msg("micMsg","Lytter. "+Math.round(ctx.sampleRate)+" Hz inn"+
-        (ratio>1.01 ? ", nedskalert til 16 000" : "")+
+    msg("micMsg","Lytter. "+Math.round(info.rate)+" Hz inn"+
+        (info.resampled ? ", nedskalert til 16 000" : "")+
         ". Trykk «Mål rommet» for å sette terskelen etter rommet du står i.","ok");
     logLine("mikrofon på");
     renderWords(); renderSnipTabs(); renderSnips();
   }catch(e){
     msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
   }
-}
-function downsample(inp, ratio){
-  const n=Math.floor(inp.length/ratio), out=new Float32Array(n);
-  for(let i=0;i<n;i++){
-    const p=i*ratio, a=Math.floor(p), f=p-a;
-    out[i]= a+1<inp.length ? inp[a]*(1-f)+inp[a+1]*f : inp[a];
-  }
-  return out;
-}
-function feed(chunk){
-  const merged=new Float32Array(pending.length+chunk.length);
-  merged.set(pending); merged.set(chunk,pending.length);
-  pending=merged;
-  let off=0;
-  while(pending.length-off >= P.frameLen){
-    const f=frameFeature(pending,off);
-    f.pcm=pending.slice(off, off+P.hop);   // lyden bak ramma, til avspilling
-    onFrame(f);
-    off += P.hop;
-  }
-  pending = pending.slice(off);
 }
 function onFrame(f){
   ring.push(f);
@@ -755,24 +453,12 @@ function gotWord(from, to){
     if(capGot>=TARGET) nextCapture();
     return;
   }
-  const scores={};
-  let cutoff=null;                    // beste avstand sett så langt, på tvers av ord
-  for(const w in templates){
-    if(!templates[w] || !templates[w].length) continue;
-    let best=Infinity;
-    templates[w].forEach(t=>{
-      const d=dtw(probe,t.frames,null,cutoff);
-      if(d<best) best=d;
-      if(cutoff===null || d<cutoff) cutoff=d;
-    });
-    scores[w]=best;
-  }
-  const ranked=Object.keys(scores).sort((a,b)=>scores[a]-scores[b]);
-  if(!ranked.length) return;
-  renderLive(scores, ranked[0]);
-  const best=ranked[0];
-  const ratio = ranked[1]!=null ? scores[best]/scores[ranked[1]] : 0;
-  const sure = ratio<=cfg.ratio;
+  // Samme kall som appen gjør under spill, så testen her og spillet der
+  // aldri kan svare forskjellig.
+  const r=classify(probe, templates);
+  if(!r.word) return;
+  const scores=r.scores, ranked=r.ranked, best=r.word, ratio=r.ratio, sure=r.sure;
+  renderLive(scores, best);
   snip.label=(sure?best:"?")+" · "+snip.ms+" ms";
   snips.__test.unshift(snip);
   if(snips.__test.length>12) snips.__test.pop();
@@ -873,13 +559,13 @@ function looksCut(snip){
 }
 let playSrc=null;
 function playSnip(snip){
-  if(!ctx || !snip || !snip.pcm || !snip.pcm.length) return;
+  if(!mic || !mic.ctx || !snip || !snip.pcm || !snip.pcm.length) return;
   try{
     if(playSrc){ try{ playSrc.stop(); }catch(e){} }
-    const buf=ctx.createBuffer(1, snip.pcm.length, P.sampleRate);
+    const buf=mic.ctx.createBuffer(1, snip.pcm.length, P.sampleRate);
     if(buf.copyToChannel) buf.copyToChannel(snip.pcm,0);
     else buf.getChannelData(0).set(snip.pcm);
-    const s=ctx.createBufferSource(); s.buffer=buf; s.connect(ctx.destination);
+    const s=mic.ctx.createBufferSource(); s.buffer=buf; s.connect(mic.ctx.destination);
     // mikrofonen skal ikke høre sin egen avspilling og lage et nytt «ord»
     if(ep) ep.hush(Math.ceil(snip.pcm.length/P.hop)+20, frameNo);
     s.start(); playSrc=s;
