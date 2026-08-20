@@ -382,9 +382,78 @@ function ready(){
   return WORDS.filter(w=>(t[w]||[]).length>0).length;
 }
 
+/* ---- skyverne ----
+   Én definisjon, brukt både på innlesingssiden og i panelet under spill, så
+   de to aldri kan vise forskjellige tall. Pause og sperre lagres i rammer
+   (10 ms hver) fordi detektoren teller rammer, men vises i ms.            */
+const CONTROLS = [
+  { key:"thr", min:0.5, max:10, step:0.1,
+    lab:"Terskel — hvor mye over romnivået et ord må være",
+    vis:v=>v.toFixed(1).replace(".",","),
+    note:"Den røde streken i måleren. Skal ligge godt over romstøyen, men under stemmen din." },
+  { key:"hangover", min:10, max:60, step:1,
+    lab:"Pause før ordet regnes som ferdig",
+    vis:v=>(v*10)+" ms",
+    note:"Blir ett ord til flere utslag, øk den. Smelter to ord sammen, senk den." },
+  { key:"gap", min:10, max:100, step:1,
+    lab:"Sperre mellom ord",
+    vis:v=>(v*10)+" ms",
+    note:"Dødtid etter hvert ord. Det er denne som avgjør hvor kjapt du kan si dem etter hverandre." },
+  { key:"ratio", min:0.50, max:0.99, step:0.01,
+    lab:"Hvor sikker den må være før den sier et ord",
+    vis:v=>v.toFixed(2).replace(".",","),
+    note:"Beste ord delt på nest beste. Lavere er strengere og gir flere spørsmålstegn. Høyere gjør at den heller gjetter." },
+  { key:"drop", min:0.05, max:0.50, step:0.01,
+    lab:"Hvor mye lyden må falle før ordet er slutt",
+    vis:v=>v.toFixed(2).replace(".",","),
+    note:"Andel av ordets egen styrke. Lavere drar med etterklang. Høyere kutter svake sluttlyder som f-en i «treff»." }
+];
+let stilLagt=false;
+function leggStil(){
+  if(stilLagt) return;
+  stilLagt=true;
+  const st=document.createElement("style");
+  st.textContent=
+    ".vc-row{margin-bottom:14px}"+
+    ".vc-row:last-child{margin-bottom:0}"+
+    ".vc-top{display:flex;align-items:baseline;gap:10px}"+
+    ".vc-lab{flex:1;font-size:10.5px;font-weight:700;letter-spacing:.1em;"+
+      "text-transform:uppercase;color:var(--ink2);line-height:1.35}"+
+    ".vc-val{flex:none;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}"+
+    ".vc-row input[type=range]{display:block;width:100%;margin:4px 0 0;height:26px;accent-color:var(--red)}"+
+    ".vc-note{font-size:11px;color:var(--ink2);line-height:1.45}";
+  document.head.appendChild(st);
+}
+function controls(el, opts){
+  opts=opts||{};
+  leggStil();
+  el.innerHTML="";
+  const rader={};
+  CONTROLS.forEach(c=>{
+    const row=document.createElement("div"); row.className="vc-row";
+    const top=document.createElement("div"); top.className="vc-top";
+    const lab=document.createElement("span"); lab.className="vc-lab"; lab.textContent=c.lab;
+    const val=document.createElement("b"); val.className="vc-val";
+    top.appendChild(lab); top.appendChild(val);
+    const inp=document.createElement("input");
+    inp.type="range"; inp.min=c.min; inp.max=c.max; inp.step=c.step; inp.value=cfg[c.key];
+    const note=document.createElement("div"); note.className="vc-note"; note.textContent=c.note;
+    row.appendChild(top); row.appendChild(inp); row.appendChild(note);
+    el.appendChild(row);
+    const vis=()=>{ val.textContent=c.vis(cfg[c.key]); inp.value=cfg[c.key]; };
+    vis();
+    inp.addEventListener("input", ()=>{
+      cfg[c.key]=+inp.value; vis(); saveCfg();
+      if(opts.onChange) opts.onChange(c.key);
+    });
+    rader[c.key]={vis};
+  });
+  return { refresh(){ for(const k in rader) rader[k].vis(); } };
+}
+
 window.Voice = {
   P, fft, dct, frameFeature, cmn, dist, dtw, makeEndpointer,
-  packMel, unpackMel, classify, makeMic, ready,
+  packMel, unpackMel, classify, makeMic, ready, controls, CONTROLS,
   cfg, saveCfg, epCfg, loadTemplates, saveTemplates,
   WORDS, TARGET, STORE, SNIPKEY, CFGKEY, MINSEG
 };

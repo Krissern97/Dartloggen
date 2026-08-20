@@ -171,11 +171,8 @@
     <div class="meter" id="meter"><i></i><s id="peakMark"></s><u id="thrMark"></u><b id="meterTxt">av</b></div>
     <div class="note" id="lvlNote">Slå på mikrofonen for å se nivåene.</div>
 
-    <div class="flab gap">Terskel — hvor mye over romnivået et ord må være</div>
-    <div class="srow">
-      <input type="range" id="thr" min="0.5" max="10" step="0.1" value="2.5">
-      <b id="thrVal">2,5</b>
-    </div>
+    <div id="vcontrols" style="margin-top:16px"></div>
+
     <div class="row">
       <button class="ghost" id="btnCal">Mål rommet — vær stille i 3 sek</button>
     </div>
@@ -202,32 +199,6 @@
 
     <h2>Test</h2>
     <div class="card">
-      <div class="flab">Pause før ordet regnes som ferdig</div>
-      <div class="seg" id="pause">
-        <button data-p="15">150 ms</button>
-        <button data-p="25" class="active">250 ms</button>
-        <button data-p="40">400 ms</button>
-      </div>
-      <div class="flab gap">Hvor sikker den må være før den sier et ord</div>
-      <div class="srow">
-        <input type="range" id="ratio" min="0.50" max="0.99" step="0.01" value="0.85">
-        <b id="ratioVal">0,85</b>
-      </div>
-      <div class="note">Avstanden til beste ord delt på nest beste. Lavere = strengere, flere «?». Høyere = den gjetter heller enn å la være.</div>
-
-      <div class="flab gap">Hvor mye lyden må falle før ordet er slutt</div>
-      <div class="srow">
-        <input type="range" id="drop" min="0.05" max="0.50" step="0.01" value="0.20">
-        <b id="dropVal">0,20</b>
-      </div>
-      <div class="note">Andel av ordets egen styrke. Lavere drar med etterklang og kan smelte to ord sammen. Høyere kutter svake sluttlyder som f-en i «treff».</div>
-
-      <div class="flab gap">Sperre etter et ord — dette er det som bestemmer hvor kjapt du kan si dem</div>
-      <div class="seg" id="gap">
-        <button data-g="20">200 ms</button>
-        <button data-g="35">350 ms</button>
-        <button data-g="50" class="active">500 ms</button>
-      </div>
       <button class="primary" id="btnListen" disabled>Start lytting</button>
       <div class="heard">
         <div class="big" id="heardWord">–</div>
@@ -766,31 +737,16 @@ function nextCapture(){
   msg("recMsg","Fasit lagret. Se over opptakene før du tester.","ok");
 }
 
-/* ---- terskel ---- */
+/* ---- skyverne ----
+   Bygges av den delte motoren, så panelet under spill og panelet her viser
+   nøyaktig de samme tallene og virker likt. */
+const VC = Voice.controls($("vcontrols"), { onChange(){ if(ep) ep.setCfg(epCfg()); } });
 function setThr(v){
-  cfg.thr=Math.round(v*10)/10;
-  $("thr").value=cfg.thr;
-  $("thrVal").textContent=cfg.thr.toFixed(1).replace(".",",");
+  cfg.thr = Math.round(Math.max(0.5, Math.min(10, v))*10)/10;
+  saveCfg(); VC.refresh();
   if(ep) ep.setCfg(epCfg());
-  saveCfg();
 }
-$("thr").addEventListener("input", e=>setThr(+e.target.value));
 
-// De to finjusteringene virker likt: vis tallet, lagre det, send det inn.
-function knob(id, key, after){
-  const el=$(id), out=$(id+"Val");
-  const vis=()=>{ out.textContent=cfg[key].toFixed(2).replace(".",","); };
-  el.value=cfg[key]; vis();
-  el.addEventListener("input", e=>{
-    cfg[key]=+e.target.value; vis(); saveCfg();
-    if(ep) ep.setCfg(epCfg());
-    if(after) after();
-  });
-}
-knob("ratio","ratio",()=>msg("listenMsg",
-  "Sikkerhet "+cfg.ratio.toFixed(2).replace(".",",")+". Får du «?» på ord du sa tydelig, dra den opp.","ok"));
-knob("drop","drop",()=>msg("listenMsg",
-  "Ordslutt "+cfg.drop.toFixed(2).replace(".",",")+". Blir ett ord til to utslag, dra den ned.","ok"));
 $("btnCal").addEventListener("click", ()=>{
   if(!micOn){ msg("micMsg","Slå på mikrofonen først.","err"); return; }
   calUntil=frameNo+300; calMax=0;      // 3 sekunder
@@ -805,34 +761,6 @@ function finishCal(){
       ". Blir ord oversett, dra den ned. Kommer det utslag av seg selv, dra den opp.","ok");
   logLine("kalibrert: rom +"+calMax.toFixed(1)+", terskel "+cfg.thr.toFixed(1));
 }
-setThr(cfg.thr);
-
-/* ---- pause ---- */
-// Blir ett ord til to utslag, er pausen for kort — den rekker ikke over
-// stille partier inni ordet, som f-lyden i «treff».
-$("pause").querySelectorAll("button").forEach(b=>{
-  b.classList.toggle("active", +b.dataset.p===cfg.hangover);
-  b.addEventListener("click",()=>{
-    cfg.hangover=+b.dataset.p; saveCfg();
-    if(ep) ep.setCfg(epCfg());
-    $("pause").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
-    msg("listenMsg","Pause: "+b.textContent+". Blir ett ord til flere utslag, øk den.","ok");
-  });
-});
-
-/* ---- sperre etter et ord ----
-   Dette tallet er selve takten: sperren er ren dødtid etter at ordet slutter,
-   og det er den som avgjør hvor kjapt du kan si ord etter hverandre. Kort
-   sperre gir raskere innmating, men ekkoet i rommet kan bli et nytt ord. */
-$("gap").querySelectorAll("button").forEach(b=>{
-  b.classList.toggle("active", +b.dataset.g===cfg.gap);
-  b.addEventListener("click",()=>{
-    cfg.gap=+b.dataset.g; saveCfg();
-    if(ep) ep.setCfg(epCfg());
-    $("gap").querySelectorAll("button").forEach(x=>x.classList.toggle("active",x===b));
-    msg("listenMsg","Sperre: "+b.textContent+". Leser den samme ord to ganger, øk den.","ok");
-  });
-});
 
 $("capStop").addEventListener("click", nextCapture);
 $("btnMic").addEventListener("click", startMic);

@@ -468,7 +468,7 @@
 
   /* ---- stemmestyring ---- */
   #btnVoice{
-    position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom));
+    position:fixed; right:84px; bottom:calc(16px + env(safe-area-inset-bottom));
     width:58px; height:58px; border-radius:50%; z-index:35; display:none; place-items:center;
     border:1px solid var(--line); background:var(--surface); color:var(--ink2);
     box-shadow:0 3px 10px rgba(42,36,27,.18); cursor:pointer; padding:0;
@@ -481,9 +481,38 @@
     border:2px solid var(--green); opacity:.5; animation:vpulse 1.8s ease-out infinite;
   }
   @keyframes vpulse{0%{transform:scale(.9);opacity:.55}100%{transform:scale(1.25);opacity:0}}
+  #btnVoiceSet{
+    position:fixed; right:16px; bottom:calc(16px + env(safe-area-inset-bottom));
+    width:58px; height:58px; border-radius:50%; z-index:35; display:none; place-items:center;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink2);
+    box-shadow:0 3px 10px rgba(42,36,27,.18); cursor:pointer; padding:0;
+  }
+  #btnVoiceSet svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;
+                   stroke-linecap:round}
+  #voiceSheet{
+    position:fixed; inset:0; z-index:60; display:none;
+    background:rgba(10,9,8,.45); align-items:flex-end;
+  }
+  #voiceSheet.on{display:flex}
+  .vsheet{
+    width:100%; max-width:480px; margin:0 auto; max-height:88dvh; overflow-y:auto;
+    background:var(--surface); border-top-left-radius:18px; border-top-right-radius:18px;
+    padding:16px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  .vshead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .vshead b{flex:1;font-size:14px;font-weight:800;letter-spacing:.04em}
+  .vshead .ghost{flex:none;padding:9px 16px}
+  .vsnote{font-size:11.5px;color:var(--ink2);line-height:1.45;margin-top:7px}
+  #vsMeter{height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;
+           position:relative;margin-top:4px}
+  #vsMeter i{display:block;height:100%;background:var(--green-mid);width:0}
+  #vsMeter.hot i{background:var(--green)}
+  #vsMeter u{position:absolute;top:0;bottom:0;width:2px;background:var(--red);left:0}
+  #vsMeter b{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;
+             font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
   #voiceStrip{
-    position:fixed; left:12px; right:86px; bottom:calc(20px + env(safe-area-inset-bottom));
-    z-index:34; display:none; background:var(--surface); border:1px solid var(--line);
+    position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom));
+    z-index:33; display:none; background:var(--surface); border:1px solid var(--line);
     border-radius:12px; padding:9px 12px; box-shadow:0 3px 10px rgba(42,36,27,.14);
   }
   .vlvl{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:6px}
@@ -1150,6 +1179,22 @@
     <path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
   </svg>
 </button>
+<button id="btnVoiceSet" aria-label="Still inn stemmen">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 7h10M18 7h2M4 17h2M10 17h10"/>
+    <circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/>
+  </svg>
+</button>
+<div id="voiceSheet"><div class="vsheet">
+  <div class="vshead">
+    <b>Still inn stemmen</b>
+    <button class="ghost" id="btnVoiceSetClose">Ferdig</button>
+  </div>
+  <div class="meter" id="vsMeter"><i></i><u></u><b id="vsMeterTxt">av</b></div>
+  <div class="vsnote" id="vsLvl">Slå på mikrofonen for å se nivåene.</div>
+  <div id="vsControls" style="margin-top:16px"></div>
+</div></div>
+
 <div id="voiceStrip">
   <div class="vlvl"><i id="voiceLvl"></i></div>
   <div class="vsaid" id="voiceSaid"></div>
@@ -1162,8 +1207,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 27;
-const APP_ROLLOUT = "2026-08-20T17:48:37+00:00";
+const APP_VERSION = 28;
+const APP_ROLLOUT = "2026-08-20T18:36:13+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -3227,6 +3272,9 @@ function updateMicBtn(){
   if(!b) return;
   const vis = voiceUsable() && voiceReady()>=VMIN;
   b.style.display = vis ? "grid" : "none";
+  const sb=$("btnVoiceSet");
+  if(sb) sb.style.display = vis ? "grid" : "none";
+  if(!vis) closeVoiceSheet();
   b.classList.toggle("on", vOn);
   if(!vis && vOn) voiceOff();
   const strip=$("voiceStrip");
@@ -3266,8 +3314,11 @@ function vFrameIn(f){
   vFrame++;
   if(vSpeaking) return;                      // appen skal ikke høre seg selv
   const over = f.energy - (vEp.floor===null ? f.energy : vEp.floor);
+  vsOver=over;
+  if(over>vsPeak || vFrame-vsPeakAt>300){ vsPeak=over; vsPeakAt=vFrame; }
   const bar=$("voiceLvl");
   if(bar) bar.style.width=Math.max(0,Math.min(100,Math.round(over/vEp.need*50)))+"%";
+  if(sheetOpen() && vFrame%3===0) vsPaint();
   const r = vEp.push(f.energy, vFrame);
   if(!r) return;
   if(r.why==="sperret"){ voiceMsg("Litt for tidlig — vent til den har roet seg."); return; }
@@ -3276,7 +3327,15 @@ function vFrameIn(f){
   const from = Math.max(0, r.from-base), to = Math.min(vRing.length, r.to-base);
   if(to-from < 8) return;
   const res = Voice.classify(Voice.cmn(vRing.slice(from,to)), vTemplates);
-  if(!res.word || !res.sure){ voiceMsg("Hørte ikke helt — si det igjen."); return; }
+  if(!res.word || !res.sure){
+    // vis hvor nær det var, ellers er det umulig å vite hvilken vei
+    // «sikkerhet» skal dras
+    voiceMsg(res.word
+      ? "Usikker: «"+res.word+"» mot «"+res.ranked[1]+"» ("+res.ratio.toFixed(2).replace(".",",")+
+        " — grensa er "+Voice.cfg.ratio.toFixed(2).replace(".",",")+")"
+      : "Hørte ikke helt — si det igjen.");
+    return;
+  }
   vHeard(res.word);
 }
 
@@ -3359,8 +3418,44 @@ function vReadBack(sagt){
   setTimeout(()=>vSay(sagt.join(", ")), 260);
 }
 
-/* ---- knapp og stripe ---- */
+/* ---- innstillingspanelet ----
+   Skyverne bygges av den delte motoren, så de er de samme du finner på
+   innlesingssiden. Endrer du noe her, gjelder det med én gang — også midt
+   i en runde, som er hele poenget med å ha dem her. */
+let VC=null;
+function openVoiceSheet(){
+  if(!window.Voice) return;
+  if(!VC) VC = Voice.controls($("vsControls"), { onChange(){ if(vEp) vEp.setCfg(Voice.epCfg()); } });
+  else VC.refresh();
+  $("voiceSheet").classList.add("on");
+  vsPaint();
+}
+function closeVoiceSheet(){ const e=$("voiceSheet"); if(e) e.classList.remove("on"); }
+function sheetOpen(){ const e=$("voiceSheet"); return !!e && e.classList.contains("on"); }
+
+// måleren i panelet, så terskelen kan settes mot det rommet faktisk gjør
+let vsOver=0, vsPeak=0, vsPeakAt=0;
+function vsPaint(){
+  if(!sheetOpen()) return;
+  const m=$("vsMeter"), SC=10;
+  const need = vEp ? vEp.need : Voice.cfg.thr;
+  const lvl = Math.max(0, Math.min(1, vsOver/SC));
+  m.querySelector("i").style.width=Math.round(lvl*100)+"%";
+  m.querySelector("u").style.left=Math.min(99,Math.round(100*need/SC))+"%";
+  const hot = vsOver>=need;
+  m.classList.toggle("hot", hot);
+  $("vsMeterTxt").textContent = vOn ? (hot?"lyd  +":"stille  +")+vsOver.toFixed(1) : "av";
+  $("vsLvl").textContent = vOn
+    ? "Nå +"+vsOver.toFixed(1)+"  ·  høyeste siste 3 sek +"+vsPeak.toFixed(1)+
+      "  ·  terskel +"+need.toFixed(1)
+    : "Slå på mikrofonen for å se nivåene.";
+}
+
+/* ---- knapper og stripe ---- */
 onTap($("btnVoice"), ()=>{ if(vOn) voiceOff(); else voiceOn(); });
+onTap($("btnVoiceSet"), ()=>{ if(sheetOpen()) closeVoiceSheet(); else openVoiceSheet(); });
+onTap($("btnVoiceSetClose"), closeVoiceSheet);
+$("voiceSheet").addEventListener("click", e=>{ if(e.target===$("voiceSheet")) closeVoiceSheet(); });
 
 if ("serviceWorker" in navigator) {
   addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
