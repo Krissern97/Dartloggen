@@ -46,23 +46,6 @@ const CFGKEY = "dart_glid_cfg";
       gjennom hele ordet: mikrofonens farge, rommets klang, avstanden din.
    3. Lengden på vektoren. Da står bare retningen igjen, og prikkproduktet
       mellom to slike er likheten direkte — 1,00 er identisk form.        */
-/* Styrkeforløpet: hvor kraftig hver ramme er, skalert mot snuttens eget
-   stille og høyeste. Absolutt volum forsvinner — det er KURVEN som blir
-   igjen. Et pilnedslag har momentant anslag og bratt fall, «bom» har mykere
-   stigning og en hale. Den forskjellen er kjennetegnende i seg selv.    */
-function envelope(strip){
-  const n=strip.length, en=new Float32Array(n);
-  for(let i=0;i<n;i++){
-    let s=0;
-    for(let b=0;b<B;b++) s += strip[i][b];
-    en[i]=s/B;
-  }
-  const sortert=Array.from(en).sort((x,y)=>x-y);
-  const gulv=sortert[Math.floor(n*0.15)], topp=sortert[n-1];
-  const spenn=Math.max(1, topp-gulv);
-  for(let i=0;i<n;i++) en[i]=Math.max(0, Math.min(1, (en[i]-gulv)/spenn));
-  return en;
-}
 function shape(strip){
   const n = strip.length;
   const flat = new Float32Array(n*B);
@@ -78,28 +61,17 @@ function shape(strip){
     m /= n;
     for(let i=0;i<n;i++) flat[i*B+b] -= m;
   }
-  /* To blokker, hver normalisert for seg, så satt sammen med vekt.
-     «env» er da bokstavelig talt hvor stor andel av beskrivelsen som er
-     styrkeforløp: 0 er ren form, 0,5 er halvt om halvt. Fordi begge
-     blokkene er enhetsvektorer, blir summen det også — og prikkproduktet
-     er fortsatt likheten direkte.                                       */
-  const e = Math.max(0, Math.min(1, cfg.env));
-  const ut = new Float32Array(n*B + n);
+  /* Forløpskurven ble prøvd som en del av beskrivelsen og forkastet. Når
+     en hvilken som helst lyd passerer gjennom vinduet, stiger og faller
+     nivået — lyden kommer inn, fyller vinduet, går ut. ALLE lyder gir den
+     samme pukkelen. Kurven ga derfor omtrent lik poengsum til alle ordene
+     samtidig som den fortrengte det som faktisk skiller dem, og valget ble
+     tilfeldig. Styrken hører hjemme i terskelen, ikke i formen.        */
   let ss=0;
   for(let i=0;i<flat.length;i++) ss += flat[i]*flat[i];
-  const k1 = Math.sqrt(1-e) / (Math.sqrt(ss) || 1);
-  for(let i=0;i<flat.length;i++) ut[i] = flat[i]*k1;
-  if(e > 0){
-    const en=envelope(strip);
-    let m=0;
-    for(let i=0;i<n;i++) m += en[i];
-    m /= n;
-    let es=0;
-    for(let i=0;i<n;i++){ en[i]-=m; es += en[i]*en[i]; }
-    const k2 = Math.sqrt(e) / (Math.sqrt(es) || 1);
-    for(let i=0;i<n;i++) ut[n*B+i] = en[i]*k2;
-  }
-  return ut;
+  const norm = Math.sqrt(ss) || 1;
+  for(let i=0;i<flat.length;i++) flat[i] /= norm;
+  return flat;
 }
 /* Samme rensing, men holdt som en REKKE rammer i stedet for én lang
    vektor. Da kan DTW gå gjennom dem og strekke tiden ulikt underveis.
@@ -135,7 +107,6 @@ function shapeFrames(strip){
 function dtwShape(A, B2, bandFrac){
   const n=A.length, m=B2.length;
   if(!n || !m) return 1;
-  const e = Math.max(0, Math.min(1, cfg.env));
   const band=Math.max(Math.abs(n-m)+1, Math.ceil((bandFrac||0.25)*Math.max(n,m)));
   /* Vektene følger den samme veien som kostnaden, i et parallelt regnskap.
      Til slutt deles kostnad på vekt, ikke på antall ruter — ellers ville en
@@ -156,13 +127,12 @@ function dtwShape(A, B2, bandFrac){
          mye lyd rammene har, mens forskjellen i selve styrken teller uansett
          — det er nettopp der stillheten etter et dunk skiller seg fra halen
          i et ord.  Begge ledd ligger i 0..2, så «env» er en ren andel. */
-      const vekt=((a.w+b.w)/2)*(1-e);
-      const kost=vekt*(1-d) + e*2*Math.abs(a.w-b.w);
+      const vekt=(a.w+b.w)/2;
       let best=pC[j], bw=pW[j];
       if(cC[j-1]<best){ best=cC[j-1]; bw=cW[j-1]; }
       if(pC[j-1]<best){ best=pC[j-1]; bw=pW[j-1]; }
-      cC[j]=kost+best;
-      cW[j]=vekt+e+bw;
+      cC[j]=vekt*(1-d)+best;
+      cW[j]=vekt+bw;
     }
     let t=pC; pC=cC; cC=t;
     t=pW; pW=cW; cW=t;
@@ -243,20 +213,35 @@ function save(bank){
 }
 
 /* Fasitene gjøres klare én gang: klipp etter grensene dine, strekk til 40
-   rammer, gjør om til ren form. Under spill er det bare prikkprodukter. */
-/* Beskrivelsen avhenger av «env», så fasitene må bygges om når den endres.
-   Siden holder rede på det ved å kaste kjennern; her merker vi bare hvilken
-   verdi de gjeldende fasitene ble laget med. */
-let prepEnv = null;
-function prepStale(){ return prepEnv !== cfg.env; }
+/* Hvor kraftig ordet ble sagt da det ble lest inn, målt mot snuttens eget
+   stille. Det er dette som gjør terskelen til noe annet enn en gjetning. */
+function stripLevel(strip, a, b){
+  const en=[];
+  for(let i=0;i<strip.length;i++){
+    let s=0;
+    for(let k=0;k<B;k++) s += strip[i][k];
+    en.push(s/B);
+  }
+  const sortert=en.slice().sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(en.length*0.15)];
+  let topp=-Infinity;
+  for(let i=a;i<b && i<en.length;i++) if(en[i]>topp) topp=en[i];
+  return Math.max(0, topp-gulv);
+}
+// Medianen, ikke snittet: ett skjevt opptak skal ikke flytte terskelen.
+function refLevel(templates){
+  const v=(templates||[]).map(t=>t.lvl).filter(x=>x>0).sort((a,b)=>a-b);
+  if(!v.length) return 6;                 // ingen fasit ennå: noe rimelig
+  return v[Math.floor(v.length/2)];
+}
 function prep(bank){
-  prepEnv = cfg.env;
   const ut=[];
   ALL.forEach(w=>{
     (bank[w]||[]).forEach((t,i)=>{
       const seg=t.strip.slice(t.a, t.b);
       if(seg.length < 5) return;
       ut.push({ word:w, idx:i, len:seg.length,
+                lvl: stripLevel(t.strip, t.a, t.b),
                 vec: shape(resample(seg, NF)),   // til det raske prikkproduktet
                 seq: shapeFrames(seg) });        // til DTW, i sin egen lengde
     });
@@ -268,7 +253,13 @@ function prep(bank){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, env:0.25, ns:true, dtw:false }, loadCfg());
+// v må stå til 0 her: standardene legges FØRST, så det lagrede oppå. Sto den
+// til 2, ville en gammel innstilling uten merke arvet 2 og migreringen aldri
+// fyrt — den ville sett ny ut uten å være det.
+const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, ns:true, dtw:false, v:0 }, loadCfg());
+/* «gate» betydde før et absolutt tall, nå er det en andel av dine egne
+   opptak. En lagret verdi fra før ville betydd noe helt annet. */
+if(cfg.v !== 2){ cfg.gate=0.45; cfg.v=2; delete cfg.env; saveCfg(); }
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -277,14 +268,10 @@ const CONTROLS = [
     lab:"Hvor lik formen må være",
     vis:v=>Math.round(v*100)+" %",
     note:"Måles mot hver fasit hele tiden. Se på søylene under mens du snakker: legg terskelen over det rommet klarer på egen hånd, men under det ordene dine treffer." },
-  { key:"env", min:0, max:0.8, step:0.01,
-    lab:"Hvor mye styrkeforløpet teller",
+  { key:"gate", min:0.15, max:1.2, step:0.01,
+    lab:"Hvor høyt det må sies, mot dine egne opptak",
     vis:v=>Math.round(v*100)+" %",
-    note:"0 % er ren form — bare mønsteret, styrken helt bort. Høyere lar KURVEN telle med: hvordan lyden stiger og faller gjennom ordet. Et pilnedslag har momentant anslag og bratt fall, et ord har mykere stigning og hale. Absolutt volum spiller fortsatt ingen rolle; det er formen på forløpet som sammenlignes." },
-  { key:"gate", min:0.2, max:6, step:0.1,
-    lab:"Hvor mye lyd som må til før den ser etter",
-    vis:v=>"+"+v.toFixed(1),
-    note:"Eneste rest av gammel terskel. Uten den sammenlignes stillhet med ord, og ren støy treffer av og til. Grov — den trenger ikke finjustering." },
+    note:"Andel av nivået i fasitene dine. Du snakket med en viss kraft da du leste inn, og det er et ekte holdepunkt for hva «et ord» høres ut som — mye bedre enn et tall tatt ut av lufta. 100 % krever like høyt som da du leste inn; lavere gir slingringsmonn for avstand til mikrofonen. Under denne sammenlignes det ikke i det hele tatt." },
   { key:"mute", min:10, max:100, step:5,
     lab:"Sperre etter et ord",
     vis:v=>(v*10)+" ms",
@@ -304,7 +291,9 @@ function makeMatcher(templates, onWord){
   let under=0, ned=0, mute=0;
   const NED = 0.015;   // hvor mye under toppen som regnes som «den har snudd»
   const MAXWIN = Math.round(NF*SCALES[SCALES.length-1]);
-  const siste = { sim:{}, over:0, floor:0 };
+  const ref = refLevel(templates);
+  const krav = ref * cfg.gate;
+  const siste = { sim:{}, over:0, floor:0, ref, krav };
   ALL.forEach(w=>siste.sim[w]=-1);
 
   return {
@@ -337,7 +326,7 @@ function makeMatcher(templates, onWord){
         m = m/B - floor;
         if(m > maxOver) maxOver = m;
       }
-      if(maxOver < cfg.gate){
+      if(maxOver < ref*cfg.gate){
         if(sporer){ sporer=false; topp=-1; under=0; }
         return null;
       }
@@ -412,8 +401,8 @@ const KLAR  = 80;    // rammer «gjør deg klar» før det første
 window.Glid = {
   REC, PAUSE, KLAR,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
-  NOISE, ALL, prepStale,
-  shape, shapeFrames, dtwShape, envelope, likhet, resample, pack, unpack, load, save, prep,
+  NOISE, ALL, refLevel, stripLevel,
+  shape, shapeFrames, dtwShape, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher
 };
 })();

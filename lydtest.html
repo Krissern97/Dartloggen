@@ -167,6 +167,7 @@
         <label for="dtw">Bruk DTW til å velge ord</label>
         <input type="checkbox" id="dtw">
       </div>
+      <div class="note" id="gateNote"></div>
       <div class="note">Prikkproduktet finner <b>når</b> et ord ble sagt uansett — det er raskt nok til å gjøre 100 ganger i sekundet. Med denne på gjør DTW valget av <b>hvilket</b> ord om igjen, én gang per ord, og får da strekke tiden ulikt gjennom ordet i stedet for jevnt. Loggen viser om de to er enige, så du ser om det utgjør en forskjell.</div>
     </div>
 
@@ -228,6 +229,12 @@ const { WORDS, ALL, NOISE, NF } = Glid;
 
 const TARGET = 2;          // opptak per ord
 const RING_MAX = 400;
+/* Lyd kommer i klumper fra nettleseren, ikke ramme for ramme, så skjermen
+   kan skifte farge et lite stykke etter at klokka gjorde det. Sier du ordet
+   mot slutten av det grønne sekundet, ville det blitt kuttet. Derfor tas
+   snutten fra ringbufferet med luft i BEGGE ender, og den luften klippes
+   bort igjen automatisk. Det du ser er fortsatt ett sekund. */
+const MARGIN = 20;         // rammer luft i hver ende
 let mic=null, micOn=false;
 let matcher=null, mode=null;
 let bank = Glid.load();
@@ -237,7 +244,7 @@ ALL.forEach(w=>{ if(!Array.isArray(bank[w])) bank[w]=[]; });
 let tab = WORDS[0];
 let ring=[], frameNo=0, floorVis=0, overVis=0;
 let capWord=null, capGot=0, capQueue=null;
-let capPhase=null, capLeft=0, capBuf=null;
+let capPhase=null, capLeft=0;
 
 function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
 /* Fasiten lagres fortløpende — det finnes ingen lagre-knapp. Da må det
@@ -282,7 +289,7 @@ async function startMic(){
     try{ ctx = new AC({ sampleRate:Voice.P.sampleRate }); }catch(e){ ctx = new AC(); }
     if(ctx.state==="suspended") await ctx.resume();
     const src = ctx.createMediaStreamSource(stream);
-    const node = ctx.createScriptProcessor(2048,1,1);
+    const node = ctx.createScriptProcessor(1024,1,1);   // mindre klumper = tettere timing
     const ratio = ctx.sampleRate / Voice.P.sampleRate;
     let pending = new Float32Array(0);
     node.onaudioprocess = ev => {
@@ -337,13 +344,31 @@ function onFrame(f){
   paintMeter();
   if(mode==="listen") paintBars(s.sim);
 }
+function krav(){
+  return Glid.refLevel(Glid.prep(bank)) * Glid.cfg.gate;
+}
 function paintMeter(){
-  const m=$("meter"), SC=10;
+  const m=$("meter"), SC=14, k=kravNaa;
   const lvl=Math.max(0,Math.min(1,overVis/SC));
   m.querySelector("i").style.width=Math.round(lvl*100)+"%";
-  m.querySelector("u").style.left=Math.min(99,Math.round(100*Glid.cfg.gate/SC))+"%";
-  m.classList.toggle("hot", overVis>=Glid.cfg.gate);
-  $("meterTxt").textContent = micOn ? (overVis>=Glid.cfg.gate?"lyd  +":"stille  +")+overVis.toFixed(1) : "av";
+  m.querySelector("u").style.left=Math.min(99,Math.round(100*k/SC))+"%";
+  m.classList.toggle("hot", overVis>=k);
+  $("meterTxt").textContent = micOn ? (overVis>=k?"lyd  +":"stille  +")+overVis.toFixed(1) : "av";
+}
+/* Terskelen er en andel av dine egne opptak, så den må vises i klartekst —
+   ellers er prosenten et tall uten mening. */
+let kravNaa = 2.7;
+function visKrav(){
+  const t=Glid.prep(bank);
+  const ref=Glid.refLevel(t);
+  kravNaa = ref*Glid.cfg.gate;
+  const e=$("gateNote");
+  if(e) e.textContent = t.length
+    ? "Fasitene dine ligger på +"+ref.toFixed(1)+" over romnivå. "+
+      Math.round(Glid.cfg.gate*100)+" % av det er +"+kravNaa.toFixed(1)+
+      " — det er den røde streken i måleren, og grensen for at noe i det hele tatt sammenlignes."
+    : "Ingen fasit ennå, så terskelen står på et rimelig utgangspunkt (+"+
+      kravNaa.toFixed(1)+"). Den regnes ut av opptakene dine så snart de finnes.";
 }
 
 /* ---- innlesing, håndfritt ----
@@ -355,7 +380,7 @@ function startCapture(w, queue){
   if(!micOn) return;
   mode="capture"; capWord=w; capGot=0; capQueue=queue;
   matcher=null;
-  capPhase="klar"; capLeft=Glid.KLAR; capBuf=null;
+  capPhase="klar"; capLeft=Glid.KLAR;
   $("cap").classList.add("on");
   renderCapture();
 }
@@ -364,16 +389,21 @@ function startCapture(w, queue){
    det på nytt — det avgjøres av snutten selv, ikke av en innstilling. */
 function capTick(f){
   floorVis = f.energy; overVis = 0;
-  if(capPhase==="rec") capBuf.push(f.mel);
   if(--capLeft > 0){
-    const av = capPhase==="rec" ? 1 - capLeft/Glid.REC
-             : capPhase==="klar" ? 1 - capLeft/Glid.KLAR
-             : 1 - capLeft/Glid.PAUSE;
-    $("capMeter").style.width = Math.round(av*100)+"%";
+    const tot = capPhase==="rec" ? Glid.REC
+              : capPhase==="klar" ? Glid.KLAR
+              : capPhase==="etter" ? MARGIN : Glid.PAUSE;
+    if(capPhase!=="etter") $("capMeter").style.width = Math.round((1-capLeft/tot)*100)+"%";
     return;
   }
   if(capPhase==="rec"){
-    const strip=capBuf; capBuf=null;
+    // la det gå litt til, så halen av ordet er med uansett skjermforsinkelse
+    capPhase="etter"; capLeft=MARGIN; renderCapture();
+    return;
+  }
+  if(capPhase==="etter"){
+    const n = Math.min(ring.length, Glid.REC + 2*MARGIN);
+    const strip = ring.slice(ring.length-n);
     const g=autoTrim(strip);
     if(!g){
       capPhase="pause"; capLeft=Glid.PAUSE; renderCapture("Hørte ingenting — en gang til");
@@ -384,12 +414,12 @@ function capTick(f){
     lagre(); matcher=null;
     capGot++;
     if(navigator.vibrate) navigator.vibrate(25);
-    logLine("fanget «"+capWord+"» ("+(g[1]-g[0])*10+" ms av 1000 ms)");
+    logLine("fanget «"+capWord+"» ("+(g[1]-g[0])*10+" ms)");
     renderWords(); renderTabs();
     if(capGot>=TARGET){ nextCapture(); return; }
     capPhase="pause"; capLeft=Glid.PAUSE;
   } else {
-    capPhase="rec"; capLeft=Glid.REC; capBuf=[];
+    capPhase="rec"; capLeft=Glid.REC;
   }
   renderCapture();
 }
@@ -410,7 +440,7 @@ function renderCapture(beskjed){
 }
 function nextCapture(){
   const q=capQueue;
-  mode=null; capWord=null; capQueue=null; capPhase=null; capBuf=null;
+  mode=null; capWord=null; capQueue=null; capPhase=null;
   lagre(); renderAll();
   if(q && q.length){ startCapture(q[0], q.slice(1)); return; }
   $("cap").classList.remove("on");
@@ -418,7 +448,7 @@ function nextCapture(){
 }
 function avbrytCapture(){
   const igjen = capQueue ? capQueue.length : 0;
-  mode=null; capWord=null; capQueue=null; capPhase=null; capBuf=null;
+  mode=null; capWord=null; capQueue=null; capPhase=null;
   lagre(); renderAll();
   $("cap").classList.remove("on");
   msg("recMsg","Avbrutt"+(igjen?" — "+igjen+" ord ble ikke lest inn":"")+
@@ -592,7 +622,7 @@ function paintBars(sim){
     pct.textContent = v<=-1 ? "–" : Math.round(v*100)+" %";
   }
 }
-function renderAll(){ renderWords(); renderTabs(); renderSnips(); visLagret(true); }
+function renderAll(){ renderWords(); renderTabs(); renderSnips(); visLagret(true); visKrav(); }
 
 $("btnMic").addEventListener("click", startMic);
 $("btnAll").addEventListener("click", ()=>{ if(micOn) startCapture(WORDS[0], WORDS.slice(1)); });
@@ -639,12 +669,12 @@ $("btnListen").addEventListener("click", ()=>{
 Voice.controls($("ctrls"), {
   cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
   onChange(key){
-    paintMeter();
-    // beskrivelsen av hver fasit endrer seg med balansen, så de må bygges om
-    if(key==="env") matcher=null;
+    visKrav(); paintMeter();
+    if(key==="gate") matcher=null;
   }
 });
 renderBars();
+visKrav();
 if(ALL.some(w=>(bank[w]||[]).length)){
   $("main").classList.remove("hide");
   renderAll();
