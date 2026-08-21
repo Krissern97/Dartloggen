@@ -281,6 +281,8 @@ function logLine(t){
 async function startMic(){
   try{
     const ns = $("ns").checked;
+    // appen må bruke det samme, ellers behandles lyden ulikt der
+    Glid.cfg.ns = ns; Glid.saveCfg();
     const stream = await navigator.mediaDevices.getUserMedia({
       audio:{ echoCancellation:ns, noiseSuppression:ns, autoGainControl:false }
     });
@@ -676,6 +678,7 @@ Voice.controls($("ctrls"), {
 });
 renderBars();
 visKrav();
+$("ns").checked = Glid.cfg.ns!==false;
 if(ALL.some(w=>(bank[w]||[]).length)){
   $("main").classList.remove("hide");
   renderAll();

@@ -305,7 +305,7 @@ function downsample(inp, ratio){
    faller nivået aldri tilbake dit det var. Støydemping og ekkokansellering
    pumper på samme måte. Alle tre jobber mot en energibasert orddeteksjon,
    så vi vil ha signalet urørt.                                            */
-function makeMic(onFrame){
+function makeMic(onFrame, opts){
   let ctx=null, stream=null, node=null, on=false;
   let pending=new Float32Array(0);
   function feed(chunk){
@@ -325,8 +325,13 @@ function makeMic(onFrame){
     get on(){ return on; },
     get ctx(){ return ctx; },
     async start(){
+      /* Støydemping må stemme med hvordan fasiten ble lest inn — er den på
+         ett sted og av det andre, behandles lyden ulikt og mønstrene slutter
+         å ligne hverandre. Volumkontrollen er alltid av; den er målt
+         skadelig uansett. */
+      const ns = !!(opts && opts.ns);
       stream = await navigator.mediaDevices.getUserMedia({
-        audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }
+        audio:{ echoCancellation:ns, noiseSuppression:ns, autoGainControl:false }
       });
       const AC = window.AudioContext || window.webkitAudioContext;
       try{ ctx = new AC({ sampleRate:P.sampleRate }); }

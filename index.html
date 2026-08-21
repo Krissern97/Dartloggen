@@ -502,7 +502,8 @@
   .vshead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
   .vshead b{flex:1;font-size:14px;font-weight:800;letter-spacing:.04em}
   .vshead .ghost{flex:none;padding:9px 16px}
-  .vsnote{font-size:11.5px;color:var(--ink2);line-height:1.45;margin-top:7px}
+  .vsnote{font-size:11.5px;color:var(--ink2);line-height:1.45;margin-top:7px;
+          white-space:pre-line;font-variant-numeric:tabular-nums}
   #vsMeter{height:24px;background:var(--surface2);border-radius:8px;overflow:hidden;
            position:relative;margin-top:4px}
   #vsMeter i{display:block;height:100%;background:var(--green-mid);width:0}
@@ -510,6 +511,12 @@
   #vsMeter u{position:absolute;top:0;bottom:0;width:2px;background:var(--red);left:0}
   #vsMeter b{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;
              font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ink2)}
+  #voiceSheet .seg{display:flex;gap:8px;margin:0 0 8px}
+  #voiceSheet .seg button{
+    flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-weight:800;font-size:12.5px;padding:10px;border-radius:11px;cursor:pointer;
+  }
+  #voiceSheet .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
   #voiceStrip{
     position:fixed; left:12px; right:12px; bottom:calc(84px + env(safe-area-inset-bottom));
     z-index:33; display:none; background:var(--surface); border:1px solid var(--line);
@@ -518,6 +525,7 @@
   .vlvl{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-bottom:6px}
   .vlvl i{display:block;height:100%;width:0;background:var(--green);border-radius:2px}
   .vsaid{font-size:14px;font-weight:800;line-height:1.2;min-height:17px}
+  .voicestate{font-size:11.5px;color:var(--ink2);line-height:1.5;margin-top:12px}
   .voicelink{
     display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;
     border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:12px;
@@ -1136,20 +1144,22 @@
           <label for="soundToggle">Lydeffekter (klapping)</label>
           <input type="checkbox" id="soundToggle">
         </div>
-        <a class="voicelink" href="./lydtrening.html">
-          <span>
-            <b>Stemmestyring</b>
-            <small id="voiceState">Les inn stemmen din</small>
-          </span>
-          <span class="chev">›</span>
-        </a>
+        <div class="voicestate" id="voiceState">Les inn stemmen din</div>
         <a class="voicelink" href="./lydtest.html">
           <span>
-            <b>Glidende gjenkjenning <em>forsøk</em></b>
-            <small>Uten startterskel — sammenligner formen løpende. Egen fasit, rører ikke den over.</small>
+            <b>Les inn — glidende</b>
+            <small>Uten startterskel. Sammenligner formen løpende mot fasiten.</small>
           </span>
           <span class="chev">›</span>
         </a>
+        <a class="voicelink" href="./lydtrening.html">
+          <span>
+            <b>Les inn — gammel</b>
+            <small>Finner ordet med energi, sammenligner med DTW. Egen fasit og egne innstillinger.</small>
+          </span>
+          <span class="chev">›</span>
+        </a>
+        <div class="note" style="margin-top:8px">Hvilken som gjelder velges i innstillingsknappen ved siden av mikrofonen, under spill.</div>
         <div class="rowbtns" style="margin-top:12px">
           <button class="ghost" id="btnExport">Eksporter backup</button>
           <button class="ghost" id="btnImport">Importer backup</button>
@@ -1200,6 +1210,11 @@
     <b>Still inn stemmen</b>
     <button class="ghost" id="btnVoiceSetClose">Ferdig</button>
   </div>
+  <div class="seg" id="vsMotor">
+    <button data-m="glid">Glidende</button>
+    <button data-m="gammel">Gammel</button>
+  </div>
+  <div class="vsnote" id="vsMotorNote"></div>
   <div class="meter" id="vsMeter"><i></i><u></u><b id="vsMeterTxt">av</b></div>
   <div class="vsnote" id="vsLvl">Slå på mikrofonen for å se nivåene.</div>
   <div id="vsControls" style="margin-top:16px"></div>
@@ -1212,13 +1227,14 @@
 </div>
 
 <script src="./voice.js"></script>
+<script src="./glid.js"></script>
 <script>
 "use strict";
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 39;
-const APP_ROLLOUT = "2026-08-21T14:11:32+00:00";
+const APP_VERSION = 40;
+const APP_ROLLOUT = "2026-08-21T14:29:51+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2429,11 +2445,15 @@ function renderStats(){
   // egen på sin egen — de skal ikke deles, stemmene er ulike.
   const vs=$("voiceState");
   if(vs && window.Voice){
-    const n=Voice.phraseReady();
-    vs.textContent = n>=4
-      ? "Alle fire ordene lest inn — mikrofonknappen dukker opp i «rundt brettet»"
-      : (n ? n+" av 4 ord lest inn — les inn resten for å ta den i bruk"
-           : "Les inn stemmen din, så kan du taste med stemmen");
+    const b=Glid.load();
+    const g=Glid.WORDS.filter(w=>(b[w]||[]).length).length;
+    const pk=(b[Glid.NOISE]||[]).length;
+    const gm=Voice.phraseReady();
+    vs.textContent = (erGlid()?"Glidende":"Gammel")+" er i bruk. "+
+      "Glidende: "+g+" av 4 ord"+(pk?" + "+pk+" pilkast":"")+
+      " · Gammel: "+gm+" av 4 ord."+
+      (voiceReady()>=4 ? " Mikrofonknappen dukker opp i «rundt brettet»."
+                       : " Les inn resten for å ta den i bruk.");
   }
 }
 
@@ -3256,32 +3276,54 @@ showTView("modePicker");
 <script>
 
 /* ================= STEMMESTYRING =================
-   Motoren ligger i voice.js, delt med innlesingssiden. Det som er lest inn
-   og finjustert der gjelder derfor her uten videre.
+   To motorer, og du velger hvilken som gjelder. De deler ingenting annet
+   enn mikrofonen, så begge kan utvikles videre uten å røre den andre.
 
-   Ordene treffer «rundt brettet» rett: treff=enkel, dobbel, trippel, bom.
-   «angre» tar tilbake forrige pil — også fra opplesingen, så du kan rette
-   deg selv midt i runden.                                                 */
+   GLIDENDE (glid.js) har ingen startterskel. En stripe av spektrogrammet
+   skyves langs lyden, og for hver 10 ms måles hvor lik formen er hver
+   fasit. Ordet finnes der likheten er høyest, ikke der lyden krysset en
+   grense. Fasiten leses inn på lydtest.html.
+
+   GAMMEL (voice.js) finner først hvor ordet begynner og slutter ved hjelp
+   av energien, og sammenligner så den utklipte biten med DTW. Fasiten
+   leses inn på lydtrening.html.
+
+   Ordene treffer «rundt brettet» rett i begge: treff=enkel, dobbel,
+   trippel, bom. Den glidende har i tillegg «pilkast», som betyr ignorer.  */
 const VMAP = { treff:1, dobbel:2, trippel:3, bom:0 };
 const VMIN = 4;                 // alle fire ordene må være lest inn
+const MOTORKEY = "dart_voice_motor";
 
-let vOn=false, vMic=null, vEp=null, vRing=[], vFrame=0, vSpeaking=false;
-let vSaid=[], vTimer=null, vTemplates=null;
+let MOTOR = "glid";
+try{ MOTOR = localStorage.getItem(MOTORKEY) || "glid"; }catch(e){}
+function erGlid(){ return MOTOR==="glid"; }
+function settMotor(m){
+  MOTOR = m;
+  try{ localStorage.setItem(MOTORKEY, m); }catch(e){}
+  const paa = vOn;
+  voiceOff();
+  VC = null;                       // panelet må bygges med den andre motorens skyvere
+  if(sheetOpen()){ $("vsControls").innerHTML=""; openVoiceSheet(); }
+  updateMicBtn();
+  if(paa && voiceUsable() && voiceReady()>=VMIN) voiceOn();
+}
 
+let vOn=false, vMic=null, vSpeaking=false;
+let vSaid=[], vTimer=null;
+// glidende
+let vMatch=null, _vBank=null;
+// gammel
+let vEp=null, vRing=[], vTemplates=null;
 const VRING_MAX=300;
+let vFrame=0;
 
-// Hele runden sies i én slurk og kjennes igjen under ett. Ordene hver for
-// seg er korte — «bom» kortest av dem — mens tre ord på rad gir tre ganger
-// så mye å kjenne igjen, og overgangene mellom dem i tillegg.
-/* Ordene kjennes igjen hvert for seg — det er de fire innleste mønstrene
-   som gjør jobben uansett. Men runden sies i én flyt: du sier alle tre rett
-   etter hverandre, de dukker opp på skjermen etter hvert, og kvitteringen
-   kommer når runden er hel.
+function vBank(){ if(!_vBank) _vBank=Glid.load(); return _vBank; }
+function vBankRefresh(){ _vBank=null; }
+function voiceReady(){
+  if(erGlid()) return window.Glid ? Glid.WORDS.filter(w=>(vBank()[w]||[]).length).length : 0;
+  return window.Voice ? Voice.phraseReady() : 0;
+}
 
-   Å sette sammen alle 64 kombinasjonene av de samme fire ordene ble prøvd
-   og forkastet: det gjentar den samme informasjonen i 64 rekkefølger uten
-   å gi bedre klaring, og ett feilhørt ord kostet hele runden. */
-function voiceReady(){ return window.Voice ? Voice.phraseReady() : 0; }
 // Knappen skal bare finnes der den betyr noe. T kan holde på en runde som
 // kan gjenopptas selv når du står på startskjermen, så runden alene er ikke
 // nok — brettskjermen må faktisk være framme.
@@ -3310,12 +3352,19 @@ function updateMicBtn(){
 async function voiceOn(){
   if(vOn) return;
   try{
-    vTemplates = Voice.loadTemplates();
-
-
-    vEp = Voice.makeEndpointer(Voice.epCfg());
-    vRing=[]; vFrame=0; vSaid=[];
-    vMic = Voice.makeMic(vFrameIn);
+    vFrame=0; vSaid=[];
+    let ns=false;
+    if(erGlid()){
+      vBankRefresh();
+      vMatch = Glid.makeMatcher(Glid.prep(vBank()), vHoert);
+      ns = Glid.cfg.ns!==false;
+    } else {
+      vTemplates = Voice.loadTemplates();
+      vEp = Voice.makeEndpointer(Voice.epCfg());
+      vRing=[];
+    }
+    // samme lydbehandling som da fasiten ble lest inn, ellers ligner de ikke
+    vMic = Voice.makeMic(vFrameIn, { ns });
     await vMic.start();
     vOn = true;
     vSay("Klar");
@@ -3330,23 +3379,47 @@ function voiceOff(){
   vOn=false;
   clearTimeout(vTimer); vTimer=null;
   try{ if(vMic) vMic.stop(); }catch(e){}
-  vMic=null; vEp=null; vRing=[]; vSaid=[];
+  vMic=null; vMatch=null; vEp=null; vRing=[]; vSaid=[];
   try{ speechSynthesis.cancel(); }catch(e){}
   updateMicBtn();
 }
 function voiceMsg(t){ const e=$("voiceMsg"); if(e) e.textContent=t; }
 
 function vFrameIn(f){
-  vRing.push(f);
-  if(vRing.length>VRING_MAX) vRing.shift();
   vFrame++;
   if(vSpeaking) return;                      // appen skal ikke høre seg selv
+  if(erGlid()) vGlidFrame(f); else vGammelFrame(f);
+  if(sheetOpen() && vFrame%3===0) vsPaint();
+}
+
+/* ---- glidende ---- */
+function vGlidFrame(f){
+  if(!vMatch) return;
+  vMatch.push(f.mel, f.energy);
+  const s=vMatch.siste;
+  vsOver=s.over; vsKrav=s.krav;
+  // stripa viser hvor nær det beste ordet ligger akkurat nå
+  let best=-1;
+  Glid.WORDS.forEach(w=>{ if(s.sim[w]>best) best=s.sim[w]; });
+  const bar=$("voiceLvl");
+  if(bar) bar.style.width=Math.max(0,Math.min(100,Math.round(best*100)))+"%";
+}
+function vHoert(r){
+  if(r.ignorert){ voiceMsg("Pilkast — ikke et ord."); return; }
+  if(!voiceUsable()){ voiceOff(); return; }
+  voiceMsg("«"+r.word+"» "+Math.round(r.sim*100)+" %");
+  vHeard(r.word);
+}
+
+/* ---- gammel ---- */
+function vGammelFrame(f){
+  vRing.push(f);
+  if(vRing.length>VRING_MAX) vRing.shift();
+  if(!vEp) return;
   const over = f.energy - (vEp.floor===null ? f.energy : vEp.floor);
-  vsOver=over;
-  if(over>vsPeak || vFrame-vsPeakAt>300){ vsPeak=over; vsPeakAt=vFrame; }
+  vsOver=over; vsKrav=vEp.need;
   const bar=$("voiceLvl");
   if(bar) bar.style.width=Math.max(0,Math.min(100,Math.round(over/vEp.need*50)))+"%";
-  if(sheetOpen() && vFrame%3===0) vsPaint();
   const r = vEp.push(f.energy, vFrame);
   if(!r) return;
   if(r.why==="sperret"){ voiceMsg("Litt for tidlig — vent til den har roet seg."); return; }
@@ -3356,8 +3429,6 @@ function vFrameIn(f){
   if(to-from < 8) return;
   const res = Voice.classify(Voice.cmn(vRing.slice(from,to)), vTemplates);
   if(!res.word || !res.sure){
-    // vis hvor nær det var, ellers er det umulig å vite hvilken vei
-    // «sikkerhet» skal dras
     voiceMsg(res.word
       ? "Usikker: «"+res.word+"» mot «"+res.ranked[1]+"» ("+
         res.ratio.toFixed(2).replace(".",",")+" — grensa er "+
@@ -3455,29 +3526,48 @@ function vReadBack(sagt){
 let VC=null;
 function openVoiceSheet(){
   if(!window.Voice) return;
-  if(!VC) VC = Voice.controls($("vsControls"), { onChange(){ if(vEp) vEp.setCfg(Voice.epCfg()); } });
+  if(!VC) VC = Voice.controls($("vsControls"), erGlid()
+    ? { cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
+        // fasitene beskrives om når romfilteret endres, kravet når terskelen gjør det
+        onChange(){ if(vOn && vMatch){ vBankRefresh();
+          vMatch = Glid.makeMatcher(Glid.prep(vBank()), vHoert); } } }
+    : { onChange(){ if(vEp) vEp.setCfg(Voice.epCfg()); } });
   else VC.refresh();
+  vsMotorVis();
   $("voiceSheet").classList.add("on");
   vsPaint();
 }
 function closeVoiceSheet(){ const e=$("voiceSheet"); if(e) e.classList.remove("on"); }
 function sheetOpen(){ const e=$("voiceSheet"); return !!e && e.classList.contains("on"); }
 
+function vsMotorVis(){
+  const box=$("vsMotor");
+  if(box) [...box.querySelectorAll("button")].forEach(b=>
+    b.classList.toggle("active", b.dataset.m===MOTOR));
+  const n=$("vsMotorNote");
+  if(!n) return;
+  const antall=voiceReady();
+  n.textContent = erGlid()
+    ? "Glidende: ingen startterskel, sammenligner formen løpende. Fasit leses inn under Verktøy. "+
+      antall+" av 4 ord klare."
+    : "Gammel: finner ordet med energi, sammenligner med DTW. Egen fasit, egne innstillinger. "+
+      antall+" av 4 ord klare.";
+}
 // måleren i panelet, så terskelen kan settes mot det rommet faktisk gjør
-let vsOver=0, vsPeak=0, vsPeakAt=0;
+let vsOver=0, vsPeak=0, vsPeakAt=0, vsKrav=2.7;
 function vsPaint(){
   if(!sheetOpen()) return;
-  const m=$("vsMeter"), SC=10;
-  const need = vEp ? vEp.need : Voice.cfg.thr;
+  const m=$("vsMeter"), SC=14, need=vsKrav;
   const lvl = Math.max(0, Math.min(1, vsOver/SC));
   m.querySelector("i").style.width=Math.round(lvl*100)+"%";
   m.querySelector("u").style.left=Math.min(99,Math.round(100*need/SC))+"%";
   const hot = vsOver>=need;
   m.classList.toggle("hot", hot);
   $("vsMeterTxt").textContent = vOn ? (hot?"lyd  +":"stille  +")+vsOver.toFixed(1) : "av";
+  const s = (erGlid() && vMatch) ? vMatch.siste : null;
+  const naa = s ? Glid.WORDS.map(w=>w+" "+Math.round(Math.max(0,s.sim[w])*100)).join("  ") : "";
   $("vsLvl").textContent = vOn
-    ? "Nå +"+vsOver.toFixed(1)+"  ·  høyeste siste 3 sek +"+vsPeak.toFixed(1)+
-      "  ·  terskel +"+need.toFixed(1)
+    ? "Nå +"+vsOver.toFixed(1)+"  ·  terskel +"+need.toFixed(1)+(naa ? "\n"+naa : "")
     : "Slå på mikrofonen for å se nivåene.";
 }
 
@@ -3485,6 +3575,9 @@ function vsPaint(){
 onTap($("btnVoice"), ()=>{ if(vOn) voiceOff(); else voiceOn(); });
 onTap($("btnVoiceSet"), ()=>{ if(sheetOpen()) closeVoiceSheet(); else openVoiceSheet(); });
 onTap($("btnVoiceSetClose"), closeVoiceSheet);
+$("vsMotor").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>settMotor(b.dataset.m));
+});
 $("voiceSheet").addEventListener("click", e=>{ if(e.target===$("voiceSheet")) closeVoiceSheet(); });
 
 if ("serviceWorker" in navigator) {
