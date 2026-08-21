@@ -59,6 +59,47 @@ function shape(strip){
   for(let i=0;i<flat.length;i++) flat[i] /= norm;
   return flat;
 }
+/* Samme rensing, men holdt som en REKKE rammer i stedet for én lang
+   vektor. Da kan DTW gå gjennom dem og strekke tiden ulikt underveis.
+   Hver ramme normaliseres for seg: styrken vekk, lengden vekk, bare
+   retningen igjen — så avstanden mellom to rammer er ren formforskjell. */
+function shapeFrames(strip){
+  return strip.map(f=>{
+    const v=new Float32Array(B);
+    let m=0;
+    for(let b=0;b<B;b++) m+=f[b];
+    m/=B;
+    let ss=0;
+    for(let b=0;b<B;b++){ v[b]=f[b]-m; ss+=v[b]*v[b]; }
+    const n=Math.sqrt(ss)||1;
+    for(let b=0;b<B;b++) v[b]/=n;
+    return v;
+  });
+}
+/* DTW på formrammer. Kostnaden mellom to rammer er 1 minus prikkproduktet
+   — 0 er identisk form, 2 er stikk motsatt. Båndet hindrer at én ramme får
+   dekke et halvt ord for å presse fram en likhet som ikke er der.
+   Returnerer 0..1 der 0 er perfekt, så den kan gjøres om til «likhet». */
+function dtwShape(A, B2, bandFrac){
+  const n=A.length, m=B2.length;
+  if(!n || !m) return 1;
+  const band=Math.max(Math.abs(n-m)+1, Math.ceil((bandFrac||0.25)*Math.max(n,m)));
+  let prev=new Float64Array(m+1).fill(Infinity), cur=new Float64Array(m+1);
+  prev[0]=0;
+  for(let i=1;i<=n;i++){
+    cur.fill(Infinity);
+    const jLo=Math.max(1,i-band), jHi=Math.min(m,i+band);
+    const a=A[i-1];
+    for(let j=jLo;j<=jHi;j++){
+      const b=B2[j-1];
+      let d=0;
+      for(let k=0;k<B;k++) d += a[k]*b[k];
+      cur[j] = (1-d) + Math.min(prev[j], cur[j-1], prev[j-1]);
+    }
+    const t=prev; prev=cur; cur=t;
+  }
+  return Math.max(0, Math.min(1, prev[m]/(n+m)));
+}
 // Begge er enhetsvektorer, så dette ER likheten. -1 til 1.
 function likhet(a, b){
   let s=0;
@@ -136,7 +177,9 @@ function prep(bank){
     (bank[w]||[]).forEach((t,i)=>{
       const seg=t.strip.slice(t.a, t.b);
       if(seg.length < 5) return;
-      ut.push({ word:w, idx:i, vec:shape(resample(seg, NF)), len:seg.length });
+      ut.push({ word:w, idx:i, len:seg.length,
+                vec: shape(resample(seg, NF)),   // til det raske prikkproduktet
+                seq: shapeFrames(seg) });        // til DTW, i sin egen lengde
     });
   });
   return ut;
@@ -146,7 +189,7 @@ function prep(bank){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, ns:true }, loadCfg());
+const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, ns:true, dtw:false }, loadCfg());
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -174,7 +217,9 @@ const CONTROLS = [
    ord. Vi holder på toppen til likheten har falt tilbake.               */
 function makeMatcher(templates, onWord){
   let ring=[], floor=null, n=0, frame=0;
-  let sporer=false, topp=-1, toppOrd=null, toppSkala=1, under=0, mute=0;
+  let sporer=false, topp=-1, toppOrd=null, toppSkala=1, toppRaw=null;
+  let under=0, ned=0, mute=0;
+  const NED = 0.015;   // hvor mye under toppen som regnes som «den har snudd»
   const MAXWIN = Math.round(NF*SCALES[SCALES.length-1]);
   const siste = { sim:{}, over:0, floor:0 };
   WORDS.forEach(w=>siste.sim[w]=-1);
@@ -214,30 +259,58 @@ function makeMatcher(templates, onWord){
         return null;
       }
 
-      let beste=-1, besteOrd=null, besteSkala=1;
+      let beste=-1, besteOrd=null, besteSkala=1, besteRaw=null;
       for(let s=0;s<SCALES.length;s++){
         const L = Math.round(NF*SCALES[s]);
         if(ring.length < L) continue;
-        const vindu = shape(resample(ring.slice(ring.length-L), NF));
+        const raa = ring.slice(ring.length-L);
+        const vindu = shape(resample(raa, NF));
         for(let t=0;t<templates.length;t++){
           const sim = likhet(vindu, templates[t].vec);
           const w = templates[t].word;
           if(sim > siste.sim[w]) siste.sim[w] = sim;
-          if(sim > beste){ beste=sim; besteOrd=w; besteSkala=SCALES[s]; }
+          if(sim > beste){ beste=sim; besteOrd=w; besteSkala=SCALES[s]; besteRaw=raa; }
         }
       }
 
+      /* Å vente til likheten faller under terskelen er unødig sent: da kan
+         den ha ligget høyt en stund etter at ordet var ferdig. Det holder å
+         se at kurven har SNUDD — og det skjer straks ordet glir ut av
+         vinduet, uansett hvor stille det er i rommet. Ingen stillhet kreves
+         noe sted; toppen er identifiserbar først når man har passert den,
+         og det er alt vi venter på. */
       if(beste >= cfg.sim){
         sporer = true; under = 0;
-        if(beste > topp){ topp=beste; toppOrd=besteOrd; toppSkala=besteSkala; }
-        return null;
+        if(beste > topp){
+          topp=beste; toppOrd=besteOrd; toppSkala=besteSkala; toppRaw=besteRaw; ned=0;
+        } else if(beste < topp - NED) ned++;
+        else ned=0;
+        if(ned < 3) return null;
+      } else {
+        if(!sporer) return null;
+        // falt helt under — vent tre rammer så en enkelt dupp ikke avslutter
+        if(++under < 3) return null;
       }
-      if(!sporer) return null;
-      // falt under igjen — vent tre rammer så en enkelt dupp ikke avslutter
-      if(++under < 3) return null;
-      const svar = { word:toppOrd, sim:topp, skala:toppSkala,
-                     ms:Math.round(NF*toppSkala*10) };
-      sporer=false; topp=-1; under=0; mute = frame + cfg.mute;
+      const svar = { word:toppOrd, word2Vis:toppOrd, sim:topp, skala:toppSkala,
+                     ms:Math.round(NF*toppSkala*10), maate:"form" };
+      /* DTW gjør det samme valget om igjen, men får strekke tiden ULIKT
+         gjennom ordet. Det koster for mye å gjøre 100 ganger i sekundet, men
+         én gang per ord er ingenting — så prikkproduktet finner NÅR, og DTW
+         velger HVA.  */
+      if(cfg.dtw && toppRaw && templates.length){
+        const probe=shapeFrames(toppRaw);
+        let beste2=Infinity, ord2=null, nest2=Infinity;
+        for(let t=0;t<templates.length;t++){
+          const d=dtwShape(probe, templates[t].seq, 0.25);
+          if(d<beste2){ if(templates[t].word!==ord2){ nest2=beste2; } beste2=d; ord2=templates[t].word; }
+          else if(d<nest2 && templates[t].word!==ord2) nest2=d;
+        }
+        svar.dtwWord=ord2;
+        svar.dtwSim=1-beste2;
+        svar.enig = ord2===toppOrd;
+        svar.word=ord2; svar.maate="dtw";
+      }
+      sporer=false; topp=-1; under=0; ned=0; toppRaw=null; mute = frame + cfg.mute;
       if(onWord) onWord(svar);
       return svar;
     }
@@ -254,7 +327,7 @@ const KLAR  = 80;    // rammer «gjør deg klar» før det første
 window.Glid = {
   REC, PAUSE, KLAR,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
-  shape, likhet, resample, pack, unpack, load, save, prep,
+  shape, shapeFrames, dtwShape, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher
 };
 })();

@@ -158,7 +158,14 @@
 
   <div id="main" class="hide">
     <h2>Innstillinger</h2>
-    <div class="card"><div id="ctrls"></div></div>
+    <div class="card">
+      <div id="ctrls"></div>
+      <div class="tog" style="border-top:1px solid var(--line);padding-top:14px">
+        <label for="dtw">Bruk DTW til å velge ord</label>
+        <input type="checkbox" id="dtw">
+      </div>
+      <div class="note">Prikkproduktet finner <b>når</b> et ord ble sagt uansett — det er raskt nok til å gjøre 100 ganger i sekundet. Med denne på gjør DTW valget av <b>hvilket</b> ord om igjen, én gang per ord, og får da strekke tiden ulikt gjennom ordet i stedet for jevnt. Loggen viser om de to er enige, så du ser om det utgjør en forskjell.</div>
+    </div>
 
     <h2>Fasit — hold inne og si ordet</h2>
     <div class="card">
@@ -428,9 +435,15 @@ function autoTrim(strip){
 /* ---- gjenkjenning ---- */
 function gotWord(r){
   $("heardWord").textContent=r.word;
-  $("heardConf").textContent=Math.round(r.sim*100)+" % lik · "+r.ms+" ms · fart "+
-    r.skala.toFixed(2).replace(".",",")+"×";
-  logLine("hørte «"+r.word+"» ("+Math.round(r.sim*100)+" %)");
+  const form = Math.round(r.sim*100)+" %";
+  $("heardConf").textContent = r.dtwWord
+    ? "DTW: "+r.dtwWord+" ("+Math.round(r.dtwSim*100)+" %) · form: "+r.word2Vis+" ("+form+")"+
+      (r.enig ? " · enige" : " · UENIGE")
+    : form+" lik · "+r.ms+" ms · fart "+r.skala.toFixed(2).replace(".",",")+"×";
+  logLine(r.dtwWord
+    ? (r.enig ? "hørte «"+r.word+"» (begge enige, "+form+")"
+              : "UENIGE — DTW: «"+r.dtwWord+"», form: «"+r.word2Vis+"» ("+form+")")
+    : "hørte «"+r.word+"» ("+form+")");
   if(navigator.vibrate) navigator.vibrate(30);
 }
 
@@ -570,6 +583,14 @@ $("btnMic").addEventListener("click", startMic);
 $("btnAll").addEventListener("click", ()=>{ if(micOn) startCapture(WORDS[0], WORDS.slice(1)); });
 $("capDone").addEventListener("click", nextCapture);
 $("capCancel").addEventListener("click", avbrytCapture);
+$("dtw").checked = !!Glid.cfg.dtw;
+$("dtw").addEventListener("change", ()=>{
+  Glid.cfg.dtw = $("dtw").checked;
+  Glid.saveCfg();
+  msg("listenMsg", Glid.cfg.dtw
+    ? "DTW velger ordet nå. Se i loggen om den er uenig med formen."
+    : "Bare prikkproduktet. Raskere, men strekker tiden jevnt.", "ok");
+});
 // to trykk, så et uhell ikke tar hele fasiten
 let wipeArm=0;
 $("btnWipe").addEventListener("click", ()=>{
