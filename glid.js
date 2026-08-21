@@ -46,7 +46,36 @@ const CFGKEY = "dart_glid_cfg";
       gjennom hele ordet: mikrofonens farge, rommets klang, avstanden din.
    3. Lengden på vektoren. Da står bare retningen igjen, og prikkproduktet
       mellom to slike er likheten direkte — 1,00 er identisk form.        */
+/* ---- romfilter ----
+   Nuller ut alt som ligger nær rommets eget nivå, bånd for bånd. Det som
+   står igjen er bare det som faktisk stikker opp av romlyden.
+
+   Gulvet regnes ut av snutten selv, per bånd, så det virker likt på en
+   fasit og på et vindu fra strømmen — ellers ville de to blitt behandlet
+   ulikt og sluttet å ligne hverandre. Terskel 0 slår det helt av.      */
+function denoise(strip){
+  const t = cfg.nfloor || 0;
+  if(t <= 0) return strip;
+  const n = strip.length;
+  if(n < 4) return strip;
+  const gulv = new Float32Array(B);
+  const kol = new Float32Array(n);
+  for(let b=0;b<B;b++){
+    for(let i=0;i<n;i++) kol[i]=strip[i][b];
+    const sortert = Array.prototype.slice.call(kol).sort((x,y)=>x-y);
+    gulv[b] = sortert[Math.floor(n*0.10)];
+  }
+  return strip.map(f=>{
+    const v = new Float32Array(B);
+    for(let b=0;b<B;b++){
+      const grense = gulv[b] + t;
+      v[b] = f[b] < grense ? grense : f[b];
+    }
+    return v;
+  });
+}
 function shape(strip){
+  strip = denoise(strip);
   const n = strip.length;
   const flat = new Float32Array(n*B);
   for(let i=0;i<n;i++){
@@ -78,6 +107,7 @@ function shape(strip){
    Hver ramme normaliseres for seg: styrken vekk, lengden vekk, bare
    retningen igjen — så avstanden mellom to rammer er ren formforskjell. */
 function shapeFrames(strip){
+  strip = denoise(strip);
   // hvor mye lyd hver ramme har, målt mot snuttens eget stille og høyeste
   const en=strip.map(f=>{ let s=0; for(let b=0;b<B;b++) s+=f[b]; return s/B; });
   const sortert=en.slice().sort((x,y)=>x-y);
@@ -256,7 +286,7 @@ function loadCfg(){
 // v må stå til 0 her: standardene legges FØRST, så det lagrede oppå. Sto den
 // til 2, ville en gammel innstilling uten merke arvet 2 og migreringen aldri
 // fyrt — den ville sett ny ut uten å være det.
-const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, ns:true, dtw:false, v:0 }, loadCfg());
+const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, nfloor:0, ns:true, dtw:false, v:0 }, loadCfg());
 /* «gate» betydde før et absolutt tall, nå er det en andel av dine egne
    opptak. En lagret verdi fra før ville betydd noe helt annet. */
 if(cfg.v !== 2){ cfg.gate=0.45; cfg.v=2; delete cfg.env; saveCfg(); }
@@ -272,6 +302,10 @@ const CONTROLS = [
     lab:"Hvor høyt det må sies, mot dine egne opptak",
     vis:v=>Math.round(v*100)+" %",
     note:"Andel av nivået i fasitene dine. Du snakket med en viss kraft da du leste inn, og det er et ekte holdepunkt for hva «et ord» høres ut som — mye bedre enn et tall tatt ut av lufta. 100 % krever like høyt som da du leste inn; lavere gir slingringsmonn for avstand til mikrofonen. Under denne sammenlignes det ikke i det hele tatt." },
+  { key:"nfloor", min:0, max:8, step:0.1,
+    lab:"Nuller ut alt nærmere romlyden enn dette",
+    vis:v=>v<=0 ? "av" : "+"+v.toFixed(1).replace(".",","),
+    note:"Bånd for bånd: alt som ligger under romnivået pluss dette settes likt, så det ikke lenger bidrar med noe mønster. Rydder bort viften og gata før sammenligningen. For høyt spiser det svake konsonanter — f-en i «treff». «Av» lar alt være med." },
   { key:"mute", min:10, max:100, step:5,
     lab:"Sperre etter et ord",
     vis:v=>(v*10)+" ms",
@@ -326,9 +360,15 @@ function makeMatcher(templates, onWord){
         m = m/B - floor;
         if(m > maxOver) maxOver = m;
       }
+      /* Terskelen er en betingelse for å BEGYNNE å se etter, ikke noe som
+         får avbryte et funn. Nivået faller alltid når ordet slutter, så å
+         kaste toppen her betydde at et høyt krav drepte ordet før formen
+         rakk å snu — og da jobbet de to innstillingene mot hverandre i
+         stedet for sammen. Faller nivået mens vi sporer, er ordet ferdig:
+         da fyrer vi av det vi har funnet.                              */
       if(maxOver < ref*cfg.gate){
-        if(sporer){ sporer=false; topp=-1; under=0; }
-        return null;
+        if(!sporer) return null;
+        return fyrAv();
       }
 
       let beste=-1, besteOrd=null, besteSkala=1, besteRaw=null;
@@ -363,6 +403,11 @@ function makeMatcher(templates, onWord){
         // falt helt under — vent tre rammer så en enkelt dupp ikke avslutter
         if(++under < 3) return null;
       }
+      return fyrAv();
+    }
+  };
+
+  function fyrAv(){
       const svar = { word:toppOrd, word2Vis:toppOrd, sim:topp, skala:toppSkala,
                      ms:Math.round(NF*toppSkala*10), maate:"form" };
       /* DTW gjør det samme valget om igjen, men får strekke tiden ULIKT
@@ -387,8 +432,7 @@ function makeMatcher(templates, onWord){
       svar.ignorert = svar.word===NOISE;
       if(onWord) onWord(svar);
       return svar;
-    }
-  };
+  }
 }
 
 /* Innlesingen har ingen terskel i det hele tatt: den grønne skjermen varer
@@ -401,7 +445,7 @@ const KLAR  = 80;    // rammer «gjør deg klar» før det første
 window.Glid = {
   REC, PAUSE, KLAR,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
-  NOISE, ALL, refLevel, stripLevel,
+  NOISE, ALL, refLevel, stripLevel, denoise,
   shape, shapeFrames, dtwShape, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher
 };

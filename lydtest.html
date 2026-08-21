@@ -670,7 +670,8 @@ Voice.controls($("ctrls"), {
   cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
   onChange(key){
     visKrav(); paintMeter();
-    if(key==="gate") matcher=null;
+    // romfilteret endrer hvordan fasitene beskrives, så de må bygges om
+    if(key==="gate" || key==="nfloor") matcher=null;
   }
 });
 renderBars();
