@@ -230,11 +230,12 @@ function makeEndpointer(cfg){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ thr:2.5, hangover:60, gap:50, ratio:0.85, drop:0.20 }, loadCfg());
-// «hangover» betydde før pausen inni ett ord. Nå er det stillheten som
-// avslutter en hel runde, og da er de gamle 250 ms altfor kort — den ville
-// kuttet runden mellom ordene.
-if(cfg.hangover < 40) cfg.hangover = 60;
+const cfg = Object.assign({ thr:2.5, hangover:20, gap:15, ratio:0.85, drop:0.20, v:0 }, loadCfg());
+/* Betydningen av «pause» og «sperre» har vært snudd fram og tilbake mens
+   dette ble prøvd ut. Merket sier hvilken omgang de lagrede tallene hører
+   til; stemmer det ikke, settes de tilbake til standard i stedet for å
+   bety noe helt annet enn det som står på skyveren.                     */
+if(cfg.v !== 3){ cfg.hangover=20; cfg.gap=15; cfg.v=3; saveCfg(); }
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -395,14 +396,14 @@ const CONTROLS = [
     lab:"Terskel — hvor mye over romnivået et ord må være",
     vis:v=>v.toFixed(1).replace(".",","),
     note:"Den røde streken i måleren. Skal ligge godt over romstøyen, men under stemmen din." },
-  { key:"hangover", min:20, max:120, step:2,
-    lab:"Stillhet som avslutter runden",
+  { key:"hangover", min:10, max:60, step:1,
+    lab:"Pause før ordet regnes som ferdig",
     vis:v=>(v*10)+" ms",
-    note:"Hele runden sies i én slurk. Kuttes den midt i, øk denne — den må være lengre enn pausene du gjør mellom ordene." },
-  { key:"gap", min:10, max:100, step:1,
+    note:"Må være kortere enn mellomrommet du lager mellom ordene, men lengre enn de stille partiene inni et ord — f-en i «treff» er 140 ms. Blir ett ord til flere utslag, øk den. Smelter to ord sammen, senk den." },
+  { key:"gap", min:5, max:60, step:1,
     lab:"Sperre mellom ord",
     vis:v=>(v*10)+" ms",
-    note:"Dødtid etter hvert ord. Det er denne som avgjør hvor kjapt du kan si dem etter hverandre." },
+    note:"Dødtid etter hvert ord, så etterklangen ikke blir et nytt. Det må uansett bli stille før neste ord godtas, så denne kan holdes kort — det er den som avgjør hvor kjapt du kan si de tre." },
   { key:"ratio", min:0.50, max:0.99, step:0.01,
     lab:"Hvor sikker den må være før den sier et ord",
     vis:v=>v.toFixed(2).replace(".",","),
@@ -467,95 +468,26 @@ function controls(el, opts){
    stedet leses 12 fraser som dekker hvert ord minst to ganger i hver av
    de tre posisjonene, og de 64 settes sammen av de bitene. Er en frase
    faktisk lest inn, brukes det ekte opptaket framfor sammensetningen.  */
-const PWORDS = ["treff","bom","dobbel","trippel"];
-/* Alle 64 kombinasjonene, i den rekkefølgen som gjør dem lette å lese inn:
-   først de fire like, så resten. Hver leses inn som ÉN ytring — hele runden
-   sagt i én slurk. Ingen oppdeling i ord noe sted: det var oppdelingen som
-   var den skjøre biten, og nå finnes den ikke.                            */
-const PHRASES = (function(){
-  const like=[], rest=[];
-  PWORDS.forEach(a=>PWORDS.forEach(b=>PWORDS.forEach(c=>{
-    const t=[a,b,c];
-    (a===b && b===c ? like : rest).push(t);
-  })));
-  return like.concat(rest);
-})();
-const PKEY = "dart_voice_phrases";
+/* ---- runden sies i én flyt, men ordene kjennes igjen hver for seg ----
+   Å sette sammen alle 64 kombinasjonene av de fire innleste ordene ble
+   prøvd og forkastet: de samme fire mønstrene gjør jobben uansett, så det
+   gjentar bare den samme informasjonen i 64 rekkefølger. Målt ga det ingen
+   bedre klaring, og ett feilhørt ord kostet hele runden i stedet for én pil.
 
-/* Mønsteret lagres uten normalisering; den gjøres når det sammenlignes,
-   over hele ytringen under ett.                                          */
-function loadPhrases(){
-  try{
-    const raw=JSON.parse(localStorage.getItem(PKEY));
-    if(!raw) return {};
-    const out={};
-    for(const k in raw){
-      const liste = Array.isArray(raw[k]) ? raw[k] : [];
-      out[k]=liste.map(r=>({ f:(r.f||r).map(v=>Float32Array.from(v)) })).filter(r=>r.f.length);
-    }
-    return out;
-  }catch(e){ return {}; }
-}
-function savePhrases(ph){
-  try{
-    const out={};
-    for(const k in ph)
-      out[k]=ph[k].map(r=>({ f:r.f.map(m=>Array.from(m).map(v=>+v.toFixed(3))) }));
-    localStorage.setItem(PKEY, JSON.stringify(out));
-    return true;
-  }catch(e){ return false; }
-}
-function phraseCount(ph){
-  ph=ph||loadPhrases();
-  let n=0; for(const k in ph) n+=ph[k].length; return n;
-}
-// Hvor mange av de 64 er lest inn
-function phraseReady(ph){
-  ph=ph||loadPhrases();
-  return PHRASES.filter(a=>(ph[a.join("|")]||[]).length>0).length;
-}
-/* Kandidatene er rett og slett det som er lest inn. Ingenting settes
-   sammen av biter lenger.                                                */
-function buildCombos(ph){
-  ph=ph||loadPhrases();
-  const out=[];
-  PHRASES.forEach(a=>{
-    const k=a.join("|");
-    (ph[k]||[]).forEach(r=>out.push({ combo:a, frames:cmn(r.f.map(m=>({mfcc:m}))) }));
-  });
-  return out;
-}
-/* Hele ytringen mot hvert innlest mønster. Ingen tidlig avbrytelse: vi
-   trenger den nest beste for å vite hvor sikker den var.                 */
-function classifyPhrase(probe, combos){
-  let best=null, bestD=Infinity, second=Infinity, secondC=null;
-  for(let i=0;i<combos.length;i++){
-    const d=dtw(probe, combos[i].frames, null, null);
-    if(d<bestD){
-      if(!best || best.combo.join()!==combos[i].combo.join()){ second=bestD; secondC=best; }
-      bestD=d; best=combos[i];
-    } else if(d<second && (!best || best.combo.join()!==combos[i].combo.join())){
-      second=d; secondC=combos[i];
-    }
-  }
-  if(!best) return { combo:null, ratio:1, sure:false };
-  const ratio = isFinite(second) && second>0 ? bestD/second : 0;
-  return { combo:best.combo, dist:bestD, ratio, sure: ratio<=cfg.ratio,
-           nest: secondC?secondC.combo:null };
-}
-/* Detektoren stilles annerledes for en hel runde enn for ett ord: den skal
-   ikke avslutte på pausene INNI runden, bare på stillheten etter.        */
-function epCfgPhrase(){
-  return { start:cfg.thr, endMin:Math.max(0.3,cfg.thr*0.35), drop:cfg.drop,
-           hangover:cfg.hangover, refractory:cfg.gap,
-           minLen:25, maxLen:450, hardStop:500 };
+   Det som VAR verdt å ta med videre er flyten: du skal kunne si alle tre
+   rett etter hverandre uten at sperren spiser ord to og tre.            */
+const PWORDS = ["treff","bom","dobbel","trippel"];
+
+// Hvor mange av de fire ordene som er lest inn
+function phraseReady(templates){
+  templates = templates || loadTemplates();
+  return PWORDS.filter(w=>(templates[w]||[]).length>0).length;
 }
 
 window.Voice = {
   P, fft, dct, frameFeature, cmn, dist, dtw, makeEndpointer,
   packMel, unpackMel, classify, makeMic, ready, controls, CONTROLS,
-  PWORDS, PHRASES, PKEY, loadPhrases, savePhrases, phraseCount,
-  buildCombos, classifyPhrase, phraseReady, epCfgPhrase,
+  PWORDS, phraseReady,
   cfg, saveCfg, epCfg, loadTemplates, saveTemplates,
   WORDS, TARGET, STORE, SNIPKEY, CFGKEY, MINSEG
 };

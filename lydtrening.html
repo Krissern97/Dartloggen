@@ -89,18 +89,6 @@
   .capture.hot{background:var(--green);color:var(--green-ink)}
   .ccue{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.8}
   .cword{font-size:clamp(46px,16vw,72px);font-weight:800;line-height:1.05}
-  .cword.ph{font-size:clamp(24px,7.5vw,38px);line-height:1.3}
-  .phrow{display:flex;align-items:center;gap:9px;padding:8px 0;border-top:1px solid var(--line)}
-  .phrow:first-child{border-top:0}
-  .phlab{flex:1;font-size:13px;font-weight:700}
-  .phlab i{font-style:normal;color:var(--ink2);font-weight:400;padding:0 3px}
-  .phn{flex:none;width:34px;text-align:center;font-size:12px;color:var(--ink2)}
-  .phnum{flex:none;width:26px;font-size:11px;color:var(--ink2);
-         font-variant-numeric:tabular-nums}
-  .phhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .phhead b{flex:1;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
-  .phbar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:10px}
-  .phbar i{display:block;height:100%;width:0;background:var(--green);border-radius:3px}
   .cprog{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;opacity:.8}
   .cdots{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap;justify-content:center;max-width:260px}
   .cdots i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.25}
@@ -192,26 +180,13 @@
   </div>
 
   <div id="main" class="hide">
-    <h2>Fasit — les inn hele runder</h2>
+    <h2>Fasit — les inn ordene</h2>
+    <div class="card" id="words"></div>
+    <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
+    <div class="msg" id="recMsg"></div>
+
+    <h2>Opptak — se og hør</h2>
     <div class="card">
-      <div class="note" style="margin:0 0 12px">Alle 64 kombinasjonene leses inn hver for seg. Si hele runden i én slurk, slik du ville gjort under spill — den deles ikke opp i ord noe sted. Ett opptak per kombinasjon; sier du den om igjen, erstattes det forrige.</div>
-      <div class="phhead">
-        <b id="phProg">0 av 64</b>
-        <button class="ghost" id="btnPhFilter" style="flex:none;padding:8px 12px">Vis alle 64</button>
-      </div>
-      <div class="phbar"><i id="phBar"></i></div>
-      <div id="phList"></div>
-    </div>
-    <button class="primary" id="btnAllPh" style="margin-top:10px">Les inn de som mangler</button>
-    <div class="msg" id="phMsg"></div>
-
-    <h2 class="hide" data-old>Fasit — les inn ordene</h2>
-    <div class="card hide" data-old id="words"></div>
-    <button class="primary hide" data-old id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
-    <div class="msg hide" data-old id="recMsg"></div>
-
-    <h2 class="hide" data-old>Opptak — se og hør</h2>
-    <div class="card hide" data-old>
       <div class="seg wrap" id="snipTabs"></div>
       <div class="row" id="trimRow" style="margin-top:0;margin-bottom:12px">
         <button class="ghost" id="btnTight">Stram inn alle</button>
@@ -276,7 +251,7 @@ const { P, frameFeature, cmn, dct, dtw, makeEndpointer, packMel, unpackMel,
    3. TILSTAND
    ============================================================ */
 let ring=[];
-const RING_MAX=600;   // en hel runde pluss stillheten etter får plass
+const RING_MAX=300;
 const PAD=15;                  // rammer med rom rundt snutten, så du ser klippet
 let ep=null;
 let mode=null;
@@ -348,7 +323,7 @@ async function startMic(){
         (info.resampled ? ", nedskalert til 16 000" : "")+
         ". Trykk «Mål rommet» for å sette terskelen etter rommet du står i.","ok");
     logLine("mikrofon på");
-    renderWords(); renderSnipTabs(); renderSnips(); renderPhrases();
+    renderWords(); renderSnipTabs(); renderSnips();
   }catch(e){
     msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
   }
@@ -357,7 +332,7 @@ function onFrame(f){
   ring.push(f);
   if(ring.length>RING_MAX) ring.shift();
   frameNo++;
-  if(!ep) ep = makeEndpointer(Voice.epCfgPhrase());
+  if(!ep) ep = makeEndpointer(epCfg());
 
   const fl = ep.floor===null ? f.energy : ep.floor;
   const over = f.energy - fl;
@@ -383,12 +358,7 @@ function onFrame(f){
   // oversett fra global rammeteller til posisjon i ringbufferet
   const base = frameNo - ring.length;
   const from = Math.max(0, r.from-base), to = Math.min(ring.length, r.to-base);
-  if(r.why==="ok" && to-from>=8){
-    if(mode==="pcapture"){ capturePhrase(from,to); return; }
-    if(mode==="listen"){ testPhrase(from,to); return; }
-    gotWord(from,to);
-    return;
-  }
+  if(r.why==="ok" && to-from>=8){ gotWord(from,to); return; }
   if(r.why==="lang"){
     // for langt: behold det kraftigste sekundet i stedet for å kaste alt
     let bi=from;
@@ -767,121 +737,14 @@ function nextCapture(){
   msg("recMsg","Fasit lagret. Se over opptakene før du tester.","ok");
 }
 
-/* ============================================================
-   RUNDER — hele runden som ett mønster
-   ============================================================
-   Alle 64 kombinasjonene leses inn hver for seg, én ytring per stykke.
-   Ingen oppdeling i ord noe sted. Oppdelingen var den skjøre biten: sa du
-   «treff treff treff» raskt, sperret detektoren ord to og tre, og da ble
-   ingenting lagret. Nå fanges hele slurken under ett, og det eneste som
-   avgjør slutten er stillheten etterpå.                                  */
-let phrases = Voice.loadPhrases();
-let combos = null;
-let phIdx=0, phQueue=null, phOnlyMissing=true;
-
-function phKey(a){ return a.join("|"); }
-function phCount(a){ return (phrases[phKey(a)]||[]).length; }
-function combosOf(){
-  if(!combos) combos = Voice.buildCombos(phrases);
-  return combos;
-}
-function phMissing(){
-  return Voice.PHRASES.map((a,i)=>i).filter(i=>phCount(Voice.PHRASES[i])===0);
-}
-function renderPhrases(){
-  const box=$("phList"); box.innerHTML="";
-  const mangler=phMissing();
-  const lest=64-mangler.length;
-  $("phProg").textContent = lest+" av 64";
-  $("phBar").style.width = Math.round(100*lest/64)+"%";
-  $("btnAllPh").textContent = mangler.length
-    ? "Les inn de "+mangler.length+" som mangler"
-    : "Les inn alle 64 på nytt";
-  $("btnPhFilter").textContent = phOnlyMissing ? "Vis alle 64" : "Vis bare de som mangler";
-
-  Voice.PHRASES.forEach((a,i)=>{
-    const n=phCount(a);
-    if(phOnlyMissing && n) return;
-    const row=document.createElement("div"); row.className="phrow";
-    row.innerHTML='<span class="phnum">'+(i+1)+'</span><span class="phlab"></span>'+
-      (n ? '<button class="wbtn undo" aria-label="Slett">↶</button>' : '<span class="phn">–</span>')+
-      '<button class="wbtn go rec" aria-label="Les inn">▶</button>';
-    row.querySelector(".phlab").innerHTML=a[0]+' <i>·</i> '+a[1]+' <i>·</i> '+a[2];
-    if(n) row.querySelector(".undo").addEventListener("click",()=>{
-      delete phrases[phKey(a)];
-      combos=null; Voice.savePhrases(phrases); renderPhrases();
-      msg("phMsg","Slettet opptaket.","ok");
-    });
-    row.querySelector(".rec").addEventListener("click",()=>startPhrase(i,null));
-    box.appendChild(row);
-  });
-  if(!box.children.length)
-    box.innerHTML='<div class="note" style="padding:6px 0">Alle 64 er lest inn.</div>';
-
-  $("btnListen").disabled = lest===0;
-  msg("phMsg", lest
-    ? (lest===64 ? "Alle 64 er lest inn."
-                 : lest+" lest inn. De som mangler kan ikke gjenkjennes ennå.")
-    : "Ingen runder lest inn ennå.", lest===64?"ok":"");
-}
-function startPhrase(i, queue){
-  if(!micOn) return;
-  mode="pcapture"; phIdx=i; phQueue=queue;
-  if(ep) ep.reset();
-  $("capWord").classList.add("ph");
-  $("cap").classList.add("on");
-  renderPhCapture();
-}
-function renderPhCapture(){
-  const a=Voice.PHRASES[phIdx];
-  $("capWord").textContent=a.join(" · ");
-  $("capCue").textContent="Si hele runden i én slurk";
-  const igjen = phQueue ? phQueue.length : 0;
-  $("capProg").textContent = phCount(a)
-    ? "lest inn — si den igjen for å erstatte"
-    : (igjen ? igjen+" igjen etter denne" : "");
-  $("capDots").innerHTML="";
-}
-function nextPhrase(){
-  const q=phQueue;
-  mode=null; phQueue=null; if(ep) ep.reset();
-  Voice.savePhrases(phrases); renderPhrases();
-  if(q && q.length){ startPhrase(q[0], q.slice(1)); return; }
-  $("cap").classList.remove("on");
-  $("capWord").classList.remove("ph");
-}
-
-/* Hele slurken er mønsteret. Ett opptak per kombinasjon — sier du den om
-   igjen, erstattes det forrige, så det er lett å ta en dårlig på nytt.  */
-function capturePhrase(from, to){
-  const raw = ring.slice(from,to).map(f=>f.mfcc);
-  const a = Voice.PHRASES[phIdx];
-  phrases[phKey(a)] = [{ f: raw }];
-  combos=null;
-  if(navigator.vibrate) navigator.vibrate(30);
-  logLine("fanget «"+a.join(" ")+"» ("+(to-from)*10+" ms)");
-  Voice.savePhrases(phrases); renderPhrases();
-  nextPhrase();
-}
-function testPhrase(from, to){
-  const r = Voice.classifyPhrase(Voice.cmn(ring.slice(from,to)), combosOf());
-  if(!r.combo){ msg("listenMsg","Ingen runder lest inn ennå.","err"); return; }
-  $("heardWord").textContent = r.sure ? r.combo.join(" · ") : "?";
-  $("heardConf").textContent =
-    (r.sure ? "" : "for jevnt: "+r.combo.join(" ")+" mot "+(r.nest||[]).join(" ")+" · ")+
-    "klaring "+r.ratio.toFixed(2).replace(".",",")+" · "+(to-from)*10+" ms";
-  logLine((r.sure?"hørte «"+r.combo.join(" ")+"»":"usikker")+" ("+r.ratio.toFixed(2)+")");
-  if(navigator.vibrate) navigator.vibrate(30);
-}
-
 /* ---- skyverne ----
    Bygges av den delte motoren, så panelet under spill og panelet her viser
    nøyaktig de samme tallene og virker likt. */
-const VC = Voice.controls($("vcontrols"), { onChange(){ if(ep) ep.setCfg(Voice.epCfgPhrase()); } });
+const VC = Voice.controls($("vcontrols"), { onChange(){ if(ep) ep.setCfg(epCfg()); } });
 function setThr(v){
   cfg.thr = Math.round(Math.max(0.5, Math.min(10, v))*10)/10;
   saveCfg(); VC.refresh();
-  if(ep) ep.setCfg(Voice.epCfgPhrase());
+  if(ep) ep.setCfg(epCfg());
 }
 
 $("btnCal").addEventListener("click", ()=>{
@@ -899,14 +762,7 @@ function finishCal(){
   logLine("kalibrert: rom +"+calMax.toFixed(1)+", terskel "+cfg.thr.toFixed(1));
 }
 
-$("capStop").addEventListener("click", ()=>{ if(mode==="pcapture") nextPhrase(); else nextCapture(); });
-$("btnAllPh").addEventListener("click", ()=>{
-  if(!micOn) return;
-  const k = phMissing();
-  const kø = k.length ? k : Voice.PHRASES.map((_,i)=>i);
-  startPhrase(kø[0], kø.slice(1));
-});
-$("btnPhFilter").addEventListener("click", ()=>{ phOnlyMissing=!phOnlyMissing; renderPhrases(); });
+$("capStop").addEventListener("click", nextCapture);
 $("btnMic").addEventListener("click", startMic);
 $("btnAll").addEventListener("click", ()=>{
   if(micOn) startCapture(WORDS[0], WORDS.slice(1));
@@ -953,7 +809,7 @@ $("btnWipe").addEventListener("click",()=>{
   $("heardWord").textContent="–"; $("heardConf").textContent="Les inn fasit først";
   msg("saveMsg","All fasit slettet.");
 });
-renderSnipTabs(); renderSnips(); renderPhrases();
+renderSnipTabs(); renderSnips();
 if(Object.keys(templates).length){
   $("main").classList.remove("hide");
   renderWords(); renderSnipTabs(); renderSnips();
