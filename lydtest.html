@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#131110">
+<title>Dartloggen — glidende gjenkjenning</title>
+</head>
+<style>
+  :root{
+    --bg:#F2EDE2; --surface:#FFFDF7; --surface2:#EAE3D4;
+    --ink:#2A241B; --ink2:#6F6555; --line:#DCD3C0;
+    --green:#1E7A44; --green-ink:#FFFFFF; --green-soft:#E0EDE2; --green-mid:#C4E0CB;
+    --red:#B3312E; --red-soft:#F6E5E2; --gold:#A5802F; --gold-soft:#F1E8D2;
+    --shadow:0 1px 3px rgba(42,36,27,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#131110; --surface:#1D1A17; --surface2:#26221D;
+      --ink:#EFE7D7; --ink2:#A79C8A; --line:#332E27;
+      --green:#4BA96B; --green-ink:#0E1F14; --green-soft:#1E2B21; --green-mid:#2C4A36;
+      --red:#D8574F; --red-soft:#2E1D1A; --gold:#C9A45C; --gold-soft:#2C2618; --shadow:none;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-tap-highlight-color:transparent; min-height:100dvh;
+  }
+  button{touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  #app{max-width:480px;margin:0 auto;padding:14px 14px 40px}
+  h1{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:0 0 2px}
+  .sub{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.45}
+  h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:22px 2px 8px;color:var(--ink2)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .primary{
+    border:0;background:var(--green);color:var(--green-ink);font:inherit;font-size:15px;font-weight:800;
+    letter-spacing:.05em;text-transform:uppercase;padding:15px 18px;border-radius:13px;cursor:pointer;width:100%;
+    box-shadow:var(--shadow);
+  }
+  .primary:disabled{opacity:.4;cursor:default}
+  .primary.stop{background:var(--red);color:#fff}
+  .ghost{
+    border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+    font:inherit;font-size:13px;font-weight:700;padding:11px;border-radius:11px;cursor:pointer;flex:1;
+  }
+  .row{display:flex;gap:9px;margin-top:10px}
+  .msg{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.5;min-height:18px;white-space:pre-line}
+  .msg.err{color:var(--red);font-weight:700}
+  .msg.ok{color:var(--green);font-weight:700}
+  .note{font-size:11.5px;color:var(--ink2);line-height:1.5;margin-top:7px}
+  .back{display:inline-block;color:var(--green);font-size:13px;font-weight:800;text-decoration:none;margin-bottom:12px}
+  .hide{display:none}
+
+  .meter{height:26px;background:var(--surface2);border-radius:8px;overflow:hidden;position:relative;margin-top:10px}
+  .meter i{display:block;height:100%;background:var(--green-mid);width:0}
+  .meter.hot i{background:var(--green)}
+  .meter u{position:absolute;top:0;bottom:0;width:2px;background:var(--red);left:0;opacity:.9}
+  .meter b{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;
+           font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+
+  .tog{display:flex;align-items:center;gap:10px;margin-top:14px}
+  .tog label{flex:1;font-size:13px;font-weight:700}
+  .tog input{width:44px;height:26px;accent-color:var(--green)}
+
+  /* fasit-rader: hold inne for å lese inn */
+  .wrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .wrow:first-child{border-top:0}
+  .wlab{flex:1;font-weight:800;font-size:14px}
+  .wn{flex:none;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
+  .hold{
+    flex:none;border:1px solid var(--green);background:var(--green-soft);color:var(--green);
+    font:inherit;font-weight:800;font-size:12px;padding:10px 14px;border-radius:11px;
+    cursor:pointer;touch-action:none;letter-spacing:.04em;
+  }
+  .hold.on{background:var(--red);border-color:var(--red);color:#fff}
+  .hold:disabled{opacity:.35}
+
+  /* likhetssøyler under test */
+  .srow{display:flex;align-items:center;gap:9px;padding:7px 0}
+  .slab{flex:none;width:64px;font-size:13px;font-weight:800}
+  .sbar{flex:1;height:14px;background:var(--surface2);border-radius:7px;overflow:hidden;position:relative}
+  .sbar i{display:block;height:100%;width:0;background:var(--green-mid);border-radius:7px}
+  .sbar i.hit{background:var(--green)}
+  .sbar u{position:absolute;top:0;bottom:0;width:2px;background:var(--red);opacity:.85}
+  .spct{flex:none;width:44px;text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--ink2)}
+
+  .heard{text-align:center;padding:16px 10px;background:var(--surface2);border-radius:12px;margin-top:12px}
+  .heard .big{font-size:38px;font-weight:800;line-height:1.1}
+  .heard .conf{font-size:12px;color:var(--ink2);margin-top:4px;font-variant-numeric:tabular-nums}
+
+  /* snutter med dra-håndtak */
+  .sgrid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+  .snip{border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface2)}
+  .spec{position:relative;touch-action:pan-y}
+  .snip canvas{display:block;width:100%;height:76px;background:#14120F}
+  .shade{position:absolute;top:0;bottom:0;background:rgba(10,9,8,.72);pointer-events:none}
+  .grip{position:absolute;top:0;bottom:0;width:30px;margin-left:-15px;cursor:ew-resize;
+        touch-action:none;display:grid;place-items:center}
+  .grip::before{content:"";width:3px;height:100%;background:#F0D48A;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  .grip::after{content:"";position:absolute;top:50%;margin-top:-13px;width:15px;height:26px;
+               border-radius:5px;background:#F0D48A;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  .grip.drag::after{background:#fff}
+  .sfoot{display:flex;align-items:center;gap:8px;padding:7px 10px}
+  .sfoot b{flex:1;font-size:11.5px;font-weight:700;color:var(--ink2)}
+  .sbtn{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+        font:inherit;font-weight:800;font-size:12px;width:30px;height:30px;border-radius:8px;
+        cursor:pointer;display:grid;place-items:center;padding:0}
+  .seg{display:flex;gap:8px;margin-bottom:4px}
+  .seg button{flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
+              font:inherit;font-weight:800;font-size:12.5px;padding:9px;border-radius:10px;cursor:pointer}
+  .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+
+  .cap{position:fixed;inset:0;z-index:40;background:var(--green);color:var(--green-ink);display:none;
+       flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center}
+  .cap.on{display:flex}
+  .cap .w{font-size:clamp(46px,16vw,72px);font-weight:800}
+  .cap .c{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
+  .cap .m{width:min(280px,80vw);height:8px;background:rgba(255,255,255,.3);border-radius:4px;overflow:hidden}
+  .cap .m i{display:block;height:100%;width:0;background:#fff}
+</style>
+
+<div id="app">
+  <a class="back" href="./">‹ Tilbake til Dartloggen</a>
+  <h1>Glidende gjenkjenning</h1>
+  <div class="sub">Forsøk nummer to, ved siden av den som virker. Her finnes ingen startterskel: en stripe av spektrogrammet skyves langs lyden hele tiden, og det eneste som teller er hvor lik <b>formen</b> er. Styrken regnes helt bort.</div>
+
+  <div class="card">
+    <button class="primary" id="btnMic">Slå på mikrofonen</button>
+    <div class="meter" id="meter"><i></i><u></u><b id="meterTxt">av</b></div>
+    <div class="tog">
+      <label for="ns">Støydemping</label>
+      <input type="checkbox" id="ns" checked>
+    </div>
+    <div class="note">På her, i motsetning til den andre siden. Automatisk volumkontroll er fortsatt av — den skrur opp følsomheten i stillhet og ødelegger enhver sammenligning av nivå. Skrur du denne av eller på, må fasiten leses inn på nytt: lyden behandles ulikt.</div>
+    <div class="msg" id="micMsg"></div>
+  </div>
+
+  <div id="main" class="hide">
+    <h2>Innstillinger</h2>
+    <div class="card"><div id="ctrls"></div></div>
+
+    <h2>Fasit — hold inne og si ordet</h2>
+    <div class="card">
+      <div class="note" style="margin:0 0 6px">Hold knappen, si ordet, slipp. Det du holdt inne er det som ble tatt opp — ingen terskel som kan bomme. Grensene settes automatisk etterpå, og du kan dra dem selv.</div>
+      <div id="words"></div>
+    </div>
+
+    <h2>Opptak</h2>
+    <div class="card">
+      <div class="seg" id="tabs"></div>
+      <div class="sgrid" id="snips"></div>
+      <div class="msg" id="snipMsg"></div>
+    </div>
+
+    <h2>Test</h2>
+    <div class="card">
+      <button class="primary" id="btnListen" disabled>Start lytting</button>
+      <div class="heard">
+        <div class="big" id="heardWord">–</div>
+        <div class="conf" id="heardConf">Les inn fasit først</div>
+      </div>
+      <div id="bars" style="margin-top:6px"></div>
+      <div class="note">Søylene viser likheten mot hver fasit akkurat nå. Den røde streken er terskelen din. Se hva rommet klarer på egen hånd, og legg terskelen over det.</div>
+      <div class="msg" id="listenMsg"></div>
+    </div>
+
+    <h2>Logg</h2>
+    <div class="card"><div class="msg" id="log" style="font-variant-numeric:tabular-nums"></div></div>
+  </div>
+</div>
+
+<div class="cap" id="cap">
+  <div class="c">Si ordet nå</div>
+  <div class="w" id="capWord">treff</div>
+  <div class="c" id="capTime">0,0 s</div>
+  <div class="m"><i id="capMeter"></i></div>
+  <div class="c" style="opacity:.7">slipp når du er ferdig</div>
+</div>
+
+<script src="./voice.js"></script>
+<script src="./glid.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const { WORDS, NF } = Glid;
+
+let mic=null, micOn=false;
+let matcher=null, mode=null;
+let bank = Glid.load();
+let tab = WORDS[0];
+let holding=null, held=[], heldStart=0;
+let frameNo=0, floorVis=0, overVis=0;
+
+function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
+function logLine(t){
+  const el=$("log");
+  const s=new Date().toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  el.textContent=(s+"  "+t+"\n"+el.textContent).split("\n").slice(0,40).join("\n");
+}
+
+/* ---- mikrofon ---- */
+async function startMic(){
+  try{
+    const ns = $("ns").checked;
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio:{ echoCancellation:ns, noiseSuppression:ns, autoGainControl:false }
+    });
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx;
+    try{ ctx = new AC({ sampleRate:Voice.P.sampleRate }); }catch(e){ ctx = new AC(); }
+    if(ctx.state==="suspended") await ctx.resume();
+    const src = ctx.createMediaStreamSource(stream);
+    const node = ctx.createScriptProcessor(2048,1,1);
+    const ratio = ctx.sampleRate / Voice.P.sampleRate;
+    let pending = new Float32Array(0);
+    node.onaudioprocess = ev => {
+      let chunk = ev.inputBuffer.getChannelData(0);
+      if(ratio>1.01){
+        const n=Math.floor(chunk.length/ratio), out=new Float32Array(n);
+        for(let i=0;i<n;i++){
+          const p=i*ratio, a=Math.floor(p), f=p-a;
+          out[i]= a+1<chunk.length ? chunk[a]*(1-f)+chunk[a+1]*f : chunk[a];
+        }
+        chunk=out;
+      }
+      const merged=new Float32Array(pending.length+chunk.length);
+      merged.set(pending); merged.set(chunk,pending.length);
+      pending=merged;
+      let off=0;
+      while(pending.length-off >= Voice.P.frameLen){
+        onFrame(Voice.frameFeature(pending,off));
+        off += Voice.P.hop;
+      }
+      pending = pending.slice(off);
+    };
+    src.connect(node);
+    const dead = ctx.createGain(); dead.gain.value=0;
+    node.connect(dead); dead.connect(ctx.destination);
+    mic = { ctx, stream, node };
+    micOn = true;
+    $("btnMic").textContent = "Mikrofonen er på";
+    $("btnMic").disabled = true;
+    $("ns").disabled = true;
+    $("main").classList.remove("hide");
+    msg("micMsg","Lytter. Støydemping "+(ns?"på":"av")+".","ok");
+    logLine("mikrofon på, støydemping "+(ns?"på":"av"));
+    renderAll();
+  }catch(e){
+    msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
+  }
+}
+
+/* ---- hver ramme ---- */
+function onFrame(f){
+  frameNo++;
+  if(holding){
+    held.push(f.mel);
+    const sek=(held.length/100);
+    $("capTime").textContent = sek.toFixed(1).replace(".",",")+" s";
+    $("capMeter").style.width = Math.max(0,Math.min(100,Math.round((f.energy-floorVis)/8*100)))+"%";
+    return;                       // under opptak gjøres ingenting annet
+  }
+  if(!matcher) matcher = Glid.makeMatcher(Glid.prep(bank), gotWord);
+  matcher.push(f.mel, f.energy);
+  const s = matcher.siste;
+  floorVis = s.floor; overVis = s.over;
+  paintMeter();
+  if(mode==="listen") paintBars(s.sim);
+}
+function paintMeter(){
+  const m=$("meter"), SC=10;
+  const lvl=Math.max(0,Math.min(1,overVis/SC));
+  m.querySelector("i").style.width=Math.round(lvl*100)+"%";
+  m.querySelector("u").style.left=Math.min(99,Math.round(100*Glid.cfg.gate/SC))+"%";
+  m.classList.toggle("hot", overVis>=Glid.cfg.gate);
+  $("meterTxt").textContent = micOn ? (overVis>=Glid.cfg.gate?"lyd  +":"stille  +")+overVis.toFixed(1) : "av";
+}
+
+/* ---- lest inn: hold inne ---- */
+function holdStart(w){
+  if(!micOn || mode==="listen") return;
+  holding=w; held=[]; heldStart=frameNo;
+  $("capWord").textContent=w;
+  $("capTime").textContent="0,0 s";
+  $("cap").classList.add("on");
+}
+function holdEnd(){
+  if(!holding) return;
+  const w=holding, strip=held;
+  holding=null; held=[];
+  $("cap").classList.remove("on");
+  if(strip.length < 12){ msg("snipMsg","For kort — hold inne mens du sier ordet.","err"); return; }
+  const g = autoTrim(strip);
+  bank[w].push({ strip, a:g[0], b:g[1] });
+  Glid.save(bank); matcher=null;
+  tab=w; renderAll();
+  logLine("lest inn «"+w+"» ("+(g[1]-g[0])*10+" ms av "+strip.length*10+" ms)");
+  msg("snipMsg","Lest inn. Dra i håndtakene hvis grensene ikke ble riktige.","ok");
+}
+/* Vi VET at ordet ligger i det du holdt inne, så her er en enkel
+   energigrense trygg — helt ulikt å lete etter ord i en løpende strøm. */
+function autoTrim(strip){
+  const n=strip.length;
+  const en=strip.map(m=>{ let s=0; for(let b=0;b<Glid.B;b++) s+=m[b]; return s/Glid.B; });
+  const sortert=en.slice().sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(n*0.2)], topp=sortert[n-1];
+  if(topp-gulv < 0.5) return [0,n];
+  const niva=gulv+(topp-gulv)*0.15;
+  let a=0; while(a<n && en[a]<niva) a++;
+  let b=n; while(b>a && en[b-1]<niva) b--;
+  a=Math.max(0,a-2); b=Math.min(n,b+2);
+  return (b-a)<5 ? [0,n] : [a,b];
+}
+
+/* ---- gjenkjenning ---- */
+function gotWord(r){
+  $("heardWord").textContent=r.word;
+  $("heardConf").textContent=Math.round(r.sim*100)+" % lik · "+r.ms+" ms · fart "+
+    r.skala.toFixed(2).replace(".",",")+"×";
+  logLine("hørte «"+r.word+"» ("+Math.round(r.sim*100)+" %)");
+  if(navigator.vibrate) navigator.vibrate(30);
+}
+
+/* ---- grensesnitt ---- */
+function renderWords(){
+  const box=$("words"); box.innerHTML="";
+  WORDS.forEach(w=>{
+    const row=document.createElement("div"); row.className="wrow";
+    row.innerHTML='<span class="wlab"></span><span class="wn">'+bank[w].length+'</span>'+
+                  '<button class="hold">HOLD</button>';
+    row.querySelector(".wlab").textContent=w;
+    const b=row.querySelector(".hold");
+    b.addEventListener("pointerdown",e=>{
+      e.preventDefault();
+      if(b.setPointerCapture && e.pointerId!=null){ try{ b.setPointerCapture(e.pointerId); }catch(x){} }
+      b.classList.add("on"); holdStart(w);
+    });
+    const slutt=()=>{ b.classList.remove("on"); holdEnd(); };
+    b.addEventListener("pointerup",slutt);
+    b.addEventListener("pointercancel",slutt);
+    box.appendChild(row);
+  });
+  const tot=WORDS.reduce((a,w)=>a+bank[w].length,0);
+  $("btnListen").disabled = tot===0;
+}
+function renderTabs(){
+  const box=$("tabs"); box.innerHTML="";
+  WORDS.forEach(w=>{
+    const b=document.createElement("button");
+    b.textContent=w+" "+bank[w].length;
+    b.classList.toggle("active", w===tab);
+    b.addEventListener("click",()=>{ tab=w; renderTabs(); renderSnips(); });
+    box.appendChild(b);
+  });
+}
+function heat(v){
+  v=Math.max(0,Math.min(1,v));
+  if(v<0.5) return "rgb("+Math.round(20+v*60)+","+Math.round(18+v*150)+","+Math.round(15+v*60)+")";
+  return "rgb("+Math.round(50+(v-0.5)*400)+","+Math.round(93+(v-0.5)*300)+","+Math.round(45)+")";
+}
+function drawSpec(cv, strip){
+  const n=strip.length, cw=Math.max(2,Math.min(6,Math.round(420/n))), ch=3;
+  cv.width=n*cw; cv.height=Glid.B*ch;
+  const g=cv.getContext("2d"); if(!g) return;
+  let hi=-Infinity;
+  for(let i=0;i<n;i++) for(let b=0;b<Glid.B;b++) if(strip[i][b]>hi) hi=strip[i][b];
+  const lo=hi-9;
+  for(let i=0;i<n;i++) for(let b=0;b<Glid.B;b++){
+    g.fillStyle=heat((strip[i][b]-lo)/(hi-lo));
+    g.fillRect(i*cw,(Glid.B-1-b)*ch,cw,ch);
+  }
+}
+function renderSnips(){
+  const box=$("snips"); box.innerHTML="";
+  const liste=bank[tab]||[];
+  if(!liste.length){
+    box.innerHTML='<div class="note">Ingen opptak av «'+tab+'» ennå.</div>';
+    return;
+  }
+  liste.forEach((t,idx)=>{
+    const wrap=document.createElement("div"); wrap.className="snip";
+    const spec=document.createElement("div"); spec.className="spec";
+    const cv=document.createElement("canvas");
+    const shL=document.createElement("div"); shL.className="shade";
+    const shR=document.createElement("div"); shR.className="shade";
+    const g0=document.createElement("i"); g0.className="grip";
+    const g1=document.createElement("i"); g1.className="grip";
+    spec.appendChild(cv); spec.appendChild(shL); spec.appendChild(shR);
+    spec.appendChild(g0); spec.appendChild(g1);
+    const foot=document.createElement("div"); foot.className="sfoot";
+    foot.innerHTML='<b></b><button class="sbtn del" aria-label="Slett">✕</button>';
+    wrap.appendChild(spec); wrap.appendChild(foot);
+    box.appendChild(wrap);
+    drawSpec(cv,t.strip);
+
+    const n=t.strip.length;
+    const paint=()=>{
+      const p0=100*t.a/n, p1=100*t.b/n;
+      shL.style.left="0"; shL.style.width=p0+"%";
+      shR.style.left=p1+"%"; shR.style.width=(100-p1)+"%";
+      g0.style.left=p0+"%"; g1.style.left=p1+"%";
+      foot.querySelector("b").textContent="#"+(idx+1)+" · "+(t.b-t.a)*10+" ms av "+n*10+" ms";
+    };
+    [[g0,0],[g1,1]].forEach(([el,which])=>{
+      el.addEventListener("pointerdown",e=>{
+        e.preventDefault(); e.stopPropagation();
+        if(el.setPointerCapture && e.pointerId!=null){ try{ el.setPointerCapture(e.pointerId); }catch(x){} }
+        el.classList.add("drag");
+      });
+      el.addEventListener("pointermove",e=>{
+        if(!el.classList.contains("drag")) return;
+        const r=spec.getBoundingClientRect();
+        if(!r.width) return;
+        const f=(e.clientX-r.left)/r.width*n;
+        if(which===0) t.a=Math.max(0, Math.min(t.b-5, Math.round(f)));
+        else          t.b=Math.max(t.a+5, Math.min(n, Math.round(f)));
+        paint();
+      });
+      const slipp=()=>{
+        if(!el.classList.contains("drag")) return;
+        el.classList.remove("drag");
+        Glid.save(bank); matcher=null; paint();
+        msg("snipMsg","«"+tab+"» #"+(idx+1)+" er nå "+(t.b-t.a)*10+" ms.","ok");
+      };
+      el.addEventListener("pointerup",slipp);
+      el.addEventListener("pointercancel",slipp);
+    });
+    paint();
+    foot.querySelector(".del").addEventListener("click",()=>{
+      bank[tab].splice(idx,1);
+      Glid.save(bank); matcher=null; renderAll();
+      msg("snipMsg","Slettet.","ok");
+    });
+  });
+}
+function renderBars(){
+  const box=$("bars"); box.innerHTML="";
+  WORDS.forEach(w=>{
+    const row=document.createElement("div"); row.className="srow";
+    row.innerHTML='<span class="slab"></span><div class="sbar"><i></i><u></u></div>'+
+                  '<span class="spct">–</span>';
+    row.querySelector(".slab").textContent=w;
+    row.dataset.w=w;
+    box.appendChild(row);
+  });
+}
+function paintBars(sim){
+  const rows=$("bars").children;
+  for(let i=0;i<rows.length;i++){
+    const w=rows[i].dataset.w, v=sim[w];
+    const bar=rows[i].querySelector(".sbar i");
+    const strek=rows[i].querySelector(".sbar u");
+    const pct=rows[i].querySelector(".spct");
+    // -1..1 vises som 0..100, siden negativ likhet uansett er «ikke i nærheten»
+    const f=Math.max(0,Math.min(1,v));
+    bar.style.width=Math.round(f*100)+"%";
+    bar.classList.toggle("hit", v>=Glid.cfg.sim);
+    strek.style.left=Math.round(Glid.cfg.sim*100)+"%";
+    pct.textContent = v<=-1 ? "–" : Math.round(v*100)+" %";
+  }
+}
+function renderAll(){ renderWords(); renderTabs(); renderSnips(); }
+
+$("btnMic").addEventListener("click", startMic);
+$("btnListen").addEventListener("click", ()=>{
+  if(mode==="listen"){
+    mode=null;
+    $("btnListen").textContent="Start lytting";
+    $("btnListen").classList.remove("stop");
+    msg("listenMsg","");
+  } else {
+    mode="listen"; matcher=null;
+    $("btnListen").textContent="Stopp lytting";
+    $("btnListen").classList.add("stop");
+    msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
+  }
+});
+Voice.controls($("ctrls"), {
+  cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
+  onChange(){ paintMeter(); }
+});
+renderBars();
+if(WORDS.some(w=>bank[w].length)){
+  $("main").classList.remove("hide");
+  renderAll();
+  msg("micMsg","Fant lagret fasit. Slå på mikrofonen for å teste.","ok");
+}
+</script>
+</html>

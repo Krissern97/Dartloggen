@@ -446,12 +446,16 @@ function leggStil(){
     ".vc-note{font-size:11px;color:var(--ink2);line-height:1.45}";
   document.head.appendChild(st);
 }
+/* Skyverne kan bygges for et hvilket som helst sett innstillinger — den
+   glidende testsiden bruker sine egne. Uten argumenter er det appens. */
 function controls(el, opts){
   opts=opts||{};
+  const K = opts.cfg || cfg;
+  const lagre = opts.save || saveCfg;
   leggStil();
   el.innerHTML="";
   const rader={};
-  CONTROLS.forEach(c=>{
+  (opts.list || CONTROLS).forEach(c=>{
     const row=document.createElement("div"); row.className="vc-row";
     const top=document.createElement("div"); top.className="vc-top";
     const lab=document.createElement("span"); lab.className="vc-lab"; lab.textContent=c.lab;
@@ -478,16 +482,16 @@ function controls(el, opts){
       return +Math.max(c.min, Math.min(c.max, v)).toFixed(des);
     };
     const vis=()=>{
-      const f=(cfg[c.key]-c.min)/(c.max-c.min);
+      const f=(K[c.key]-c.min)/(c.max-c.min);
       sl.style.setProperty("--f", f);
-      val.textContent=c.vis(cfg[c.key]);
-      thumb.setAttribute("aria-valuenow", cfg[c.key]);
-      thumb.setAttribute("aria-valuetext", c.vis(cfg[c.key]));
+      val.textContent=c.vis(K[c.key]);
+      thumb.setAttribute("aria-valuenow", K[c.key]);
+      thumb.setAttribute("aria-valuetext", c.vis(K[c.key]));
     };
     const sett=v=>{
       const ny=snap(v);
-      if(ny===cfg[c.key]) return;
-      cfg[c.key]=ny; vis(); saveCfg();
+      if(ny===K[c.key]) return;
+      K[c.key]=ny; vis(); lagre();
       if(opts.onChange) opts.onChange(c.key);
     };
     // Håndtaket er 36 px bredt, så senteret kan bare gå fra 18 px fra hver
@@ -496,7 +500,7 @@ function controls(el, opts){
     const fraX=x=>{
       const r=sl.getBoundingClientRect();
       const bredde=r.width-36;
-      if(bredde<=0) return cfg[c.key];
+      if(bredde<=0) return K[c.key];
       const f=Math.max(0, Math.min(1, (x-r.left-18)/bredde));
       return c.min + f*(c.max-c.min);
     };
@@ -521,7 +525,7 @@ function controls(el, opts){
               : e.key==="ArrowRight"||e.key==="ArrowUp" ? 1 : 0;
       if(!d) return;
       e.preventDefault();
-      sett(cfg[c.key] + d*c.step*(e.shiftKey?10:1));
+      sett(K[c.key] + d*c.step*(e.shiftKey?10:1));
     });
     vis();
     rader[c.key]={vis};
@@ -529,18 +533,6 @@ function controls(el, opts){
   return { refresh(){ for(const k in rader) rader[k].vis(); } };
 }
 
-/* ============================================================
-   FRASER — tre piler i ett jafs
-   ============================================================
-   Ett ord alene er kort, og «bom» er kortest av dem. Sier du hele runden
-   i én slurk blir snutten tre ganger så lang, og da har DTW langt mer å
-   kjenne igjen på — også overgangene mellom ordene, som forsvinner helt
-   når hvert ord vurderes for seg.
-
-   Alle kombinasjoner er 4 x 4 x 4 = 64. Det er for mange å lese inn. I
-   stedet leses 12 fraser som dekker hvert ord minst to ganger i hver av
-   de tre posisjonene, og de 64 settes sammen av de bitene. Er en frase
-   faktisk lest inn, brukes det ekte opptaket framfor sammensetningen.  */
 /* ---- runden sies i én flyt, men ordene kjennes igjen hver for seg ----
    Å sette sammen alle 64 kombinasjonene av de fire innleste ordene ble
    prøvd og forkastet: de samme fire mønstrene gjør jobben uansett, så det
