@@ -146,11 +146,15 @@ function prep(bank){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, ns:true }, loadCfg());
+const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, cthr:2.5, ns:true }, loadCfg());
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
 const CONTROLS = [
+  { key:"cthr", min:0.5, max:10, step:0.1,
+    lab:"Terskel når du leser inn",
+    vis:v=>"+"+v.toFixed(1).replace(".",","),
+    note:"Gjelder BARE innlesingen, der ordet fanges på gammelmåten så du kan stå der du kaster fra. Selve gjenkjenningen har ingen slik terskel." },
   { key:"sim", min:0.50, max:0.99, step:0.01,
     lab:"Hvor lik formen må være",
     vis:v=>Math.round(v*100)+" %",
@@ -244,7 +248,20 @@ function makeMatcher(templates, onWord){
   };
 }
 
+/* Innlesingen bruker den gamle, energibaserte fangsten fra voice.js. Det er
+   med vilje: der står du og sier ETT ord i et rolig øyeblikk, og da er en
+   terskel både trygg og praktisk — du slipper å holde en knapp og kan stå i
+   kasteposisjon. Gjenkjenningen under spill har fortsatt ingen terskel.
+
+   Egne tall her, ikke voice.js sine: støydempingen er på denne siden, så
+   nivåene er ikke de samme og en delt terskel ville betydd to ting.       */
+function epCfgCapture(){
+  return { start:cfg.cthr, endMin:Math.max(0.3, cfg.cthr*0.35), drop:0.20,
+           hangover:25, refractory:30, minLen:10, maxLen:200, hardStop:220 };
+}
+
 window.Glid = {
+  epCfgCapture,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
   shape, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher

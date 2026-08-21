@@ -65,7 +65,7 @@
   .tog label{flex:1;font-size:13px;font-weight:700}
   .tog input{width:44px;height:26px;accent-color:var(--green)}
 
-  /* fasit-rader: hold inne for å lese inn */
+  /* fasit-rader */
   .wrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
   .wrow:first-child{border-top:0}
   .wlab{flex:1;font-weight:800;font-size:14px}
@@ -73,9 +73,8 @@
   .hold{
     flex:none;border:1px solid var(--green);background:var(--green-soft);color:var(--green);
     font:inherit;font-weight:800;font-size:12px;padding:10px 14px;border-radius:11px;
-    cursor:pointer;touch-action:none;letter-spacing:.04em;
+    cursor:pointer;letter-spacing:.04em;min-width:44px;
   }
-  .hold.on{background:var(--red);border-color:var(--red);color:#fff}
   .hold:disabled{opacity:.35}
 
   /* likhetssøyler under test */
@@ -120,6 +119,18 @@
   .cap .c{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
   .cap .m{width:min(280px,80vw);height:8px;background:rgba(255,255,255,.3);border-radius:4px;overflow:hidden}
   .cap .m i{display:block;height:100%;width:0;background:#fff}
+  .cap.quiet{background:var(--bg);color:var(--ink)}
+  .cap.quiet .m{background:var(--surface2)}
+  .cap.quiet .m i{background:var(--green)}
+  .cdots{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:260px}
+  .cdots i{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.28}
+  .cdots i.done{opacity:1}
+  .caprow{display:flex;gap:10px;margin-top:26px}
+  .cbtn{
+    border:1.5px solid currentColor;background:none;color:inherit;font:inherit;font-size:13px;
+    font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:13px 22px;
+    border-radius:12px;cursor:pointer;
+  }
 </style>
 
 <div id="app">
@@ -144,9 +155,11 @@
 
     <h2>Fasit — hold inne og si ordet</h2>
     <div class="card">
-      <div class="note" style="margin:0 0 6px">Hold knappen, si ordet, slipp. Det du holdt inne er det som ble tatt opp — ingen terskel som kan bomme. Grensene settes automatisk etterpå, og du kan dra dem selv.</div>
+      <div class="note" style="margin:0 0 6px">Trykk ▶ og si ordet. Den fanger hvert ord etter hvert som du sier dem, så du kan stå der du kaster fra. Grensene settes automatisk og kan dras etterpå.</div>
       <div id="words"></div>
     </div>
+    <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
+    <div class="msg" id="recMsg"></div>
 
     <h2>Opptak</h2>
     <div class="card">
@@ -173,11 +186,15 @@
 </div>
 
 <div class="cap" id="cap">
-  <div class="c">Si ordet nå</div>
+  <div class="c" id="capCue">Si ordet</div>
   <div class="w" id="capWord">treff</div>
-  <div class="c" id="capTime">0,0 s</div>
+  <div class="c" id="capProg">0 / 6</div>
+  <div class="cdots" id="capDots"></div>
   <div class="m"><i id="capMeter"></i></div>
-  <div class="c" style="opacity:.7">slipp når du er ferdig</div>
+  <div class="caprow">
+    <button class="cbtn" id="capCancel">Avbryt</button>
+    <button class="cbtn" id="capDone">Ferdig</button>
+  </div>
 </div>
 
 <script src="./voice.js"></script>
@@ -187,12 +204,15 @@
 const $ = id => document.getElementById(id);
 const { WORDS, NF } = Glid;
 
+const TARGET = 6;          // opptak per ord
+const PAD = 15;            // rammer rom rundt snutten, så grensene kan dras ut
+const RING_MAX = 400;
 let mic=null, micOn=false;
-let matcher=null, mode=null;
+let matcher=null, ep=null, mode=null;
 let bank = Glid.load();
 let tab = WORDS[0];
-let holding=null, held=[], heldStart=0;
-let frameNo=0, floorVis=0, overVis=0;
+let ring=[], frameNo=0, floorVis=0, overVis=0;
+let capWord=null, capGot=0, capQueue=null;
 
 function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
 function logLine(t){
@@ -256,19 +276,36 @@ async function startMic(){
 /* ---- hver ramme ---- */
 function onFrame(f){
   frameNo++;
-  if(holding){
-    held.push(f.mel);
-    const sek=(held.length/100);
-    $("capTime").textContent = sek.toFixed(1).replace(".",",")+" s";
-    $("capMeter").style.width = Math.max(0,Math.min(100,Math.round((f.energy-floorVis)/8*100)))+"%";
-    return;                       // under opptak gjøres ingenting annet
+  ring.push(f.mel);
+  if(ring.length>RING_MAX) ring.shift();
+
+  if(mode==="capture"){
+    // gammelmåten: energien finner ordet, så du kan stå der du kaster fra
+    if(!ep) ep = Voice.makeEndpointer(Glid.epCfgCapture());
+    floorVis = ep.floor===null ? f.energy : ep.floor;
+    overVis  = f.energy - floorVis;
+    paintMeter();
+    $("capMeter").style.width = Math.round(Math.max(0,Math.min(1,overVis/8))*100)+"%";
+    $("cap").classList.toggle("quiet", overVis < Glid.cfg.cthr);
+    const r = ep.push(f.energy, frameNo);
+    if(!r) return;
+    if(r.why==="ok") gotCapture(r.from, r.to);
+    else if(r.why!=="sperret") flashWhy(r.why);
+    return;
   }
+
   if(!matcher) matcher = Glid.makeMatcher(Glid.prep(bank), gotWord);
   matcher.push(f.mel, f.energy);
   const s = matcher.siste;
   floorVis = s.floor; overVis = s.over;
   paintMeter();
   if(mode==="listen") paintBars(s.sim);
+}
+function flashWhy(why){
+  $("capCue").textContent = why==="kort" ? "for kort — si det tydeligere"
+                                         : "for langt — si bare ordet";
+  clearTimeout(flashWhy._t);
+  flashWhy._t = setTimeout(()=>{ if(mode==="capture") renderCapture(); }, 1400);
 }
 function paintMeter(){
   const m=$("meter"), SC=10;
@@ -279,29 +316,60 @@ function paintMeter(){
   $("meterTxt").textContent = micOn ? (overVis>=Glid.cfg.gate?"lyd  +":"stille  +")+overVis.toFixed(1) : "av";
 }
 
-/* ---- lest inn: hold inne ---- */
-function holdStart(w){
-  if(!micOn || mode==="listen") return;
-  holding=w; held=[]; heldStart=frameNo;
-  $("capWord").textContent=w;
-  $("capTime").textContent="0,0 s";
+/* ---- innlesing, håndfritt ----
+   Hold-knappen ble prøvd og forkastet: opptaksskjermen som legger seg over
+   fingeren får nettleseren til å avbryte berøringen, og da var opptaket over
+   før det begynte. Her fanger energien ordet, akkurat som på den andre
+   siden, og du kan stå i kasteposisjon.                                  */
+function startCapture(w, queue){
+  if(!micOn) return;
+  mode="capture"; capWord=w; capGot=0; capQueue=queue;
+  ep=null; matcher=null;
   $("cap").classList.add("on");
+  renderCapture();
 }
-function holdEnd(){
-  if(!holding) return;
-  const w=holding, strip=held;
-  holding=null; held=[];
+function renderCapture(){
+  $("capWord").textContent=capWord;
+  $("capCue").textContent = capGot ? "Si det igjen" : "Si ordet";
+  $("capProg").textContent = capGot+" / "+TARGET;
+  const d=$("capDots");
+  if(d.children.length!==TARGET){
+    d.innerHTML="";
+    for(let i=0;i<TARGET;i++) d.appendChild(document.createElement("i"));
+  }
+  [...d.children].forEach((x,i)=>x.classList.toggle("done", i<capGot));
+}
+function nextCapture(){
+  const q=capQueue;
+  mode=null; capWord=null; capQueue=null; ep=null;
+  Glid.save(bank); renderAll();
+  if(q && q.length){ startCapture(q[0], q.slice(1)); return; }
   $("cap").classList.remove("on");
-  if(strip.length < 12){ msg("snipMsg","For kort — hold inne mens du sier ordet.","err"); return; }
-  const g = autoTrim(strip);
-  bank[w].push({ strip, a:g[0], b:g[1] });
-  Glid.save(bank); matcher=null;
-  tab=w; renderAll();
-  logLine("lest inn «"+w+"» ("+(g[1]-g[0])*10+" ms av "+strip.length*10+" ms)");
-  msg("snipMsg","Lest inn. Dra i håndtakene hvis grensene ikke ble riktige.","ok");
+  msg("recMsg","Fasit lagret. Se over opptakene, og test nederst.","ok");
 }
-/* Vi VET at ordet ligger i det du holdt inne, så her er en enkel
-   energigrense trygg — helt ulikt å lete etter ord i en løpende strøm. */
+function avbrytCapture(){
+  const igjen = capQueue ? capQueue.length : 0;
+  mode=null; capWord=null; capQueue=null; ep=null;
+  Glid.save(bank); renderAll();
+  $("cap").classList.remove("on");
+  msg("recMsg","Avbrutt"+(igjen?" — "+igjen+" ord ble ikke lest inn":"")+
+      ". Det som allerede var fanget er beholdt.","");
+}
+function gotCapture(from, to){
+  const base = frameNo - ring.length;
+  const a = Math.max(0, from-base-PAD), b = Math.min(ring.length, to-base+PAD);
+  if(b-a < 10) return;
+  const strip = ring.slice(a,b).map(m=>Float32Array.from(m));
+  // der detektoren mente ordet lå, målt inne i den padda snutten
+  const m0 = Math.max(0, from-base-a), m1 = Math.min(strip.length, to-base-a);
+  bank[capWord].push({ strip, a:m0, b:m1 });
+  Glid.save(bank); matcher=null;
+  capGot++;
+  if(navigator.vibrate) navigator.vibrate(25);
+  logLine("fanget «"+capWord+"» ("+(m1-m0)*10+" ms)");
+  renderCapture(); renderWords(); renderTabs();
+  if(capGot>=TARGET) nextCapture();
+}
 function autoTrim(strip){
   const n=strip.length;
   const en=strip.map(m=>{ let s=0; for(let b=0;b<Glid.B;b++) s+=m[b]; return s/Glid.B; });
@@ -330,17 +398,9 @@ function renderWords(){
   WORDS.forEach(w=>{
     const row=document.createElement("div"); row.className="wrow";
     row.innerHTML='<span class="wlab"></span><span class="wn">'+bank[w].length+'</span>'+
-                  '<button class="hold">HOLD</button>';
+                  '<button class="hold rec">▶</button>';
     row.querySelector(".wlab").textContent=w;
-    const b=row.querySelector(".hold");
-    b.addEventListener("pointerdown",e=>{
-      e.preventDefault();
-      if(b.setPointerCapture && e.pointerId!=null){ try{ b.setPointerCapture(e.pointerId); }catch(x){} }
-      b.classList.add("on"); holdStart(w);
-    });
-    const slutt=()=>{ b.classList.remove("on"); holdEnd(); };
-    b.addEventListener("pointerup",slutt);
-    b.addEventListener("pointercancel",slutt);
+    row.querySelector(".rec").addEventListener("click",()=>startCapture(w,null));
     box.appendChild(row);
   });
   const tot=WORDS.reduce((a,w)=>a+bank[w].length,0);
@@ -465,6 +525,9 @@ function paintBars(sim){
 function renderAll(){ renderWords(); renderTabs(); renderSnips(); }
 
 $("btnMic").addEventListener("click", startMic);
+$("btnAll").addEventListener("click", ()=>{ if(micOn) startCapture(WORDS[0], WORDS.slice(1)); });
+$("capDone").addEventListener("click", nextCapture);
+$("capCancel").addEventListener("click", avbrytCapture);
 $("btnListen").addEventListener("click", ()=>{
   if(mode==="listen"){
     mode=null;
