@@ -111,6 +111,11 @@
   .seg button{flex:1;border:1px solid var(--line);background:var(--surface);color:var(--ink2);
               font:inherit;font-weight:800;font-size:12.5px;padding:9px;border-radius:10px;cursor:pointer}
   .seg button.active{background:var(--green);border-color:var(--green);color:var(--green-ink)}
+  .savestate{
+    font-size:11px;color:var(--green);font-weight:700;margin-top:12px;
+    padding:7px 10px;background:var(--green-soft);border-radius:8px;line-height:1.45;
+  }
+  .savestate.bad{color:var(--red);background:var(--red-soft)}
 
   .cap{position:fixed;inset:0;z-index:40;background:var(--green);color:var(--green-ink);display:none;
        flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center}
@@ -119,9 +124,11 @@
   .cap .c{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
   .cap .m{width:min(280px,80vw);height:8px;background:rgba(255,255,255,.3);border-radius:4px;overflow:hidden}
   .cap .m i{display:block;height:100%;width:0;background:#fff}
-  .cap.quiet{background:var(--bg);color:var(--ink)}
-  .cap.quiet .m{background:var(--surface2)}
-  .cap.quiet .m i{background:var(--green)}
+  /* grønn = si ordet nå, dempet = vent */
+  .cap.wait{background:var(--bg);color:var(--ink)}
+  .cap.wait .m{background:var(--surface2)}
+  .cap.wait .m i{background:var(--ink2)}
+  .cap .m i{transition:none}
   .cdots{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:260px}
   .cdots i{width:10px;height:10px;border-radius:50%;background:currentColor;opacity:.28}
   .cdots i.done{opacity:1}
@@ -155,7 +162,7 @@
 
     <h2>Fasit — hold inne og si ordet</h2>
     <div class="card">
-      <div class="note" style="margin:0 0 6px">Trykk ▶ og si ordet. Den fanger hvert ord etter hvert som du sier dem, så du kan stå der du kaster fra. Grensene settes automatisk og kan dras etterpå.</div>
+      <div class="note" style="margin:0 0 6px">Trykk ▶. Skjermen blir grønn i nøyaktig ett sekund — si ordet da. Så kommer en pause, så grønt igjen, seks ganger. Ingen terskel som kan bomme, og du kan stå der du kaster fra. Grensene settes automatisk og kan dras etterpå.</div>
       <div id="words"></div>
     </div>
     <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
@@ -166,6 +173,10 @@
       <div class="seg" id="tabs"></div>
       <div class="sgrid" id="snips"></div>
       <div class="msg" id="snipMsg"></div>
+      <div class="savestate" id="saveState">Ingen opptak ennå</div>
+      <div class="row">
+        <button class="ghost" id="btnWipe">Slett all fasit</button>
+      </div>
     </div>
 
     <h2>Test</h2>
@@ -186,7 +197,7 @@
 </div>
 
 <div class="cap" id="cap">
-  <div class="c" id="capCue">Si ordet</div>
+  <div class="c" id="capCue">Gjør deg klar</div>
   <div class="w" id="capWord">treff</div>
   <div class="c" id="capProg">0 / 6</div>
   <div class="cdots" id="capDots"></div>
@@ -205,16 +216,40 @@ const $ = id => document.getElementById(id);
 const { WORDS, NF } = Glid;
 
 const TARGET = 6;          // opptak per ord
-const PAD = 15;            // rammer rom rundt snutten, så grensene kan dras ut
 const RING_MAX = 400;
 let mic=null, micOn=false;
-let matcher=null, ep=null, mode=null;
+let matcher=null, mode=null;
 let bank = Glid.load();
 let tab = WORDS[0];
 let ring=[], frameNo=0, floorVis=0, overVis=0;
 let capWord=null, capGot=0, capQueue=null;
+let capPhase=null, capLeft=0, capBuf=null;
 
 function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
+/* Fasiten lagres fortløpende — det finnes ingen lagre-knapp. Da må det
+   også sies fra når det IKKE gikk: blir nettleserens lager fullt, feiler
+   Glid.save stille, og alt er borte neste gang siden åpnes. */
+let lagretNaar = 0;
+function lagre(){
+  const ok = Glid.save(bank);
+  lagretNaar = Date.now();
+  visLagret(ok);
+  if(!ok) logLine("KUNNE IKKE LAGRE — lageret er fullt");
+  return ok;
+}
+function visLagret(ok){
+  const e = $("saveState");
+  if(!e) return;
+  const n = WORDS.reduce((a,w)=>a+bank[w].length, 0);
+  const kb = Math.round((localStorage.getItem(Glid.KEY)||"").length/1024);
+  e.className = "savestate" + (ok ? "" : " bad");
+  e.textContent = ok
+    ? n+" opptak lagret" + (kb ? " · "+kb+" kB" : "") +
+      " · " + new Date(lagretNaar||Date.now()).toLocaleTimeString("nb-NO",
+        {hour:"2-digit",minute:"2-digit",second:"2-digit"})
+    : "FIKK IKKE LAGRET — lageret er fullt. Slett noen opptak, ellers er "+
+      "de borte neste gang du åpner siden.";
+}
 function logLine(t){
   const el=$("log");
   const s=new Date().toLocaleTimeString("nb-NO",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
@@ -279,20 +314,7 @@ function onFrame(f){
   ring.push(f.mel);
   if(ring.length>RING_MAX) ring.shift();
 
-  if(mode==="capture"){
-    // gammelmåten: energien finner ordet, så du kan stå der du kaster fra
-    if(!ep) ep = Voice.makeEndpointer(Glid.epCfgCapture());
-    floorVis = ep.floor===null ? f.energy : ep.floor;
-    overVis  = f.energy - floorVis;
-    paintMeter();
-    $("capMeter").style.width = Math.round(Math.max(0,Math.min(1,overVis/8))*100)+"%";
-    $("cap").classList.toggle("quiet", overVis < Glid.cfg.cthr);
-    const r = ep.push(f.energy, frameNo);
-    if(!r) return;
-    if(r.why==="ok") gotCapture(r.from, r.to);
-    else if(r.why!=="sperret") flashWhy(r.why);
-    return;
-  }
+  if(mode==="capture"){ capTick(f); return; }
 
   if(!matcher) matcher = Glid.makeMatcher(Glid.prep(bank), gotWord);
   matcher.push(f.mel, f.energy);
@@ -300,12 +322,6 @@ function onFrame(f){
   floorVis = s.floor; overVis = s.over;
   paintMeter();
   if(mode==="listen") paintBars(s.sim);
-}
-function flashWhy(why){
-  $("capCue").textContent = why==="kort" ? "for kort — si det tydeligere"
-                                         : "for langt — si bare ordet";
-  clearTimeout(flashWhy._t);
-  flashWhy._t = setTimeout(()=>{ if(mode==="capture") renderCapture(); }, 1400);
 }
 function paintMeter(){
   const m=$("meter"), SC=10;
@@ -324,13 +340,51 @@ function paintMeter(){
 function startCapture(w, queue){
   if(!micOn) return;
   mode="capture"; capWord=w; capGot=0; capQueue=queue;
-  ep=null; matcher=null;
+  matcher=null;
+  capPhase="klar"; capLeft=Glid.KLAR; capBuf=null;
   $("cap").classList.add("on");
   renderCapture();
 }
-function renderCapture(){
+/* Takten: gjør deg klar -> ett sekund grønt -> pause -> grønt igjen.
+   Ingen terskel noe sted. Sier du ingenting, forkastes sekundet og du får
+   det på nytt — det avgjøres av snutten selv, ikke av en innstilling. */
+function capTick(f){
+  floorVis = f.energy; overVis = 0;
+  if(capPhase==="rec") capBuf.push(f.mel);
+  if(--capLeft > 0){
+    const av = capPhase==="rec" ? 1 - capLeft/Glid.REC
+             : capPhase==="klar" ? 1 - capLeft/Glid.KLAR
+             : 1 - capLeft/Glid.PAUSE;
+    $("capMeter").style.width = Math.round(av*100)+"%";
+    return;
+  }
+  if(capPhase==="rec"){
+    const strip=capBuf; capBuf=null;
+    const g=autoTrim(strip);
+    if(!g){
+      capPhase="pause"; capLeft=Glid.PAUSE; renderCapture("Hørte ingenting — en gang til");
+      return;
+    }
+    bank[capWord].push({ strip:strip.map(m=>Float32Array.from(m)), a:g[0], b:g[1] });
+    lagre(); matcher=null;
+    capGot++;
+    if(navigator.vibrate) navigator.vibrate(25);
+    logLine("fanget «"+capWord+"» ("+(g[1]-g[0])*10+" ms av 1000 ms)");
+    renderWords(); renderTabs();
+    if(capGot>=TARGET){ nextCapture(); return; }
+    capPhase="pause"; capLeft=Glid.PAUSE;
+  } else {
+    capPhase="rec"; capLeft=Glid.REC; capBuf=[];
+  }
+  renderCapture();
+}
+function renderCapture(beskjed){
   $("capWord").textContent=capWord;
-  $("capCue").textContent = capGot ? "Si det igjen" : "Si ordet";
+  $("cap").classList.toggle("wait", capPhase!=="rec");
+  $("capCue").textContent = beskjed ? beskjed
+    : capPhase==="rec"  ? "SI ORDET NÅ"
+    : capPhase==="klar" ? "Gjør deg klar"
+    : "Vent …";
   $("capProg").textContent = capGot+" / "+TARGET;
   const d=$("capDots");
   if(d.children.length!==TARGET){
@@ -341,41 +395,29 @@ function renderCapture(){
 }
 function nextCapture(){
   const q=capQueue;
-  mode=null; capWord=null; capQueue=null; ep=null;
-  Glid.save(bank); renderAll();
+  mode=null; capWord=null; capQueue=null; capPhase=null; capBuf=null;
+  lagre(); renderAll();
   if(q && q.length){ startCapture(q[0], q.slice(1)); return; }
   $("cap").classList.remove("on");
   msg("recMsg","Fasit lagret. Se over opptakene, og test nederst.","ok");
 }
 function avbrytCapture(){
   const igjen = capQueue ? capQueue.length : 0;
-  mode=null; capWord=null; capQueue=null; ep=null;
-  Glid.save(bank); renderAll();
+  mode=null; capWord=null; capQueue=null; capPhase=null; capBuf=null;
+  lagre(); renderAll();
   $("cap").classList.remove("on");
   msg("recMsg","Avbrutt"+(igjen?" — "+igjen+" ord ble ikke lest inn":"")+
       ". Det som allerede var fanget er beholdt.","");
 }
-function gotCapture(from, to){
-  const base = frameNo - ring.length;
-  const a = Math.max(0, from-base-PAD), b = Math.min(ring.length, to-base+PAD);
-  if(b-a < 10) return;
-  const strip = ring.slice(a,b).map(m=>Float32Array.from(m));
-  // der detektoren mente ordet lå, målt inne i den padda snutten
-  const m0 = Math.max(0, from-base-a), m1 = Math.min(strip.length, to-base-a);
-  bank[capWord].push({ strip, a:m0, b:m1 });
-  Glid.save(bank); matcher=null;
-  capGot++;
-  if(navigator.vibrate) navigator.vibrate(25);
-  logLine("fanget «"+capWord+"» ("+(m1-m0)*10+" ms)");
-  renderCapture(); renderWords(); renderTabs();
-  if(capGot>=TARGET) nextCapture();
-}
+/* Vi VET at ordet ligger i sekundet du fikk, så her er en enkel
+   energigrense trygg — helt ulikt å lete etter ord i en løpende strøm.
+   Var sekundet stille, gis det tilbake null og du får sekundet på nytt. */
 function autoTrim(strip){
   const n=strip.length;
   const en=strip.map(m=>{ let s=0; for(let b=0;b<Glid.B;b++) s+=m[b]; return s/Glid.B; });
   const sortert=en.slice().sort((x,y)=>x-y);
   const gulv=sortert[Math.floor(n*0.2)], topp=sortert[n-1];
-  if(topp-gulv < 0.5) return [0,n];
+  if(topp-gulv < 1.5) return null;
   const niva=gulv+(topp-gulv)*0.15;
   let a=0; while(a<n && en[a]<niva) a++;
   let b=n; while(b>a && en[b-1]<niva) b--;
@@ -482,7 +524,7 @@ function renderSnips(){
       const slipp=()=>{
         if(!el.classList.contains("drag")) return;
         el.classList.remove("drag");
-        Glid.save(bank); matcher=null; paint();
+        lagre(); matcher=null; paint();
         msg("snipMsg","«"+tab+"» #"+(idx+1)+" er nå "+(t.b-t.a)*10+" ms.","ok");
       };
       el.addEventListener("pointerup",slipp);
@@ -491,7 +533,7 @@ function renderSnips(){
     paint();
     foot.querySelector(".del").addEventListener("click",()=>{
       bank[tab].splice(idx,1);
-      Glid.save(bank); matcher=null; renderAll();
+      lagre(); matcher=null; renderAll();
       msg("snipMsg","Slettet.","ok");
     });
   });
@@ -522,12 +564,29 @@ function paintBars(sim){
     pct.textContent = v<=-1 ? "–" : Math.round(v*100)+" %";
   }
 }
-function renderAll(){ renderWords(); renderTabs(); renderSnips(); }
+function renderAll(){ renderWords(); renderTabs(); renderSnips(); visLagret(true); }
 
 $("btnMic").addEventListener("click", startMic);
 $("btnAll").addEventListener("click", ()=>{ if(micOn) startCapture(WORDS[0], WORDS.slice(1)); });
 $("capDone").addEventListener("click", nextCapture);
 $("capCancel").addEventListener("click", avbrytCapture);
+// to trykk, så et uhell ikke tar hele fasiten
+let wipeArm=0;
+$("btnWipe").addEventListener("click", ()=>{
+  const b=$("btnWipe");
+  if(Date.now()-wipeArm > 4000){
+    wipeArm=Date.now();
+    b.textContent="Sikker? Trykk igjen";
+    setTimeout(()=>{ if(Date.now()-wipeArm>=4000) b.textContent="Slett all fasit"; }, 4200);
+    return;
+  }
+  wipeArm=0; b.textContent="Slett all fasit";
+  WORDS.forEach(w=>bank[w]=[]);
+  try{ localStorage.removeItem(Glid.KEY); }catch(e){}
+  matcher=null; renderAll();
+  msg("snipMsg","All fasit slettet.","");
+  logLine("all fasit slettet");
+});
 $("btnListen").addEventListener("click", ()=>{
   if(mode==="listen"){
     mode=null;
