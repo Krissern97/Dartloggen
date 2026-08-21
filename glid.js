@@ -25,6 +25,14 @@ const NF = 40;            // hver fasit strekkes til 40 rammer (400 ms)
    640 ms — og den som passer best får telle. */
 const SCALES = [0.6, 0.8, 1.0, 1.25, 1.6];
 const WORDS = ["treff","bom","dobbel","trippel"];
+/* En femte klasse som ikke er et ord. Vinner den, skjer det ingenting.
+   Piler som treffer brettet er korte, kraftige dunk med tyngden i bunnen,
+   og «bom» er et kort ord med lukkelyd og mørk vokal — etter at styrken er
+   fjernet ligner de mer enn man skulle tro. Å skru opp terskelen rammer
+   ekte «bom» like hardt; å gi dunket sin egen fasit rammer bare dunket.
+   Helt frivillig: er den tom, oppfører alt seg som før.                  */
+const NOISE = "pilkast";
+const ALL = WORDS.concat([NOISE]);
 const KEY = "dart_glid";
 const CFGKEY = "dart_glid_cfg";
 
@@ -38,6 +46,23 @@ const CFGKEY = "dart_glid_cfg";
       gjennom hele ordet: mikrofonens farge, rommets klang, avstanden din.
    3. Lengden på vektoren. Da står bare retningen igjen, og prikkproduktet
       mellom to slike er likheten direkte — 1,00 er identisk form.        */
+/* Styrkeforløpet: hvor kraftig hver ramme er, skalert mot snuttens eget
+   stille og høyeste. Absolutt volum forsvinner — det er KURVEN som blir
+   igjen. Et pilnedslag har momentant anslag og bratt fall, «bom» har mykere
+   stigning og en hale. Den forskjellen er kjennetegnende i seg selv.    */
+function envelope(strip){
+  const n=strip.length, en=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    let s=0;
+    for(let b=0;b<B;b++) s += strip[i][b];
+    en[i]=s/B;
+  }
+  const sortert=Array.from(en).sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(n*0.15)], topp=sortert[n-1];
+  const spenn=Math.max(1, topp-gulv);
+  for(let i=0;i<n;i++) en[i]=Math.max(0, Math.min(1, (en[i]-gulv)/spenn));
+  return en;
+}
 function shape(strip){
   const n = strip.length;
   const flat = new Float32Array(n*B);
@@ -53,18 +78,41 @@ function shape(strip){
     m /= n;
     for(let i=0;i<n;i++) flat[i*B+b] -= m;
   }
+  /* To blokker, hver normalisert for seg, så satt sammen med vekt.
+     «env» er da bokstavelig talt hvor stor andel av beskrivelsen som er
+     styrkeforløp: 0 er ren form, 0,5 er halvt om halvt. Fordi begge
+     blokkene er enhetsvektorer, blir summen det også — og prikkproduktet
+     er fortsatt likheten direkte.                                       */
+  const e = Math.max(0, Math.min(1, cfg.env));
+  const ut = new Float32Array(n*B + n);
   let ss=0;
   for(let i=0;i<flat.length;i++) ss += flat[i]*flat[i];
-  const norm = Math.sqrt(ss) || 1;
-  for(let i=0;i<flat.length;i++) flat[i] /= norm;
-  return flat;
+  const k1 = Math.sqrt(1-e) / (Math.sqrt(ss) || 1);
+  for(let i=0;i<flat.length;i++) ut[i] = flat[i]*k1;
+  if(e > 0){
+    const en=envelope(strip);
+    let m=0;
+    for(let i=0;i<n;i++) m += en[i];
+    m /= n;
+    let es=0;
+    for(let i=0;i<n;i++){ en[i]-=m; es += en[i]*en[i]; }
+    const k2 = Math.sqrt(e) / (Math.sqrt(es) || 1);
+    for(let i=0;i<n;i++) ut[n*B+i] = en[i]*k2;
+  }
+  return ut;
 }
 /* Samme rensing, men holdt som en REKKE rammer i stedet for én lang
    vektor. Da kan DTW gå gjennom dem og strekke tiden ulikt underveis.
    Hver ramme normaliseres for seg: styrken vekk, lengden vekk, bare
    retningen igjen — så avstanden mellom to rammer er ren formforskjell. */
 function shapeFrames(strip){
-  return strip.map(f=>{
+  // hvor mye lyd hver ramme har, målt mot snuttens eget stille og høyeste
+  const en=strip.map(f=>{ let s=0; for(let b=0;b<B;b++) s+=f[b]; return s/B; });
+  const sortert=en.slice().sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(en.length*0.15)];
+  const topp=sortert[en.length-1];
+  const spenn=Math.max(1, topp-gulv);
+  return strip.map((f,i)=>{
     const v=new Float32Array(B);
     let m=0;
     for(let b=0;b<B;b++) m+=f[b];
@@ -73,7 +121,11 @@ function shapeFrames(strip){
     for(let b=0;b<B;b++){ v[b]=f[b]-m; ss+=v[b]*v[b]; }
     const n=Math.sqrt(ss)||1;
     for(let b=0;b<B;b++) v[b]/=n;
-    return v;
+    /* Retningen sier hva slags lyd det er, vekten sier hvor mye den betyr.
+       Uten vekten teller en ramme romstillhet like mye som en ramme full
+       stemme — og for et pilnedslag, som er én kraftig ramme og tjue nesten
+       stille, blir det tjue lodd av ren tilfeldighet per sammenligning. */
+    return { v, w: Math.max(0.02, Math.min(1, (en[i]-gulv)/spenn)) };
   });
 }
 /* DTW på formrammer. Kostnaden mellom to rammer er 1 minus prikkproduktet
@@ -83,25 +135,46 @@ function shapeFrames(strip){
 function dtwShape(A, B2, bandFrac){
   const n=A.length, m=B2.length;
   if(!n || !m) return 1;
+  const e = Math.max(0, Math.min(1, cfg.env));
   const band=Math.max(Math.abs(n-m)+1, Math.ceil((bandFrac||0.25)*Math.max(n,m)));
-  let prev=new Float64Array(m+1).fill(Infinity), cur=new Float64Array(m+1);
-  prev[0]=0;
+  /* Vektene følger den samme veien som kostnaden, i et parallelt regnskap.
+     Til slutt deles kostnad på vekt, ikke på antall ruter — ellers ville en
+     sammenligning full av stillhet fått lav kostnad nettopp fordi den ikke
+     inneholdt noe, og sett ut som et godt treff. */
+  let pC=new Float64Array(m+1).fill(Infinity), cC=new Float64Array(m+1);
+  let pW=new Float64Array(m+1), cW=new Float64Array(m+1);
+  pC[0]=0;
   for(let i=1;i<=n;i++){
-    cur.fill(Infinity);
+    cC.fill(Infinity); cW.fill(0);
     const jLo=Math.max(1,i-band), jHi=Math.min(m,i+band);
     const a=A[i-1];
     for(let j=jLo;j<=jHi;j++){
       const b=B2[j-1];
       let d=0;
-      for(let k=0;k<B;k++) d += a[k]*b[k];
-      cur[j] = (1-d) + Math.min(prev[j], cur[j-1], prev[j-1]);
+      for(let k=0;k<B;k++) d += a.v[k]*b.v[k];
+      /* Samme balanse som i prikkproduktet: formforskjellen vektes med hvor
+         mye lyd rammene har, mens forskjellen i selve styrken teller uansett
+         — det er nettopp der stillheten etter et dunk skiller seg fra halen
+         i et ord.  Begge ledd ligger i 0..2, så «env» er en ren andel. */
+      const vekt=((a.w+b.w)/2)*(1-e);
+      const kost=vekt*(1-d) + e*2*Math.abs(a.w-b.w);
+      let best=pC[j], bw=pW[j];
+      if(cC[j-1]<best){ best=cC[j-1]; bw=cW[j-1]; }
+      if(pC[j-1]<best){ best=pC[j-1]; bw=pW[j-1]; }
+      cC[j]=kost+best;
+      cW[j]=vekt+e+bw;
     }
-    const t=prev; prev=cur; cur=t;
+    let t=pC; pC=cC; cC=t;
+    t=pW; pW=cW; cW=t;
   }
-  return Math.max(0, Math.min(1, prev[m]/(n+m)));
+  if(!isFinite(pC[m]) || pW[m]<=0) return 1;
+  return Math.max(0, Math.min(1, pC[m]/pW[m]));
 }
 // Begge er enhetsvektorer, så dette ER likheten. -1 til 1.
 function likhet(a, b){
+  // Ulik lengde er ikke «litt likt», det er ikke sammenlignbart. Uten denne
+  // vakten leser løkka forbi enden og gir NaN uten at noen merker det.
+  if(!a || !b || a.length !== b.length) return -1;
   let s=0;
   for(let i=0;i<a.length;i++) s += a[i]*b[i];
   return s;
@@ -146,10 +219,10 @@ function unpack(str){
 }
 function load(){
   const out={};
-  WORDS.forEach(w=>out[w]=[]);
+  ALL.forEach(w=>out[w]=[]);
   try{
     const raw=JSON.parse(localStorage.getItem(KEY));
-    if(raw) WORDS.forEach(w=>{
+    if(raw) ALL.forEach(w=>{
       (raw[w]||[]).forEach(r=>{
         const strip=unpack(r.m);
         if(strip.length) out[w].push({ strip, a:r.a|0, b:r.b|0 });
@@ -161,7 +234,7 @@ function load(){
 function save(bank){
   try{
     const out={};
-    WORDS.forEach(w=>{
+    ALL.forEach(w=>{
       out[w]=(bank[w]||[]).map(t=>({ m:pack(t.strip), a:t.a, b:t.b }));
     });
     localStorage.setItem(KEY, JSON.stringify(out));
@@ -171,9 +244,15 @@ function save(bank){
 
 /* Fasitene gjøres klare én gang: klipp etter grensene dine, strekk til 40
    rammer, gjør om til ren form. Under spill er det bare prikkprodukter. */
+/* Beskrivelsen avhenger av «env», så fasitene må bygges om når den endres.
+   Siden holder rede på det ved å kaste kjennern; her merker vi bare hvilken
+   verdi de gjeldende fasitene ble laget med. */
+let prepEnv = null;
+function prepStale(){ return prepEnv !== cfg.env; }
 function prep(bank){
+  prepEnv = cfg.env;
   const ut=[];
-  WORDS.forEach(w=>{
+  ALL.forEach(w=>{
     (bank[w]||[]).forEach((t,i)=>{
       const seg=t.strip.slice(t.a, t.b);
       if(seg.length < 5) return;
@@ -189,7 +268,7 @@ function prep(bank){
 function loadCfg(){
   try{ return JSON.parse(localStorage.getItem(CFGKEY)) || {}; }catch(e){ return {}; }
 }
-const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, ns:true, dtw:false }, loadCfg());
+const cfg = Object.assign({ sim:0.90, gate:1.5, mute:30, env:0.25, ns:true, dtw:false }, loadCfg());
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -198,6 +277,10 @@ const CONTROLS = [
     lab:"Hvor lik formen må være",
     vis:v=>Math.round(v*100)+" %",
     note:"Måles mot hver fasit hele tiden. Se på søylene under mens du snakker: legg terskelen over det rommet klarer på egen hånd, men under det ordene dine treffer." },
+  { key:"env", min:0, max:0.8, step:0.01,
+    lab:"Hvor mye styrkeforløpet teller",
+    vis:v=>Math.round(v*100)+" %",
+    note:"0 % er ren form — bare mønsteret, styrken helt bort. Høyere lar KURVEN telle med: hvordan lyden stiger og faller gjennom ordet. Et pilnedslag har momentant anslag og bratt fall, et ord har mykere stigning og hale. Absolutt volum spiller fortsatt ingen rolle; det er formen på forløpet som sammenlignes." },
   { key:"gate", min:0.2, max:6, step:0.1,
     lab:"Hvor mye lyd som må til før den ser etter",
     vis:v=>"+"+v.toFixed(1),
@@ -222,7 +305,7 @@ function makeMatcher(templates, onWord){
   const NED = 0.015;   // hvor mye under toppen som regnes som «den har snudd»
   const MAXWIN = Math.round(NF*SCALES[SCALES.length-1]);
   const siste = { sim:{}, over:0, floor:0 };
-  WORDS.forEach(w=>siste.sim[w]=-1);
+  ALL.forEach(w=>siste.sim[w]=-1);
 
   return {
     get siste(){ return siste; },
@@ -241,7 +324,7 @@ function makeMatcher(templates, onWord){
       const over = energy - floor;
       siste.over = over; siste.floor = floor;
 
-      WORDS.forEach(w=>siste.sim[w] = -1);
+      ALL.forEach(w=>siste.sim[w] = -1);
       if(frame < mute) return null;
       if(!templates.length) return null;
 
@@ -311,6 +394,8 @@ function makeMatcher(templates, onWord){
         svar.word=ord2; svar.maate="dtw";
       }
       sporer=false; topp=-1; under=0; ned=0; toppRaw=null; mute = frame + cfg.mute;
+      // vant pilkastet, var det ikke et ord — si fra, men ikke registrer noe
+      svar.ignorert = svar.word===NOISE;
       if(onWord) onWord(svar);
       return svar;
     }
@@ -327,7 +412,8 @@ const KLAR  = 80;    // rammer «gjør deg klar» før det første
 window.Glid = {
   REC, PAUSE, KLAR,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
-  shape, shapeFrames, dtwShape, likhet, resample, pack, unpack, load, save, prep,
+  NOISE, ALL, prepStale,
+  shape, shapeFrames, dtwShape, envelope, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher
 };
 })();

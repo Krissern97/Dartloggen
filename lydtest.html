@@ -69,6 +69,9 @@
   .wrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
   .wrow:first-child{border-top:0}
   .wlab{flex:1;font-weight:800;font-size:14px}
+  .wlab em{font-style:normal;font-size:9.5px;font-weight:800;letter-spacing:.1em;
+           text-transform:uppercase;color:var(--gold);background:var(--gold-soft);
+           padding:2px 6px;border-radius:5px;margin-left:6px;vertical-align:1px}
   .wn{flex:none;font-size:12px;color:var(--ink2);font-variant-numeric:tabular-nums}
   .hold{
     flex:none;border:1px solid var(--green);background:var(--green-soft);color:var(--green);
@@ -169,7 +172,8 @@
 
     <h2>Fasit — hold inne og si ordet</h2>
     <div class="card">
-      <div class="note" style="margin:0 0 6px">Trykk ▶. Skjermen blir grønn i nøyaktig ett sekund — si ordet da. Så kommer en pause, så grønt igjen, seks ganger. Ingen terskel som kan bomme, og du kan stå der du kaster fra. Grensene settes automatisk og kan dras etterpå.</div>
+      <div class="note" style="margin:0 0 10px"><b>Pilkast</b> er frivillig og betyr «ignorer». Kast piler i de grønne sekundene, så har den en fasit for dunket — vinner den, skjer det ingenting. Det er en langt mildere kur mot dunk som blir til «bom» enn å skru opp terskelen, som rammer ekte ord like hardt.</div>
+      <div class="note" style="margin:0 0 6px">Trykk ▶. Skjermen blir grønn i nøyaktig ett sekund — si ordet da. Så kommer en pause, så grønt igjen, to ganger. Ingen terskel som kan bomme, og du kan stå der du kaster fra. Grensene settes automatisk og kan dras etterpå.</div>
       <div id="words"></div>
     </div>
     <button class="primary" id="btnAll" style="margin-top:10px">Les inn alle ordene</button>
@@ -220,13 +224,16 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const { WORDS, NF } = Glid;
+const { WORDS, ALL, NOISE, NF } = Glid;
 
-const TARGET = 6;          // opptak per ord
+const TARGET = 2;          // opptak per ord
 const RING_MAX = 400;
 let mic=null, micOn=false;
 let matcher=null, mode=null;
 let bank = Glid.load();
+// En nøkkel som mangler skal ikke velte siden — lagret data kan være fra
+// før pilkast fantes.
+ALL.forEach(w=>{ if(!Array.isArray(bank[w])) bank[w]=[]; });
 let tab = WORDS[0];
 let ring=[], frameNo=0, floorVis=0, overVis=0;
 let capWord=null, capGot=0, capQueue=null;
@@ -247,7 +254,7 @@ function lagre(){
 function visLagret(ok){
   const e = $("saveState");
   if(!e) return;
-  const n = WORDS.reduce((a,w)=>a+bank[w].length, 0);
+  const n = ALL.reduce((a,w)=>a+(bank[w]||[]).length, 0);
   const kb = Math.round((localStorage.getItem(Glid.KEY)||"").length/1024);
   e.className = "savestate" + (ok ? "" : " bad");
   e.textContent = ok
@@ -372,6 +379,7 @@ function capTick(f){
       capPhase="pause"; capLeft=Glid.PAUSE; renderCapture("Hørte ingenting — en gang til");
       return;
     }
+    if(!bank[capWord]) bank[capWord]=[];
     bank[capWord].push({ strip:strip.map(m=>Float32Array.from(m)), a:g[0], b:g[1] });
     lagre(); matcher=null;
     capGot++;
@@ -434,6 +442,12 @@ function autoTrim(strip){
 
 /* ---- gjenkjenning ---- */
 function gotWord(r){
+  if(r.ignorert){
+    $("heardWord").textContent="—";
+    $("heardConf").textContent="pilkast, ikke et ord ("+Math.round(r.sim*100)+" %)";
+    logLine("ignorerte et pilkast ("+Math.round(r.sim*100)+" %)");
+    return;
+  }
   $("heardWord").textContent=r.word;
   const form = Math.round(r.sim*100)+" %";
   $("heardConf").textContent = r.dtwWord
@@ -450,22 +464,23 @@ function gotWord(r){
 /* ---- grensesnitt ---- */
 function renderWords(){
   const box=$("words"); box.innerHTML="";
-  WORDS.forEach(w=>{
+  ALL.forEach(w=>{
     const row=document.createElement("div"); row.className="wrow";
-    row.innerHTML='<span class="wlab"></span><span class="wn">'+bank[w].length+'</span>'+
+    row.innerHTML='<span class="wlab"></span><span class="wn">'+(bank[w]||[]).length+'</span>'+
                   '<button class="hold rec">▶</button>';
-    row.querySelector(".wlab").textContent=w;
+    row.querySelector(".wlab").innerHTML = w===NOISE
+      ? "pilkast <em>frivillig</em>" : w;
     row.querySelector(".rec").addEventListener("click",()=>startCapture(w,null));
     box.appendChild(row);
   });
-  const tot=WORDS.reduce((a,w)=>a+bank[w].length,0);
+  const tot=WORDS.reduce((a,w)=>a+(bank[w]||[]).length,0);
   $("btnListen").disabled = tot===0;
 }
 function renderTabs(){
   const box=$("tabs"); box.innerHTML="";
-  WORDS.forEach(w=>{
+  ALL.forEach(w=>{
     const b=document.createElement("button");
-    b.textContent=w+" "+bank[w].length;
+    b.textContent=w+" "+(bank[w]||[]).length;
     b.classList.toggle("active", w===tab);
     b.addEventListener("click",()=>{ tab=w; renderTabs(); renderSnips(); });
     box.appendChild(b);
@@ -553,7 +568,7 @@ function renderSnips(){
 }
 function renderBars(){
   const box=$("bars"); box.innerHTML="";
-  WORDS.forEach(w=>{
+  ALL.forEach(w=>{
     const row=document.createElement("div"); row.className="srow";
     row.innerHTML='<span class="slab"></span><div class="sbar"><i></i><u></u></div>'+
                   '<span class="spct">–</span>';
@@ -602,7 +617,7 @@ $("btnWipe").addEventListener("click", ()=>{
     return;
   }
   wipeArm=0; b.textContent="Slett all fasit";
-  WORDS.forEach(w=>bank[w]=[]);
+  ALL.forEach(w=>bank[w]=[]);
   try{ localStorage.removeItem(Glid.KEY); }catch(e){}
   matcher=null; renderAll();
   msg("snipMsg","All fasit slettet.","");
@@ -623,10 +638,14 @@ $("btnListen").addEventListener("click", ()=>{
 });
 Voice.controls($("ctrls"), {
   cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
-  onChange(){ paintMeter(); }
+  onChange(key){
+    paintMeter();
+    // beskrivelsen av hver fasit endrer seg med balansen, så de må bygges om
+    if(key==="env") matcher=null;
+  }
 });
 renderBars();
-if(WORDS.some(w=>bank[w].length)){
+if(ALL.some(w=>(bank[w]||[]).length)){
   $("main").classList.remove("hide");
   renderAll();
   msg("micMsg","Fant lagret fasit. Slå på mikrofonen for å teste.","ok");
