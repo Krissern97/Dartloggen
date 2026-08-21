@@ -425,7 +425,24 @@ function leggStil(){
     ".vc-lab{flex:1;font-size:10.5px;font-weight:700;letter-spacing:.1em;"+
       "text-transform:uppercase;color:var(--ink2);line-height:1.35}"+
     ".vc-val{flex:none;font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}"+
-    ".vc-row input[type=range]{display:block;width:100%;margin:4px 0 0;height:26px;accent-color:var(--red)}"+
+    /* Egen skyver i stedet for <input type=range>. Det native feltet hopper
+       til der du treffer sporet, og det skjer hele tiden når man drar siden
+       opp og ned og så vidt kommer borti. Her er det bare håndtaket som tar
+       imot, og bare det har touch-action:none — resten av raden ruller. */
+    ".vc-slider{position:relative;height:36px;margin:2px 0 4px;touch-action:pan-y}"+
+    ".vc-track{position:absolute;left:0;right:0;top:50%;height:6px;margin-top:-3px;"+
+      "background:var(--surface2);border-radius:3px}"+
+    ".vc-fill{position:absolute;left:0;top:50%;height:6px;margin-top:-3px;"+
+      "background:var(--red);border-radius:3px;width:calc(18px + var(--f) * (100% - 36px))}"+
+    ".vc-thumb{position:absolute;top:50%;width:36px;height:36px;margin:-18px 0 0 -18px;"+
+      "border-radius:50%;touch-action:none;cursor:grab;display:grid;place-items:center;"+
+      "left:calc(18px + var(--f) * (100% - 36px));border:0;background:none;padding:0}"+
+    ".vc-thumb::after{content:\"\";width:22px;height:22px;border-radius:50%;"+
+      "background:var(--red);box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .12s}"+
+    ".vc-thumb:focus-visible{outline:none}"+
+    ".vc-thumb:focus-visible::after{box-shadow:0 0 0 3px var(--surface),0 0 0 5px var(--red)}"+
+    ".vc-thumb.drag{cursor:grabbing}"+
+    ".vc-thumb.drag::after{transform:scale(1.25)}"+
     ".vc-note{font-size:11px;color:var(--ink2);line-height:1.45}";
   document.head.appendChild(st);
 }
@@ -440,17 +457,73 @@ function controls(el, opts){
     const lab=document.createElement("span"); lab.className="vc-lab"; lab.textContent=c.lab;
     const val=document.createElement("b"); val.className="vc-val";
     top.appendChild(lab); top.appendChild(val);
-    const inp=document.createElement("input");
-    inp.type="range"; inp.min=c.min; inp.max=c.max; inp.step=c.step; inp.value=cfg[c.key];
+    const sl=document.createElement("div"); sl.className="vc-slider";
+    const track=document.createElement("div"); track.className="vc-track";
+    const fill=document.createElement("i"); fill.className="vc-fill";
+    const thumb=document.createElement("button"); thumb.className="vc-thumb";
+    thumb.type="button";
+    thumb.setAttribute("role","slider");
+    thumb.setAttribute("aria-label", c.lab);
+    thumb.setAttribute("aria-valuemin", c.min);
+    thumb.setAttribute("aria-valuemax", c.max);
+    sl.appendChild(track); sl.appendChild(fill); sl.appendChild(thumb);
     const note=document.createElement("div"); note.className="vc-note"; note.textContent=c.note;
-    row.appendChild(top); row.appendChild(inp); row.appendChild(note);
+    row.appendChild(top); row.appendChild(sl); row.appendChild(note);
     el.appendChild(row);
-    const vis=()=>{ val.textContent=c.vis(cfg[c.key]); inp.value=cfg[c.key]; };
-    vis();
-    inp.addEventListener("input", ()=>{
-      cfg[c.key]=+inp.value; vis(); saveCfg();
+
+    // trinnene kan være 0,01 — rund av på samme antall desimaler
+    const des=(String(c.step).split(".")[1]||"").length;
+    const snap=v=>{
+      v=Math.round((v-c.min)/c.step)*c.step + c.min;
+      return +Math.max(c.min, Math.min(c.max, v)).toFixed(des);
+    };
+    const vis=()=>{
+      const f=(cfg[c.key]-c.min)/(c.max-c.min);
+      sl.style.setProperty("--f", f);
+      val.textContent=c.vis(cfg[c.key]);
+      thumb.setAttribute("aria-valuenow", cfg[c.key]);
+      thumb.setAttribute("aria-valuetext", c.vis(cfg[c.key]));
+    };
+    const sett=v=>{
+      const ny=snap(v);
+      if(ny===cfg[c.key]) return;
+      cfg[c.key]=ny; vis(); saveCfg();
       if(opts.onChange) opts.onChange(c.key);
+    };
+    // Håndtaket er 36 px bredt, så senteret kan bare gå fra 18 px fra hver
+    // kant. Regn med samme innrykk som CSS bruker, ellers driver tallet fra
+    // det du ser.
+    const fraX=x=>{
+      const r=sl.getBoundingClientRect();
+      const bredde=r.width-36;
+      if(bredde<=0) return cfg[c.key];
+      const f=Math.max(0, Math.min(1, (x-r.left-18)/bredde));
+      return c.min + f*(c.max-c.min);
+    };
+    thumb.addEventListener("pointerdown", e=>{
+      e.preventDefault(); e.stopPropagation();
+      thumb.classList.add("drag");
+      if(thumb.setPointerCapture && e.pointerId!=null){
+        try{ thumb.setPointerCapture(e.pointerId); }catch(err){}
+      }
     });
+    thumb.addEventListener("pointermove", e=>{
+      if(!thumb.classList.contains("drag")) return;
+      e.preventDefault();
+      sett(fraX(e.clientX));
+    });
+    const slipp=()=>thumb.classList.remove("drag");
+    thumb.addEventListener("pointerup", slipp);
+    thumb.addEventListener("pointercancel", slipp);
+    // piltaster, for den som heller vil finjustere enn å dra
+    thumb.addEventListener("keydown", e=>{
+      const d = e.key==="ArrowLeft"||e.key==="ArrowDown" ? -1
+              : e.key==="ArrowRight"||e.key==="ArrowUp" ? 1 : 0;
+      if(!d) return;
+      e.preventDefault();
+      sett(cfg[c.key] + d*c.step*(e.shiftKey?10:1));
+    });
+    vis();
     rader[c.key]={vis};
   });
   return { refresh(){ for(const k in rader) rader[k].vis(); } };
