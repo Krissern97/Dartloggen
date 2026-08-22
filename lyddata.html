@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#131110">
+<title>Dartloggen — testdata</title>
+</head>
+<style>
+  :root{
+    --bg:#F2EDE2; --surface:#FFFDF7; --surface2:#EAE3D4;
+    --ink:#2A241B; --ink2:#6F6555; --line:#DCD3C0;
+    --green:#1E7A44; --green-ink:#FFFFFF; --green-soft:#E0EDE2; --green-mid:#C4E0CB;
+    --red:#B3312E; --red-soft:#F6E5E2; --gold:#A5802F; --gold-soft:#F1E8D2;
+    --shadow:0 1px 3px rgba(42,36,27,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#131110; --surface:#1D1A17; --surface2:#26221D;
+      --ink:#EFE7D7; --ink2:#A79C8A; --line:#332E27;
+      --green:#4BA96B; --green-ink:#0E1F14; --green-soft:#1E2B21; --green-mid:#2C4A36;
+      --red:#D8574F; --red-soft:#2E1D1A; --gold:#C9A45C; --gold-soft:#2C2618; --shadow:none;
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       -webkit-tap-highlight-color:transparent;min-height:100dvh}
+  button{touch-action:manipulation;user-select:none;-webkit-user-select:none}
+  #app{max-width:480px;margin:0 auto;padding:14px 14px 40px}
+  h1{font-size:15px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;margin:0 0 2px}
+  .sub{font-size:12px;color:var(--ink2);margin-bottom:16px;line-height:1.45}
+  h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+     margin:22px 2px 8px;color:var(--ink2)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+        padding:14px;box-shadow:var(--shadow)}
+  .primary{border:0;background:var(--green);color:var(--green-ink);font:inherit;font-size:15px;
+    font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:15px 18px;
+    border-radius:13px;cursor:pointer;width:100%;box-shadow:var(--shadow)}
+  .primary:disabled{opacity:.4;cursor:default}
+  .ghost{border:1px solid var(--line);background:var(--surface);color:var(--ink2);font:inherit;
+    font-size:13px;font-weight:700;padding:11px;border-radius:11px;cursor:pointer;flex:1}
+  .row{display:flex;gap:9px;margin-top:10px}
+  .msg{font-size:12.5px;color:var(--ink2);margin-top:10px;line-height:1.5;min-height:18px;
+       white-space:pre-line}
+  .msg.ok{color:var(--green);font-weight:700}
+  .msg.err{color:var(--red);font-weight:700}
+  .note{font-size:11.5px;color:var(--ink2);line-height:1.5;margin-top:7px}
+  .back{display:inline-block;color:var(--green);font-size:13px;font-weight:800;
+        text-decoration:none;margin-bottom:12px}
+  .hide{display:none}
+
+  .meter{height:26px;background:var(--surface2);border-radius:8px;overflow:hidden;
+         position:relative;margin-top:10px}
+  .meter i{display:block;height:100%;background:var(--green-mid);width:0}
+  .meter.hot i{background:var(--green)}
+  .meter b{position:absolute;inset:0;display:grid;place-items:center;font-size:11px;
+    font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--ink2)}
+
+  .step{display:flex;gap:9px;align-items:baseline;margin-bottom:9px}
+  .step b{flex:none;width:20px;height:20px;border-radius:50%;background:var(--green);
+    color:var(--green-ink);display:grid;place-items:center;font-size:11px;font-weight:800}
+  .step span{font-size:13px;line-height:1.45;color:var(--ink2)}
+  .step span b{display:inline;width:auto;height:auto;background:none;color:var(--ink);font-weight:800}
+
+  .drow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+  .drow:first-child{border-top:0}
+  .dlab{flex:none;width:74px;font-weight:800;font-size:14px}
+  .dbar{flex:1;height:9px;background:var(--surface2);border-radius:5px;overflow:hidden}
+  .dbar i{display:block;height:100%;width:0;background:var(--green);border-radius:5px}
+  .dbar i.part{background:var(--gold)}
+  .dn{flex:none;width:44px;text-align:right;font-size:12px;color:var(--ink2);
+      font-variant-numeric:tabular-nums}
+  .dbtn{flex:none;border:1px solid var(--green);background:var(--green-soft);color:var(--green);
+    font:inherit;font-weight:800;font-size:13px;min-width:44px;padding:9px 12px;
+    border-radius:10px;cursor:pointer}
+  .dbtn.done{border-color:var(--line);background:var(--surface2);color:var(--ink2)}
+
+  .cap{position:fixed;inset:0;z-index:40;background:var(--green);color:var(--green-ink);
+       display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+       padding:24px;text-align:center}
+  .cap.on{display:flex}
+  .cap.wait{background:var(--bg);color:var(--ink)}
+  .cap .w{font-size:clamp(40px,14vw,64px);font-weight:800;line-height:1.05}
+  .cap .c{font-size:13px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;opacity:.85}
+  .cap .m{width:min(280px,80vw);height:8px;background:rgba(255,255,255,.3);border-radius:4px;
+          overflow:hidden}
+  .cap.wait .m{background:var(--surface2)}
+  .cap .m i{display:block;height:100%;width:0;background:#fff}
+  .cap.wait .m i{background:var(--ink2)}
+  .cdots{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:280px}
+  .cdots i{width:9px;height:9px;border-radius:50%;background:currentColor;opacity:.28}
+  .cdots i.done{opacity:1}
+  .caprow{display:flex;gap:10px;margin-top:24px}
+  .cbtn{border:1.5px solid currentColor;background:none;color:inherit;font:inherit;font-size:13px;
+    font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:13px 22px;
+    border-radius:12px;cursor:pointer}
+
+  textarea{width:100%;height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:10px;
+    border:1px solid var(--line);border-radius:10px;padding:8px;background:var(--surface2);
+    color:var(--ink2);resize:vertical}
+</style>
+
+<div id="app">
+  <a class="back" href="./">‹ Tilbake til Dartloggen</a>
+  <h1>Testdata</h1>
+  <div class="sub">Her samler du inn en bunke ekte opptak, så innstillingene kan finstilles på <b>stemmen din</b> i stedet for på syntetisk lyd. Ingenting av dette brukes under spill — det er bare måledata.</div>
+
+  <div class="card">
+    <div class="step"><b>1</b><span>Slå på mikrofonen. Bruk <b>samme rom og samme avstand</b> som når du spiller — ellers måler vi noe annet enn det du faktisk gjør.</span></div>
+    <div class="step"><b>2</b><span>Ta opp <b>romlyd</b>, så alle <b>ti av hvert ord</b>, og noen <b>pilkast</b>. Si ordene som under spill, ikke ekstra tydelig.</span></div>
+    <div class="step"><b>3</b><span>Trykk <b>Lagre fil</b> og legg <code>testdata.json</code> i prosjektmappa.</span></div>
+    <button class="primary" id="btnMic">Slå på mikrofonen</button>
+    <div class="meter" id="meter"><i></i><b id="meterTxt">av</b></div>
+    <div class="msg" id="micMsg"></div>
+  </div>
+
+  <div id="main" class="hide">
+    <h2>Romlyd</h2>
+    <div class="card">
+      <div class="note" style="margin:0 0 10px">Fem sekunder med rommet slik det er når du spiller — vifte, kjøleskap, gata utenfor. Uten dette kan jeg ikke måle hvor ofte den tar feil av ingenting.</div>
+      <div id="romRad"></div>
+    </div>
+
+    <h2>Ordene</h2>
+    <div class="card">
+      <div class="note" style="margin:0 0 10px">Ti av hvert. Varier litt slik du faktisk varierer: noen rolige, noen kjappe, noen litt slurvete. Det er variasjonen som gjør målingen verdt noe.</div>
+      <div id="ordRader"></div>
+    </div>
+
+    <h2>Pilkast</h2>
+    <div class="card">
+      <div class="note" style="margin:0 0 10px">Kast piler i de grønne sekundene, uten å si noe. Da kan jeg måle hvor ofte et dunk blir til et ord.</div>
+      <div id="pilRad"></div>
+    </div>
+
+    <h2>Fil</h2>
+    <div class="card">
+      <div class="msg" id="sumMsg"></div>
+      <button class="primary" id="btnSave">Lagre fil</button>
+      <div class="row">
+        <button class="ghost" id="btnCopy">Kopier i stedet</button>
+        <button class="ghost" id="btnWipe">Slett alt</button>
+      </div>
+      <div class="note">Fila inneholder også fasiten din og innstillingene, så alt kan gjenskapes nøyaktig. Bare mønstre og tall — ingen lyd som kan spilles av.</div>
+      <textarea id="ut" class="hide" readonly></textarea>
+      <div class="msg" id="filMsg"></div>
+    </div>
+  </div>
+</div>
+
+<div class="cap" id="cap">
+  <div class="c" id="capCue">Gjør deg klar</div>
+  <div class="w" id="capWord">treff</div>
+  <div class="c" id="capProg">0 / 10</div>
+  <div class="cdots" id="capDots"></div>
+  <div class="m"><i id="capMeter"></i></div>
+  <div class="caprow">
+    <button class="cbtn" id="capCancel">Avbryt</button>
+    <button class="cbtn" id="capDone">Ferdig</button>
+  </div>
+</div>
+
+<script src="./voice.js"></script>
+<script src="./glid.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const ORD = Glid.WORDS;                 // treff, bom, dobbel, trippel
+const PIL = Glid.NOISE;                 // pilkast
+const MAAL = { treff:10, bom:10, dobbel:10, trippel:10, pilkast:6 };
+const ROMSEK = 5;
+const KEY = "dart_testdata";
+
+const REC = Glid.REC, PAUSE = Glid.PAUSE, KLAR = Glid.KLAR;
+const MARGIN = 20;                      // luft i hver ende, som på innlesingssiden
+const RING_MAX = 700;
+
+let mic=null, micOn=false, mode=null;
+let ring=[], frameNo=0, floorVis=null, overVis=0;
+let capWord=null, capGot=0, capQueue=null, capPhase=null, capLeft=0;
+let romBuf=null;
+let data = last();
+
+/* ---- lagring ---- */
+function tom(){
+  const d={ rom:null, ord:{} };
+  ORD.concat([PIL]).forEach(w=>d.ord[w]=[]);
+  return d;
+}
+function last(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(KEY));
+    if(!raw) return tom();
+    const d=tom();
+    if(raw.rom) d.rom=raw.rom;
+    ORD.concat([PIL]).forEach(w=>{ if(Array.isArray(raw.ord&&raw.ord[w])) d.ord[w]=raw.ord[w]; });
+    return d;
+  }catch(e){ return tom(); }
+}
+function lagre(){
+  try{ localStorage.setItem(KEY, JSON.stringify(data)); return true; }
+  catch(e){ return false; }
+}
+function antall(w){ return (data.ord[w]||[]).length; }
+function msg(id,t,cls){ const e=$(id); e.textContent=t; e.className="msg"+(cls?" "+cls:""); }
+
+/* ---- mikrofon ---- */
+async function startMic(){
+  try{
+    mic = Voice.makeMic(onFrame, { ns: Glid.cfg.ns!==false });
+    const info = await mic.start();
+    micOn=true;
+    $("btnMic").textContent="Mikrofonen er på";
+    $("btnMic").disabled=true;
+    $("main").classList.remove("hide");
+    msg("micMsg","Lytter. "+Math.round(info.rate)+" Hz, støydemping "+
+        (Glid.cfg.ns!==false?"på":"av")+" — samme som når du leser inn fasit.","ok");
+    tegn();
+  }catch(e){
+    msg("micMsg","Fikk ikke mikrofontilgang: "+(e.message||e),"err");
+  }
+}
+function onFrame(f){
+  frameNo++;
+  ring.push(f.mel);
+  if(ring.length>RING_MAX) ring.shift();
+  if(floorVis===null) floorVis=f.energy;
+  floorVis += f.energy>floorVis ? 0.004 : -0.04;
+  overVis = f.energy-floorVis;
+  maaler();
+  if(mode==="rom") romTick();
+  else if(mode==="ord") capTick();
+}
+function maaler(){
+  const m=$("meter"), SC=14;
+  const lvl=Math.max(0,Math.min(1,overVis/SC));
+  m.querySelector("i").style.width=Math.round(lvl*100)+"%";
+  m.classList.toggle("hot", overVis>2);
+  $("meterTxt").textContent = micOn ? (overVis>2?"lyd  +":"stille  +")+overVis.toFixed(1) : "av";
+}
+
+/* ---- romlyd: ett langt opptak ---- */
+function startRom(){
+  if(!micOn) return;
+  mode="rom"; romBuf=[]; capLeft=ROMSEK*100;
+  $("capWord").textContent="ROMLYD";
+  $("capCue").textContent="Vær stille";
+  $("capProg").textContent="";
+  $("capDots").innerHTML="";
+  $("cap").classList.add("on","wait");   // romlyd er alltid dempet skjerm
+}
+function romTick(){
+  romBuf.push(ring[ring.length-1]);
+  $("capMeter").style.width=Math.round((1-capLeft/(ROMSEK*100))*100)+"%";
+  $("capCue").textContent="Vær stille — "+((capLeft/100).toFixed(1).replace(".",","))+" s";
+  if(--capLeft>0) return;
+  data.rom = Glid.pack(romBuf);
+  lagre();
+  mode=null; romBuf=null;
+  $("cap").classList.remove("on");
+  tegn();
+  msg("sumMsg","Romlyd lagret ("+ROMSEK+" sekunder).","ok");
+}
+
+/* ---- ord og pilkast: samme takt som innlesingssiden ---- */
+function startOrd(w, kø){
+  if(!micOn) return;
+  mode="ord"; capWord=w; capGot=0; capQueue=kø;
+  capPhase="klar"; capLeft=KLAR;
+  $("cap").classList.add("on");
+  tegnCap();
+}
+function tegnCap(beskjed){
+  const maal=MAAL[capWord];
+  $("capWord").textContent = capWord===PIL ? "KAST EN PIL" : capWord;
+  $("cap").classList.toggle("wait", capPhase!=="rec");
+  $("capCue").textContent = beskjed ? beskjed
+    : capPhase==="rec"  ? (capWord===PIL ? "KAST NÅ" : "SI ORDET NÅ")
+    : capPhase==="klar" ? "Gjør deg klar"
+    : "Vent …";
+  $("capProg").textContent = (antall(capWord))+" / "+maal;
+  const d=$("capDots");
+  if(d.children.length!==maal){
+    d.innerHTML="";
+    for(let i=0;i<maal;i++) d.appendChild(document.createElement("i"));
+  }
+  [...d.children].forEach((x,i)=>x.classList.toggle("done", i<antall(capWord)));
+}
+function capTick(){
+  if(--capLeft>0){
+    const tot = capPhase==="rec" ? REC : capPhase==="klar" ? KLAR
+              : capPhase==="etter" ? MARGIN : PAUSE;
+    if(capPhase!=="etter") $("capMeter").style.width=Math.round((1-capLeft/tot)*100)+"%";
+    return;
+  }
+  if(capPhase==="rec"){ capPhase="etter"; capLeft=MARGIN; tegnCap(); return; }
+  if(capPhase==="etter"){
+    const n=Math.min(ring.length, REC+2*MARGIN);
+    const strip=ring.slice(ring.length-n);
+    const g=trim(strip);
+    if(!g && capWord!==PIL){
+      capPhase="pause"; capLeft=PAUSE; tegnCap("Hørte ingenting — en gang til");
+      return;
+    }
+    const gg = g || [0, strip.length];
+    data.ord[capWord].push({ m:Glid.pack(strip), a:gg[0], b:gg[1] });
+    lagre(); tegn();
+    if(navigator.vibrate) navigator.vibrate(25);
+    if(antall(capWord)>=MAAL[capWord]){ nesteOrd(); return; }
+    capPhase="pause"; capLeft=PAUSE;
+  } else {
+    capPhase="rec"; capLeft=REC;
+  }
+  tegnCap();
+}
+function nesteOrd(){
+  const q=capQueue;
+  mode=null; capWord=null; capQueue=null; capPhase=null;
+  lagre(); tegn();
+  if(q && q.length){ startOrd(q[0], q.slice(1)); return; }
+  $("cap").classList.remove("on");
+  msg("sumMsg","Ferdig med den bunken.","ok");
+}
+function avbryt(){
+  mode=null; capWord=null; capQueue=null; capPhase=null; romBuf=null;
+  lagre(); tegn();
+  $("cap").classList.remove("on");
+}
+/* Vi vet at ordet ligger i sekundet, så en enkel energigrense er trygg her. */
+function trim(strip){
+  const n=strip.length;
+  const en=strip.map(m=>{ let s=0; for(let b=0;b<Glid.B;b++) s+=m[b]; return s/Glid.B; });
+  const sortert=en.slice().sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(n*0.2)], topp=sortert[n-1];
+  if(topp-gulv < 1.5) return null;
+  const niva=gulv+(topp-gulv)*0.15;
+  let a=0; while(a<n && en[a]<niva) a++;
+  let b=n; while(b>a && en[b-1]<niva) b--;
+  a=Math.max(0,a-2); b=Math.min(n,b+2);
+  return (b-a)<5 ? null : [a,b];
+}
+
+/* ---- grensesnitt ---- */
+function rad(box, navn, w, maal, start){
+  const n = w===null ? (data.rom?1:0) : antall(w);
+  const r=document.createElement("div"); r.className="drow";
+  r.innerHTML='<span class="dlab"></span><div class="dbar"><i></i></div>'+
+              '<span class="dn">'+n+" / "+maal+'</span>'+
+              '<button class="dbtn">'+(n>=maal?"På nytt":"▶")+'</button>';
+  r.querySelector(".dlab").textContent=navn;
+  const bar=r.querySelector(".dbar i");
+  bar.style.width=Math.min(100, n/maal*100)+"%";
+  bar.classList.toggle("part", n<maal);
+  const b=r.querySelector(".dbtn");
+  b.classList.toggle("done", n>=maal);
+  b.addEventListener("click", start);
+  box.appendChild(r);
+}
+function tegn(){
+  const rr=$("romRad"); rr.innerHTML="";
+  rad(rr, "Romlyd", null, 1, startRom);
+
+  const ob=$("ordRader"); ob.innerHTML="";
+  ORD.forEach((w,i)=>rad(ob, w, w, MAAL[w], ()=>startOrd(w, ORD.slice(i+1))));
+
+  const pb=$("pilRad"); pb.innerHTML="";
+  rad(pb, "pilkast", PIL, MAAL[PIL], ()=>startOrd(PIL, null));
+
+  const tot = ORD.concat([PIL]).reduce((a,w)=>a+antall(w),0);
+  const maalTot = ORD.concat([PIL]).reduce((a,w)=>a+MAAL[w],0);
+  const mangler = ORD.concat([PIL]).filter(w=>antall(w)<MAAL[w]);
+  msg("sumMsg", (data.rom?"Romlyd ✓":"Romlyd mangler")+" · "+tot+" av "+maalTot+" opptak"+
+      (mangler.length ? " · mangler: "+mangler.join(", ") : " · alt er der"),
+      (data.rom && !mangler.length) ? "ok" : "");
+  $("btnSave").disabled = tot===0;
+}
+
+/* ---- fila ---- */
+function bygg(){
+  let fasit=null, cfg=null;
+  try{ fasit=JSON.parse(localStorage.getItem(Glid.KEY)); }catch(e){}
+  try{ cfg=JSON.parse(localStorage.getItem(Glid.CFGKEY)); }catch(e){}
+  return JSON.stringify({
+    v: 1,
+    laget: new Date().toISOString(),
+    band: Glid.B,
+    hz: 100,
+    ns: Glid.cfg.ns!==false,
+    forklaring: "Pakket mel-spektrogram: én byte per bånd per ramme, verdi/7-25 gir logenheter. "+
+                "a og b er hvor ordet ligger i snutten. rom er ett langt opptak av rommet.",
+    fasit: fasit,
+    cfg: cfg,
+    rom: data.rom,
+    ord: data.ord
+  });
+}
+$("btnMic").addEventListener("click", startMic);
+$("capCancel").addEventListener("click", avbryt);
+$("capDone").addEventListener("click", ()=>{ if(mode==="ord") nesteOrd(); else avbryt(); });
+$("btnSave").addEventListener("click", ()=>{
+  const s=bygg();
+  try{
+    const blob=new Blob([s],{type:"application/json"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="testdata.json";
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+    msg("filMsg","Lagret testdata.json ("+Math.round(s.length/1024)+" kB). Legg den i prosjektmappa.","ok");
+  }catch(e){
+    msg("filMsg","Fikk ikke lagret fil. Bruk «Kopier i stedet».","err");
+  }
+});
+$("btnCopy").addEventListener("click", ()=>{
+  const s=bygg();
+  $("ut").classList.remove("hide");
+  $("ut").value=s;
+  $("ut").select();
+  try{ navigator.clipboard.writeText(s); msg("filMsg","Kopiert ("+Math.round(s.length/1024)+" kB).","ok"); }
+  catch(e){ msg("filMsg","Merket i feltet — kopier manuelt.",""); }
+});
+let wipeArm=0;
+$("btnWipe").addEventListener("click", ()=>{
+  const b=$("btnWipe");
+  if(Date.now()-wipeArm>4000){
+    wipeArm=Date.now(); b.textContent="Sikker? Trykk igjen";
+    setTimeout(()=>{ if(Date.now()-wipeArm>=4000) b.textContent="Slett alt"; },4200);
+    return;
+  }
+  wipeArm=0; b.textContent="Slett alt";
+  data=tom();
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  tegn(); msg("filMsg","Alt slettet.","");
+});
+tegn();
+if(ORD.concat([PIL]).some(w=>antall(w)) || data.rom){
+  $("main").classList.remove("hide");
+  msg("micMsg","Fant testdata fra før. Slå på mikrofonen for å ta flere.","ok");
+}
+</script>
+</html>
