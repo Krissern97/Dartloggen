@@ -168,6 +168,8 @@
       </div>
       <div class="note" id="kjennerNote" style="margin:0 0 12px"></div>
       <div id="ctrls"></div>
+      <button class="ghost" id="btnOpt" style="width:100%;margin-top:14px">Sett målte innstillinger</button>
+      <div class="note" id="optNote"></div>
       <div class="tog" style="border-top:1px solid var(--line);padding-top:14px">
         <label for="dtw">Bruk DTW til å velge ord</label>
         <input type="checkbox" id="dtw">
@@ -696,12 +698,22 @@ function byggCtrls(){
   });
   $("kjenner").querySelectorAll("button").forEach(b=>
     b.classList.toggle("active", b.dataset.k===Glid.cfg.kjenner));
+  const on=$("optNote"); if(on){ on.textContent=""; on.className="note"; }
   $("kjennerNote").textContent = erSjab()
     ? "v3: én sjablong per ord, formet som ordet og like lang. Alle står med STARTEN på linje — bare det lengste ordet når fram til nullpunktet. Hver sjablong måler hvor full den er, og etter en kort ventetid vinner den fyllest. Ingen leting etter topper."
     : "v2: en stripe skyves langs lyden i fem lengder, og formen sammenlignes. Ordet finnes der likheten topper seg.";
   renderBars();
 }
 byggCtrls();
+/* Knappen setter verdiene som ble målt fram mot dine egne opptak, for den
+   motoren som er valgt. Alt kan fortsatt dras på etterpå. */
+$("btnOpt").addEventListener("click", ()=>{
+  const hvilken = erSjab() ? "sjablong" : "glidende";
+  Glid.settOptimal(hvilken);
+  matcher=null;
+  byggCtrls(); visKrav(); paintMeter();
+  msg("optNote", "Satt til de målte verdiene — " + Glid.OPTIMAL.om[hvilken] + ".", "ok");
+});
 $("kjenner").querySelectorAll("button").forEach(b=>{
   b.addEventListener("click",()=>{
     Glid.cfg.kjenner=b.dataset.k; Glid.saveCfg();

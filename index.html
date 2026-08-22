@@ -1226,6 +1226,8 @@
   <div class="meter" id="vsMeter"><i></i><u></u><b id="vsMeterTxt">av</b></div>
   <div class="vsnote" id="vsLvl">Slå på mikrofonen for å se nivåene.</div>
   <div id="vsControls" style="margin-top:16px"></div>
+  <button class="ghost" id="btnVsOpt" style="width:100%;margin-top:14px">Sett målte innstillinger</button>
+  <div class="vsnote" id="vsOptNote"></div>
 </div></div>
 
 <div id="voiceStrip">
@@ -1241,8 +1243,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 44;
-const APP_ROLLOUT = "2026-08-22T19:47:43+00:00";
+const APP_VERSION = 45;
+const APP_ROLLOUT = "2026-08-22T20:03:54+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -3547,6 +3549,9 @@ function openVoiceSheet(){
             : Glid.makeMatcher(Glid.prep(vBank()), vHoert); } } }
     : { onChange(){ if(vEp) vEp.setCfg(Voice.epCfg()); } });
   else VC.refresh();
+  const ob = $("btnVsOpt"), on = $("vsOptNote");
+  if(ob) ob.style.display = erGlid() ? "block" : "none";
+  if(on && !erGlid()) on.textContent = "";
   vsMotorVis();
   $("voiceSheet").classList.add("on");
   vsPaint();
@@ -3590,6 +3595,21 @@ function vsPaint(){
 onTap($("btnVoice"), ()=>{ if(vOn) voiceOff(); else voiceOn(); });
 onTap($("btnVoiceSet"), ()=>{ if(sheetOpen()) closeVoiceSheet(); else openVoiceSheet(); });
 onTap($("btnVoiceSetClose"), closeVoiceSheet);
+/* Verdiene som ble målt fram mot egne opptak, for den motoren som er valgt.
+   v1 er ikke målt — der er knappen borte. */
+onTap($("btnVsOpt"), ()=>{
+  if(!erGlid()) return;
+  const hvilken = erSjab() ? "sjablong" : "glidende";
+  Glid.settOptimal(hvilken);
+  if(vOn && vMatch){
+    vBankRefresh();
+    vMatch = erSjab()
+      ? Glid.makeStencil(Glid.prepStencil(vBank()), vHoert)
+      : Glid.makeMatcher(Glid.prep(vBank()), vHoert);
+  }
+  VC = null; $("vsControls").innerHTML = ""; openVoiceSheet();
+  $("vsOptNote").textContent = "Satt til de målte verdiene — " + Glid.OPTIMAL.om[hvilken] + ".";
+});
 $("vsMotor").querySelectorAll("button").forEach(b=>{
   b.addEventListener("click", ()=>settMotor(b.dataset.m));
 });
