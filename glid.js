@@ -287,11 +287,17 @@ function loadCfg(){
 // til 2, ville en gammel innstilling uten merke arvet 2 og migreringen aldri
 // fyrt — den ville sett ny ut uten å være det.
 const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, nfloor:0, ns:true, dtw:false,
-                            kjenner:"glidende", fyll:0.55, spill:1.0, vent:25, ordsperre:15,
-                            linje:"start", lengdehjelp:0.06, v:0 }, loadCfg());
+                            kjenner:"glidende", fyll:0.75, spill:0.5, vent:25, ordsperre:15,
+                            linje:"start", lengdehjelp:0.06, kortstraff:0.03, v:0 }, loadCfg());
 /* «gate» betydde før et absolutt tall, nå er det en andel av dine egne
    opptak. En lagret verdi fra før ville betydd noe helt annet. */
-if(cfg.v !== 2){ cfg.gate=0.45; cfg.v=2; delete cfg.env; saveCfg(); }
+if(cfg.v !== 3){
+  /* Målt mot ekte opptak, ikke gjettet: fyll 75 % og straff 50 % ga 93 %
+     riktig med 5 % feil og null falske pilkast, mot 55/100 som ga 57 %
+     riktig og 43 % feil. Gamle lagrede verdier flyttes dit. */
+  cfg.gate=0.45; cfg.fyll=0.75; cfg.spill=0.5; cfg.kortstraff=0.03;
+  cfg.v=3; delete cfg.env; saveCfg();
+}
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
 }
@@ -324,6 +330,10 @@ const SCONTROLS = [
     lab:"Straff for lyd utenfor mønsteret",
     vis:v=>Math.round(v*100)+" %",
     note:"Uten straff fyller et kraftig bredbåndet dunk enhver sjablong, for det finnes energi overalt. Straffen er det som skiller «ordet ble sagt» fra «det var mye lyd». Høyere gjør den kresen på et rolig rom." },
+  { key:"kortstraff", min:0, max:0.30, step:0.01,
+    lab:"Hvor mye et kort ord skal straffes",
+    vis:v=>v<=0 ? "av" : Math.round(v*100)+" poeng",
+    note:"En kort sjablong stiller færrest krav og fylles lettest, så det korteste ordet trekker til seg de andre. Her betaler den for lengden sin — trekkes fra i forhold til hvor mye kortere den er enn det lengste ordet." },
   { key:"lengdehjelp", min:0, max:0.25, step:0.01,
     lab:"Hvor mye et langt ord skal foretrekkes",
     vis:v=>v<=0 ? "av" : Math.round(v*100)+" poeng",
@@ -634,7 +644,11 @@ function makeStencil(sjablonger, onWord){
         const start = motSlutt ? ring.length-x.n : ring.length-S;
         if(start<0 || start+x.n>ring.length) continue;
         const vindu = stencilOf(denoise(ring.slice(start, start+x.n)));
-        const f = fyllingsgrad(x.sjab, vindu);
+        /* Kortstraff: en kort sjablong stiller færrest krav og fylles
+           lettest — «treff» er kortest og trakk til seg både «trippel» og
+           «bom» i målingene. Her betaler den for lengden sin, jevnt og
+           forutsigbart, i stedet for bare ved uavgjort. */
+        const f = fyllingsgrad(x.sjab, vindu) - cfg.kortstraff*(1 - x.n/S);
         if(f > siste.sim[x.word]) siste.sim[x.word]=f;
         if(f >= cfg.fyll){
           /* Er to sjablonger omtrent like fulle, vinner den LENGSTE. En kort
