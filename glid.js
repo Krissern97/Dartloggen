@@ -287,16 +287,18 @@ function loadCfg(){
 // til 2, ville en gammel innstilling uten merke arvet 2 og migreringen aldri
 // fyrt — den ville sett ny ut uten å være det.
 const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, nfloor:0, ns:true, dtw:false,
-                            kjenner:"glidende", fyll:0.75, spill:0.5, vent:25, ordsperre:15,
-                            linje:"start", lengdehjelp:0.06, kortstraff:0.03, v:0 }, loadCfg());
+                            kjenner:"glidende", fyll:0.72, spill:0.5, vent:25, ordsperre:15,
+                            linje:"start", lengdehjelp:0.06, kortstraff:0.08, v:0 }, loadCfg());
 /* «gate» betydde før et absolutt tall, nå er det en andel av dine egne
    opptak. En lagret verdi fra før ville betydd noe helt annet. */
-if(cfg.v !== 3){
-  /* Målt mot ekte opptak, ikke gjettet: fyll 75 % og straff 50 % ga 93 %
-     riktig med 5 % feil og null falske pilkast, mot 55/100 som ga 57 %
-     riktig og 43 % feil. Gamle lagrede verdier flyttes dit. */
-  cfg.gate=0.45; cfg.fyll=0.75; cfg.spill=0.5; cfg.kortstraff=0.03;
-  cfg.v=3; delete cfg.env; saveCfg();
+if(cfg.v !== 4){
+  /* Målt mot 560 ekte ord per innstilling, med fire fasitopptak per ord:
+     96 % riktig, 1 % feil ord, null falske utslag i romlyden. Til
+     sammenligning ga de gjettede 55/100 bare 65 % riktig og 35 % feil.
+     Vil du heller ha null feil enn siste prosentene treff, er
+     fyll 75 / straff 50 / kortstraff 3 målt til 91 % og 0 % feil. */
+  cfg.gate=0.45; cfg.fyll=0.72; cfg.spill=0.5; cfg.kortstraff=0.08;
+  cfg.v=4; delete cfg.env; saveCfg();
 }
 function saveCfg(){
   try{ localStorage.setItem(CFGKEY, JSON.stringify(cfg)); }catch(e){}
