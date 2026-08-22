@@ -162,6 +162,11 @@
   <div id="main" class="hide">
     <h2>Innstillinger</h2>
     <div class="card">
+      <div class="seg" id="kjenner">
+        <button data-k="glidende">v2 glidende</button>
+        <button data-k="sjablong">v3 sjablong</button>
+      </div>
+      <div class="note" id="kjennerNote" style="margin:0 0 12px"></div>
       <div id="ctrls"></div>
       <div class="tog" style="border-top:1px solid var(--line);padding-top:14px">
         <label for="dtw">Bruk DTW til å velge ord</label>
@@ -199,7 +204,7 @@
         <div class="conf" id="heardConf">Les inn fasit først</div>
       </div>
       <div id="bars" style="margin-top:6px"></div>
-      <div class="note">Søylene viser likheten mot hver fasit akkurat nå. Den røde streken er terskelen din. Se hva rommet klarer på egen hånd, og legg terskelen over det.</div>
+      <div class="note" id="barNote">Søylene viser likheten mot hver fasit akkurat nå. Den røde streken er terskelen din. Se hva rommet klarer på egen hånd, og legg terskelen over det.</div>
       <div class="msg" id="listenMsg"></div>
     </div>
 
@@ -339,7 +344,9 @@ function onFrame(f){
 
   if(mode==="capture"){ capTick(f); return; }
 
-  if(!matcher) matcher = Glid.makeMatcher(Glid.prep(bank), gotWord);
+  if(!matcher) matcher = erSjab()
+    ? Glid.makeStencil(Glid.prepStencil(bank), gotWord)
+    : Glid.makeMatcher(Glid.prep(bank), gotWord);
   matcher.push(f.mel, f.energy);
   const s = matcher.siste;
   floorVis = s.floor; overVis = s.over;
@@ -478,6 +485,14 @@ function gotWord(r){
     $("heardWord").textContent="—";
     $("heardConf").textContent="pilkast, ikke et ord ("+Math.round(r.sim*100)+" %)";
     logLine("ignorerte et pilkast ("+Math.round(r.sim*100)+" %)");
+    return;
+  }
+  if(r.maate==="sjablong"){
+    $("heardWord").textContent=r.word;
+    $("heardConf").textContent=Math.round(r.sim*100)+" % full · sjablong "+r.ms+" ms · fart "+
+      r.skala.toFixed(2).replace(".",",")+"×";
+    logLine("hørte «"+r.word+"» ("+Math.round(r.sim*100)+" % full)");
+    if(navigator.vibrate) navigator.vibrate(30);
     return;
   }
   $("heardWord").textContent=r.word;
@@ -619,8 +634,8 @@ function paintBars(sim){
     // -1..1 vises som 0..100, siden negativ likhet uansett er «ikke i nærheten»
     const f=Math.max(0,Math.min(1,v));
     bar.style.width=Math.round(f*100)+"%";
-    bar.classList.toggle("hit", v>=Glid.cfg.sim);
-    strek.style.left=Math.round(Glid.cfg.sim*100)+"%";
+    bar.classList.toggle("hit", v>=(erSjab()?Glid.cfg.fyll:Glid.cfg.sim));
+    strek.style.left=Math.round((erSjab()?Glid.cfg.fyll:Glid.cfg.sim)*100)+"%";
     pct.textContent = v<=-1 ? "–" : Math.round(v*100)+" %";
   }
 }
@@ -668,15 +683,34 @@ $("btnListen").addEventListener("click", ()=>{
     msg("listenMsg","Lytter. Si ordene slik du ville gjort under spill.","ok");
   }
 });
-Voice.controls($("ctrls"), {
-  cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
-  onChange(key){
-    visKrav(); paintMeter();
-    // romfilteret endrer hvordan fasitene beskrives, så de må bygges om
-    if(key==="gate" || key==="nfloor") matcher=null;
-  }
+function erSjab(){ return Glid.cfg.kjenner==="sjablong"; }
+function byggCtrls(){
+  Voice.controls($("ctrls"), {
+    cfg: Glid.cfg, list: erSjab() ? Glid.SCONTROLS : Glid.CONTROLS, save: Glid.saveCfg,
+    onChange(key){
+      visKrav(); paintMeter();
+      // fasitene beskrives om når romfilteret endres, kravet når terskelen gjør det
+      if(key==="gate" || key==="nfloor") matcher=null;
+      if(key==="fyll" || key==="spill") paintBars(matcher?matcher.siste.sim:{});
+    }
+  });
+  $("kjenner").querySelectorAll("button").forEach(b=>
+    b.classList.toggle("active", b.dataset.k===Glid.cfg.kjenner));
+  $("kjennerNote").textContent = erSjab()
+    ? "v3: én sjablong per ord, formet som ordet og like lang. Alle står med STARTEN på linje — bare det lengste ordet når fram til nullpunktet. Hver sjablong måler hvor full den er, og etter en kort ventetid vinner den fyllest. Ingen leting etter topper."
+    : "v2: en stripe skyves langs lyden i fem lengder, og formen sammenlignes. Ordet finnes der likheten topper seg.";
+  renderBars();
+}
+byggCtrls();
+$("kjenner").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    Glid.cfg.kjenner=b.dataset.k; Glid.saveCfg();
+    matcher=null; byggCtrls(); visKrav(); paintMeter();
+    msg("listenMsg", erSjab()
+      ? "Sjablongene er i bruk. Søylene viser hvor full hver av dem er."
+      : "Den glidende er i bruk. Søylene viser likheten i form.", "ok");
+  });
 });
-renderBars();
 visKrav();
 $("ns").checked = Glid.cfg.ns!==false;
 if(ALL.some(w=>(bank[w]||[]).length)){

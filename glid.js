@@ -286,7 +286,9 @@ function loadCfg(){
 // v må stå til 0 her: standardene legges FØRST, så det lagrede oppå. Sto den
 // til 2, ville en gammel innstilling uten merke arvet 2 og migreringen aldri
 // fyrt — den ville sett ny ut uten å være det.
-const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, nfloor:0, ns:true, dtw:false, v:0 }, loadCfg());
+const cfg = Object.assign({ sim:0.90, gate:0.45, mute:30, nfloor:0, ns:true, dtw:false,
+                            kjenner:"glidende", fyll:0.55, spill:1.0, vent:25, ordsperre:15,
+                            linje:"start", lengdehjelp:0.06, v:0 }, loadCfg());
 /* «gate» betydde før et absolutt tall, nå er det en andel av dine egne
    opptak. En lagret verdi fra før ville betydd noe helt annet. */
 if(cfg.v !== 2){ cfg.gate=0.45; cfg.v=2; delete cfg.env; saveCfg(); }
@@ -310,6 +312,38 @@ const CONTROLS = [
     lab:"Sperre etter et ord",
     vis:v=>(v*10)+" ms",
     note:"Hindrer at samme ord telles to ganger mens det ebber ut." }
+];
+/* Sjablongmotoren har sine egne tall. Terskelen og romfilteret over deles;
+   resten gjelder bare her. */
+const SCONTROLS = [
+  { key:"fyll", min:0.2, max:0.95, step:0.01,
+    lab:"Hvor full en sjablong må være",
+    vis:v=>Math.round(v*100)+" %",
+    note:"Hvor mye av mønsteret som må være dekket, minus det som stikker utenfor. Se søylene under mens du snakker og legg terskelen over det rommet klarer på egen hånd." },
+  { key:"spill", min:0, max:2, step:0.05,
+    lab:"Straff for lyd utenfor mønsteret",
+    vis:v=>Math.round(v*100)+" %",
+    note:"Uten straff fyller et kraftig bredbåndet dunk enhver sjablong, for det finnes energi overalt. Straffen er det som skiller «ordet ble sagt» fra «det var mye lyd». Høyere gjør den kresen på et rolig rom." },
+  { key:"lengdehjelp", min:0, max:0.25, step:0.01,
+    lab:"Hvor mye et langt ord skal foretrekkes",
+    vis:v=>v<=0 ? "av" : Math.round(v*100)+" poeng",
+    note:"Er to sjablonger omtrent like fulle, vinner den lengste. En kort sjablong stiller færrest krav og er lettest å fylle ved et uhell — «dob» i «dobbel» fyller «bom» helt. Dette er slingringsmonnet de må være innenfor for at lengden skal avgjøre." },
+  { key:"vent", min:5, max:60, step:1,
+    lab:"Ventetid før den bestemmer seg",
+    vis:v=>(v*10)+" ms",
+    note:"Et kort ord krysser før et langt det er forstavelse av — «bom» før «dobbel». Ventetiden lar alle sjablonger få sjansen, så den fyllest vinner. Må dekke lengdeforskjellen mellom korteste og lengste ord." },
+  { key:"ordsperre", min:5, max:60, step:1,
+    lab:"Sperre per ord",
+    vis:v=>(v*10)+" ms",
+    note:"Hvert ord for seg: etter at «bom» er sagt, kan ikke «bom» sies igjen på denne tiden. De andre ordene er upåvirket." },
+  { key:"gate", min:0.15, max:1.2, step:0.01,
+    lab:"Hvor høyt det må sies, mot dine egne opptak",
+    vis:v=>Math.round(v*100)+" %",
+    note:"Andel av nivået i fasitene dine. Under denne regnes ingenting." },
+  { key:"nfloor", min:0, max:8, step:0.1,
+    lab:"Nuller ut alt nærmere romlyden enn dette",
+    vis:v=>v<=0 ? "av" : "+"+v.toFixed(1).replace(".",","),
+    note:"Bånd for bånd: alt under romnivået pluss dette settes likt. Rydder bort viften før sammenligningen." }
 ];
 
 /* ---- den løpende kjennern ----
@@ -442,10 +476,206 @@ const REC   = 100;   // rammer grønn skjerm = 1,00 s
 const PAUSE = 70;    // rammer mellom hvert opptak
 const KLAR  = 80;    // rammer «gjør deg klar» før det første
 
+
+/* ============================================================
+   SJABLONGER — en annen måte å avgjøre når et ord er sagt
+   ============================================================
+   Bildet: spektrogrammet renner ut på et bånd som går mot venstre. Ytterst
+   til høyre er nullpunktet, der ny lyd faller ned akkurat nå.
+
+   Over båndet henger én sjablong per fasit, formet som sitt eget ord og
+   nøyaktig så lang som ordet er. De ligger fast; båndet sklir under dem.
+   Hver ramme spør hver sjablong: hvor mye av meg er fylt nå? Er det energi
+   der jeg venter energi — og er det energi der jeg IKKE venter noe?
+
+   Ingen leting etter en topp, ingen gjetning på om kurven har snudd. En
+   sjablong er enten dekket eller ikke.
+
+   OPPSTILLINGEN er den avgjørende detaljen. Står sjablongene med SLUTTEN
+   mot nullpunktet, fylles «bom» av «dob» i «dobbel» et kvartsekund før
+   «dobbel» i det hele tatt er ferdig sagt — det korte ordet vinner alltid
+   kappløpet mot det lange det er en forstavelse av. Står de med STARTEN på
+   linje, skyves den korte sjablongens nye kant bakover, lyden må gå lenger
+   for å nå den, og forspranget krymper med nøyaktig lengdeforskjellen.
+
+   Det lukker likevel ikke gapet helt. Derfor ventes det en stund etter
+   første kryssing, og den fyllest vinner. Ventetiden må dekke spennet
+   mellom korteste og lengste ord, ellers rekker ikke det lange ordet fram. */
+const STIL = [0.75, 1.0, 1.35];      // tempo: hver sjablong i tre lengder
+
+/* Sjablongen: energi over snuttens eget stille, delt på det høyeste, så
+   verdiene ligger i 0..1 og absolutt volum er ute. */
+function stencilOf(strip){
+  const n=strip.length;
+  const en=[];
+  for(let i=0;i<n;i++){
+    let s=0;
+    for(let b=0;b<B;b++) s+=strip[i][b];
+    en.push(s/B);
+  }
+  const sortert=en.slice().sort((x,y)=>x-y);
+  const gulv=sortert[Math.floor(n*0.15)];
+  let hi=0;
+  const ut=[];
+  for(let i=0;i<n;i++){
+    const r=new Float32Array(B);
+    for(let b=0;b<B;b++){
+      const v=strip[i][b]-gulv;
+      r[b]= v>0 ? v : 0;
+      if(r[b]>hi) hi=r[b];
+    }
+    ut.push(r);
+  }
+  if(hi<=0) hi=1;
+  let sum=0;
+  for(let i=0;i<n;i++) for(let b=0;b<B;b++){ ut[i][b]/=hi; sum+=ut[i][b]; }
+  return { celler:ut, sum:Math.max(sum,1e-6), n };
+}
+/* «Hvor full er jeg?» — det som dekkes, minus det som stikker utenfor.
+   Dekningen alene ville gitt full pott til et kraftig bredbåndet dunk, for
+   der finnes det energi overalt, altså også der sjablongen vil ha den.
+   Straffen for energi UTENFOR mønsteret er det som skiller «ordet ble sagt»
+   fra «det var mye lyd».                                                */
+function fyllingsgrad(sjab, vindu){
+  const n=sjab.n;
+  let dekket=0, søl=0;
+  for(let i=0;i<n;i++){
+    const a=sjab.celler[i], b=vindu.celler[i];
+    for(let k=0;k<B;k++){
+      const t=a[k], v=b[k];
+      dekket += v<t ? v : t;
+      const o=v-t;
+      if(o>0) søl+=o;
+    }
+  }
+  return (dekket - søl*(cfg.spill||0)) / sjab.sum;
+}
+// Strekk en sjablong til et annet antall rammer (tempo)
+function strekk(sjab, n){
+  if(n===sjab.n) return sjab;
+  const ut=[];
+  let sum=0;
+  for(let i=0;i<n;i++){
+    const p=n===1?0:i*(sjab.n-1)/(n-1);
+    const a=Math.floor(p), f=p-a;
+    const A=sjab.celler[a], C=sjab.celler[Math.min(sjab.n-1,a+1)];
+    const r=new Float32Array(B);
+    for(let k=0;k<B;k++){ r[k]=A[k]*(1-f)+C[k]*f; sum+=r[k]; }
+    ut.push(r);
+  }
+  return { celler:ut, sum:Math.max(sum,1e-6), n };
+}
+/* Gjør fasitene klare som sjablonger: hver i tre lengder. */
+function prepStencil(bank){
+  bank = bank || load();
+  const ut=[];
+  ALL.forEach(w=>{
+    (bank[w]||[]).forEach((t,i)=>{
+      const seg=denoise(t.strip.slice(t.a, t.b));
+      if(seg.length < 5) return;
+      const grunn=stencilOf(seg);
+      STIL.forEach(sk=>{
+        const n=Math.max(5, Math.round(grunn.n*sk));
+        ut.push({ word:w, idx:i, skala:sk, sjab:strekk(grunn,n), n:n,
+                  lvl:stripLevel(t.strip, t.a, t.b) });
+      });
+    });
+  });
+  return ut;
+}
+function makeStencil(sjablonger, onWord){
+  let ring=[], floor=null, n=0, frame=0;
+  const S = sjablonger.reduce((a,x)=>Math.max(a,x.n), 1);   // lengste sjablong
+  const kort = sjablonger.reduce((a,x)=>Math.min(a,x.n), S);
+  const ref = refLevel(sjablonger);
+  const siste = { sim:{}, over:0, floor:0, ref, krav:ref*cfg.gate, S, kort };
+  ALL.forEach(w=>siste.sim[w]=-1);
+  const sperre = {};                       // per ord, ikke felles
+  let venter=0, besteFyll=-9, besteSjab=null;
+
+  return {
+    get siste(){ return siste; },
+    reset(){ ring=[]; venter=0; besteFyll=-9; besteSjab=null; },
+    hush(f){ ALL.forEach(w=>sperre[w]=frame+f); venter=0; besteSjab=null; },
+    push(mel, energy){
+      frame++;
+      ring.push(mel);
+      if(ring.length > S+8) ring.shift();
+
+      if(floor===null){ floor=energy; n=1; }
+      n++;
+      if(n<40){ const a=1/n; floor=floor*(1-a)+energy*a; }
+      else floor += energy>floor ? 0.004 : -0.04;
+      siste.over = energy-floor; siste.floor = floor;
+      ALL.forEach(w=>siste.sim[w] = -1);
+      if(!sjablonger.length || ring.length < S+1) return null;
+
+      // nok lyd i det hele tatt?
+      let maxOver=0;
+      for(let i=0;i<ring.length;i++){
+        let m=0;
+        for(let b=0;b<B;b++) m+=ring[i][b];
+        m=m/B-floor;
+        if(m>maxOver) maxOver=m;
+      }
+      if(maxOver < ref*cfg.gate){
+        if(venter>0) return avgjor();
+        return null;
+      }
+
+      /* Startlinja: alle sjablonger har sin eldste kant på samme sted, ved
+         S rammer tilbake. Bare den lengste når helt fram til nullpunktet.
+         cfg.linje="slutt" stiller dem i stedet opp mot nullpunktet — lett å
+         bytte, så de to kan prøves mot hverandre.                        */
+      const motSlutt = cfg.linje==="slutt";
+      for(let s=0;s<sjablonger.length;s++){
+        const x=sjablonger[s];
+        if(frame < (sperre[x.word]||0)) continue;
+        const start = motSlutt ? ring.length-x.n : ring.length-S;
+        if(start<0 || start+x.n>ring.length) continue;
+        const vindu = stencilOf(denoise(ring.slice(start, start+x.n)));
+        const f = fyllingsgrad(x.sjab, vindu);
+        if(f > siste.sim[x.word]) siste.sim[x.word]=f;
+        if(f >= cfg.fyll){
+          /* Er to sjablonger omtrent like fulle, vinner den LENGSTE. En kort
+             sjablong stiller færrest krav og er lettest å fylle ved et uhell
+             — det er samme skjevhet som gjør at et pilnedslag blir til «bom»
+             og ikke til «trippel». «Dob» fyller bom-sjablongen helt, men
+             dobbel-sjablongen er full OG lengre, så den skal vinne. */
+          const bedre = !besteSjab
+            || f > besteFyll + cfg.lengdehjelp
+            || (f > besteFyll - cfg.lengdehjelp && x.n > besteSjab.n);
+          if(bedre){ besteSjab=x; }
+          if(f > besteFyll) besteFyll=f;
+          if(!venter) venter = frame + cfg.vent;
+        }
+      }
+      if(venter && frame >= venter) return avgjor();
+      return null;
+    }
+  };
+
+  /* Ventetiden er ikke pynt: «bom» krysser før «dobbel» selv med startlinje,
+     fordi den er kortere. Vinner den fyllest etter at alle har fått sjansen,
+     havner riktig ord fram.                                              */
+  function avgjor(){
+    const x=besteSjab;
+    const f=besteFyll;
+    venter=0; besteFyll=-9; besteSjab=null;
+    if(!x) return null;
+    sperre[x.word] = frame + cfg.ordsperre;
+    const svar = { word:x.word, sim:f, skala:x.skala, ms:x.n*10,
+                   maate:"sjablong", ignorert:x.word===NOISE };
+    if(onWord) onWord(svar);
+    return svar;
+  }
+}
+
 window.Glid = {
   REC, PAUSE, KLAR,
   B, NF, SCALES, WORDS, KEY, CFGKEY,
-  NOISE, ALL, refLevel, stripLevel, denoise,
+  NOISE, ALL, refLevel, stripLevel, denoise, SCONTROLS, STIL,
+  stencilOf, fyllingsgrad, prepStencil, makeStencil,
   shape, shapeFrames, dtwShape, likhet, resample, pack, unpack, load, save, prep,
   cfg, saveCfg, CONTROLS, makeMatcher
 };

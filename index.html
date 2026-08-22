@@ -1147,15 +1147,15 @@
         <div class="voicestate" id="voiceState">Les inn stemmen din</div>
         <a class="voicelink" href="./lydtest.html">
           <span>
-            <b>Les inn — glidende</b>
-            <small>Uten startterskel. Sammenligner formen løpende mot fasiten.</small>
+            <b>Les inn stemmen</b>
+            <small>Samme fasit for v2 og v3. Nederst på siden kan du prøve dem mot hverandre.</small>
           </span>
           <span class="chev">›</span>
         </a>
         <a class="voicelink" href="./lydtrening.html">
           <span>
-            <b>Les inn — gammel</b>
-            <small>Finner ordet med energi, sammenligner med DTW. Egen fasit og egne innstillinger.</small>
+            <b>Les inn — v1 gammel</b>
+            <small>Den første måten, med startterskel og DTW. Egen fasit og egne innstillinger.</small>
           </span>
           <span class="chev">›</span>
         </a>
@@ -1211,8 +1211,9 @@
     <button class="ghost" id="btnVoiceSetClose">Ferdig</button>
   </div>
   <div class="seg" id="vsMotor">
-    <button data-m="glid">Glidende</button>
-    <button data-m="gammel">Gammel</button>
+    <button data-m="sjablong">v3</button>
+    <button data-m="glid">v2</button>
+    <button data-m="gammel">v1</button>
   </div>
   <div class="vsnote" id="vsMotorNote"></div>
   <div class="meter" id="vsMeter"><i></i><u></u><b id="vsMeterTxt">av</b></div>
@@ -1233,8 +1234,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 40;
-const APP_ROLLOUT = "2026-08-21T14:29:51+00:00";
+const APP_VERSION = 41;
+const APP_ROLLOUT = "2026-08-22T08:17:31+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -2449,7 +2450,7 @@ function renderStats(){
     const g=Glid.WORDS.filter(w=>(b[w]||[]).length).length;
     const pk=(b[Glid.NOISE]||[]).length;
     const gm=Voice.phraseReady();
-    vs.textContent = (erGlid()?"Glidende":"Gammel")+" er i bruk. "+
+    vs.textContent = (erSjab()?"v3 sjablong":erGlid()?"v2 glidende":"v1 gammel")+" er i bruk. "+
       "Glidende: "+g+" av 4 ord"+(pk?" + "+pk+" pilkast":"")+
       " · Gammel: "+gm+" av 4 ord."+
       (voiceReady()>=4 ? " Mikrofonknappen dukker opp i «rundt brettet»."
@@ -3294,9 +3295,11 @@ const VMAP = { treff:1, dobbel:2, trippel:3, bom:0 };
 const VMIN = 4;                 // alle fire ordene må være lest inn
 const MOTORKEY = "dart_voice_motor";
 
-let MOTOR = "glid";
-try{ MOTOR = localStorage.getItem(MOTORKEY) || "glid"; }catch(e){}
-function erGlid(){ return MOTOR==="glid"; }
+let MOTOR = "sjablong";
+try{ MOTOR = localStorage.getItem(MOTORKEY) || "sjablong"; }catch(e){}
+// v3 sjablong og v2 glidende deler fasit; v1 har sin egen
+function erSjab(){ return MOTOR==="sjablong"; }
+function erGlid(){ return MOTOR==="glid" || MOTOR==="sjablong"; }
 function settMotor(m){
   MOTOR = m;
   try{ localStorage.setItem(MOTORKEY, m); }catch(e){}
@@ -3356,7 +3359,9 @@ async function voiceOn(){
     let ns=false;
     if(erGlid()){
       vBankRefresh();
-      vMatch = Glid.makeMatcher(Glid.prep(vBank()), vHoert);
+      vMatch = erSjab()
+        ? Glid.makeStencil(Glid.prepStencil(vBank()), vHoert)
+        : Glid.makeMatcher(Glid.prep(vBank()), vHoert);
       ns = Glid.cfg.ns!==false;
     } else {
       vTemplates = Voice.loadTemplates();
@@ -3527,10 +3532,12 @@ let VC=null;
 function openVoiceSheet(){
   if(!window.Voice) return;
   if(!VC) VC = Voice.controls($("vsControls"), erGlid()
-    ? { cfg: Glid.cfg, list: Glid.CONTROLS, save: Glid.saveCfg,
+    ? { cfg: Glid.cfg, list: erSjab() ? Glid.SCONTROLS : Glid.CONTROLS, save: Glid.saveCfg,
         // fasitene beskrives om når romfilteret endres, kravet når terskelen gjør det
         onChange(){ if(vOn && vMatch){ vBankRefresh();
-          vMatch = Glid.makeMatcher(Glid.prep(vBank()), vHoert); } } }
+          vMatch = erSjab()
+            ? Glid.makeStencil(Glid.prepStencil(vBank()), vHoert)
+            : Glid.makeMatcher(Glid.prep(vBank()), vHoert); } } }
     : { onChange(){ if(vEp) vEp.setCfg(Voice.epCfg()); } });
   else VC.refresh();
   vsMotorVis();
@@ -3547,11 +3554,12 @@ function vsMotorVis(){
   const n=$("vsMotorNote");
   if(!n) return;
   const antall=voiceReady();
-  n.textContent = erGlid()
-    ? "Glidende: ingen startterskel, sammenligner formen løpende. Fasit leses inn under Verktøy. "+
-      antall+" av 4 ord klare."
-    : "Gammel: finner ordet med energi, sammenligner med DTW. Egen fasit, egne innstillinger. "+
-      antall+" av 4 ord klare.";
+  n.textContent = (erSjab()
+    ? "v3 sjablong: én sjablong per ord, alle med starten på linje. Den fyllest vinner etter en kort ventetid."
+    : erGlid()
+    ? "v2 glidende: en stripe skyves langs lyden, ordet finnes der likheten topper seg."
+    : "v1 gammel: finner ordet med energi, sammenligner med DTW. Egen fasit."
+  ) + " " + antall + " av 4 ord klare.";
 }
 // måleren i panelet, så terskelen kan settes mot det rommet faktisk gjør
 let vsOver=0, vsPeak=0, vsPeakAt=0, vsKrav=2.7;
