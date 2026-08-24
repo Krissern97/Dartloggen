@@ -538,6 +538,56 @@
   .voicelink span:first-child{flex:1}
   .voicelink .chev{font-size:20px;color:var(--ink2);line-height:1}
   .vmsg{font-size:11.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
+
+  /* ---- hjelpepanelene under Verktøy ---- */
+  .sect.und{margin-top:8px}
+  .sect.und .sechead{background:var(--surface2);border-color:var(--line)}
+  .sect.und.open .sechead{background:var(--green-soft);border-color:var(--green-mid)}
+  .card.hjelp{border-radius:0 0 12px 12px;border-top:0}
+  .hjelp h4{
+    font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--green);margin:20px 0 6px;
+  }
+  .hjelp h4:first-child{margin-top:0}
+  .hjelp p{font-size:13px;line-height:1.6;color:var(--ink2);margin:0 0 8px}
+  .hjelp p b{color:var(--ink)}
+  .hjelp .fakta{
+    background:var(--surface2);border-radius:10px;padding:11px 13px;margin-top:12px;
+  }
+  .hjelp .fakta b{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;
+                  text-transform:uppercase;color:var(--ink2);margin-bottom:5px}
+  .hjelp .fakta p{margin:0;font-size:12.5px}
+  .hjelp ol.steg{margin:0;padding-left:20px}
+  .hjelp ol.steg li{font-size:13px;line-height:1.6;color:var(--ink2);margin-bottom:9px}
+  .hjelp ol.steg li b{color:var(--ink)}
+  .hjelp table.feil{width:100%;border-collapse:collapse;margin-top:4px}
+  .hjelp table.feil th{
+    text-align:left;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--ink2);padding:0 8px 6px 0;border-bottom:1px solid var(--line);
+  }
+  .hjelp table.feil td{
+    font-size:12.5px;line-height:1.5;color:var(--ink2);padding:9px 8px 9px 0;
+    border-bottom:1px solid var(--line);vertical-align:top;
+  }
+  .hjelp table.feil td:first-child{width:38%;color:var(--ink);font-weight:700}
+  .hjelp table.feil tr:last-child td{border-bottom:0}
+  /* tegningene: fargene hentes fra temaet, så de virker lyst og mørkt */
+  .hjelp .fig{display:block;width:100%;height:auto;margin:10px 0 14px;overflow:visible}
+  .fig .ft{font:700 9px system-ui,sans-serif;fill:var(--ink)}
+  .fig .ft.on{fill:var(--green)}
+  .fig .fs{font:400 8px system-ui,sans-serif;fill:var(--ink2)}
+  .fig .fl{fill:none;stroke:var(--ink2);stroke-width:1.2}
+  .fig .fd{stroke:var(--gold);stroke-width:1;stroke-dasharray:2 2;fill:none}
+  .fig .fa{stroke:var(--ink2);stroke-width:1.2;fill:none}
+  .fig .fg rect{fill:var(--green)}
+  .fig .fb{fill:#14120F;stroke:var(--line);stroke-width:1;rx:3}
+  .fig .fn{stroke:var(--red);stroke-width:1.5}
+  .fig .fst{stroke:var(--gold);stroke-width:1.5;stroke-dasharray:3 2}
+  .fig .fk{fill:var(--surface2);stroke:var(--line);stroke-width:1;rx:3}
+  .fig .fk.on{fill:var(--green-soft);stroke:var(--green)}
+  .fig .fk2{fill:var(--surface2);stroke:var(--line);stroke-width:1}
+  .fig .ffyll{fill:var(--green);opacity:.75}
+  .fig .fsol{fill:var(--red);opacity:.35}
 </style>
 
 <div id="app">
@@ -1167,6 +1217,153 @@
           <span class="chev">›</span>
         </a>
         <div class="note" style="margin-top:8px">Hvilken som gjelder velges i innstillingsknappen ved siden av mikrofonen, under spill.</div>
+      </div>
+
+        <div class="sect und" data-sect="hjelp1">
+          <button class="sechead" data-acc="hjelp1">
+            <span class="secname">Slik virker stemmestyringen</span>
+            <span class="secsum">båndet, sjablongene, fyllingen</span>
+            <span class="secchev" aria-hidden="true">›</span>
+          </button>
+          <div class="secbody">
+            <div class="card hjelp">
+
+              <h4>1 · Lyden blir et bilde</h4>
+              <p>Mikrofonen deles opp i småbiter på 25 millisekunder, en ny hver 10. millisekund. For hver bit måles hvor mye lyd det er i 26 frekvensbånd — mørkt i bunnen, lyst i toppen. Det blir et bilde som renner ut på et bånd, som en stripe fra en seismograf.</p>
+
+              <svg viewBox="0 0 320 96" class="fig" aria-label="Lyd deles i rammer og blir et spektrogram">
+                <text x="4" y="12" class="ft">lyden</text>
+                <path class="fl" d="M4 34 Q10 22 16 34 T28 34 T40 20 T52 48 T64 26 T76 40 T88 30 T100 34 T112 34"/>
+                <g class="fd">
+                  <path d="M40 16 L40 52M52 16 L52 52M64 16 L64 52"/>
+                </g>
+                <text x="42" y="62" class="fs">25 ms</text>
+                <path class="fa" d="M124 34 L144 34"/><path class="fa" d="M138 30 L144 34 L138 38"/>
+                <text x="152" y="12" class="ft">26 bånd per ramme</text>
+                <g class="fg">
+                  <rect x="152" y="18" width="10" height="6" opacity=".2"/><rect x="164" y="18" width="10" height="6" opacity=".5"/><rect x="176" y="18" width="10" height="6" opacity=".9"/><rect x="188" y="18" width="10" height="6" opacity=".4"/><rect x="200" y="18" width="10" height="6" opacity=".15"/><rect x="212" y="18" width="10" height="6" opacity=".1"/>
+                  <rect x="152" y="26" width="10" height="6" opacity=".3"/><rect x="164" y="26" width="10" height="6" opacity=".8"/><rect x="176" y="26" width="10" height="6" opacity="1"/><rect x="188" y="26" width="10" height="6" opacity=".7"/><rect x="200" y="26" width="10" height="6" opacity=".3"/><rect x="212" y="26" width="10" height="6" opacity=".15"/>
+                  <rect x="152" y="34" width="10" height="6" opacity=".5"/><rect x="164" y="34" width="10" height="6" opacity=".4"/><rect x="176" y="34" width="10" height="6" opacity=".6"/><rect x="188" y="34" width="10" height="6" opacity=".9"/><rect x="200" y="34" width="10" height="6" opacity=".6"/><rect x="212" y="34" width="10" height="6" opacity=".2"/>
+                  <rect x="152" y="42" width="10" height="6" opacity=".15"/><rect x="164" y="42" width="10" height="6" opacity=".2"/><rect x="176" y="42" width="10" height="6" opacity=".3"/><rect x="188" y="42" width="10" height="6" opacity=".5"/><rect x="200" y="42" width="10" height="6" opacity=".8"/><rect x="212" y="42" width="10" height="6" opacity=".4"/>
+                </g>
+                <text x="152" y="62" class="fs">ett bilde per 10 ms</text>
+                <text x="4" y="86" class="fs">Mørk rute = lite lyd i det båndet. Lys rute = mye.</text>
+              </svg>
+
+              <h4>2 · Fire sjablonger henger over båndet</h4>
+              <p>Da du leste inn fasiten, ble hvert ord til en <b>sjablong</b> — formet som ordet og nøyaktig så lang som det er. De henger fast over båndet, og bildet sklir under dem.</p>
+              <p>Alle sjablongene starter på <b>samme sted</b>. Bare det lengste ordet rekker helt fram til nullpunktet, der ny lyd faller ned. Det er med vilje: sto de med slutten mot nullpunktet, ville «bom» blitt full av «dob» i «dobbel» et kvartsekund før «dobbel» var ferdig sagt — og det korte ordet ville alltid vunnet kappløpet.</p>
+
+              <svg viewBox="0 0 320 150" class="fig" aria-label="Fire sjablonger over lydbåndet">
+                <rect x="8" y="8" width="270" height="22" class="fb"/>
+                <g class="fg">
+                  <rect x="150" y="11" width="8" height="16" opacity=".3"/><rect x="160" y="11" width="8" height="16" opacity=".7"/><rect x="170" y="11" width="8" height="16" opacity="1"/><rect x="180" y="11" width="8" height="16" opacity=".8"/><rect x="190" y="11" width="8" height="16" opacity=".4"/><rect x="200" y="11" width="8" height="16" opacity=".2"/>
+                </g>
+                <path class="fa" d="M292 19 L272 19"/><path class="fa" d="M278 15 L272 19 L278 23"/>
+                <text x="284" y="42" class="fs" text-anchor="middle">nå</text>
+                <line x1="278" y1="4" x2="278" y2="140" class="fn"/>
+                <line x1="60" y1="4" x2="60" y2="140" class="fst"/>
+                <text x="60" y="146" class="fs" text-anchor="middle">alle starter her</text>
+
+                <rect x="60" y="46" width="90" height="15" class="fk"/>
+                <text x="155" y="57" class="ft">bom</text>
+                <rect x="60" y="66" width="118" height="15" class="fk"/>
+                <text x="183" y="77" class="ft">treff</text>
+                <rect x="60" y="86" width="160" height="15" class="fk"/>
+                <text x="225" y="97" class="ft">dobbel</text>
+                <rect x="60" y="106" width="218" height="15" class="fk on"/>
+                <text x="222" y="117" class="ft on">trippel — lengst, rekker fram</text>
+              </svg>
+
+              <h4>3 · «Hvor full er jeg?»</h4>
+              <p>Hundre ganger i sekundet spør hver sjablong seg selv: hvor mye av meg er dekket akkurat nå? Og — like viktig — hvor mye lyd ligger <b>utenfor</b> mønsteret mitt?</p>
+              <p>Uten det siste ville et kraftig dunk fylt alle sjablongene, for et dunk har energi overalt, altså også der sjablongen vil ha den. Straffen for lyd utenfor er nettopp det som skiller «ordet ble sagt» fra «det var mye lyd».</p>
+
+              <svg viewBox="0 0 320 112" class="fig" aria-label="Fylling og søl">
+                <text x="52" y="12" class="ft" text-anchor="middle">ordet ble sagt</text>
+                <path class="fk2" d="M12 84 L12 52 Q30 22 52 22 Q74 22 92 52 L92 84 Z"/>
+                <path class="ffyll" d="M14 82 L14 54 Q31 26 52 26 Q73 26 90 54 L90 82 Z"/>
+                <text x="52" y="102" class="fs" text-anchor="middle">dekket 94 %, søl 3 %</text>
+
+                <text x="176" y="12" class="ft" text-anchor="middle">et dunk</text>
+                <path class="fk2" d="M136 84 L136 52 Q154 22 176 22 Q198 22 216 52 L216 84 Z"/>
+                <path class="fsol" d="M126 84 L126 34 L226 34 L226 84 Z"/>
+                <path class="ffyll" d="M138 82 L138 54 Q155 26 176 26 Q197 26 214 54 L214 82 Z"/>
+                <text x="176" y="102" class="fs" text-anchor="middle">dekket 91 %, søl 68 %</text>
+
+                <text x="270" y="46" class="fs">grå = mønsteret</text>
+                <text x="270" y="60" class="fs">grønn = dekket</text>
+                <text x="270" y="74" class="fs">rød = søl</text>
+              </svg>
+
+              <h4>4 · Den venter litt før den bestemmer seg</h4>
+              <p>Et kort ord blir fullt før et langt. Sier du «dobbel», rekker «bom»-sjablongen å fylles først, selv med startlinja. Derfor venter den <b>250 millisekunder</b> etter at den første sjablongen er full, lar alle få sjansen, og lar den fylleste vinne.</p>
+              <p>I tillegg må et kort ord fylles litt mer enn et langt for å telle like mye — en kort sjablong stiller færrest krav og er lettest å fylle ved et uhell.</p>
+
+              <h4>5 · Tre piler, så kvittering</h4>
+              <p>Hvert ord blir en pil med én gang, så du ser den på skjermen mens du snakker. Når runden er hel, kommer det et pling etter ett sekund, og den leser opp hva som ble registrert. Stemmer det ikke, trykk <b>↩ Angre</b> — lista følger med.</p>
+
+              <div class="fakta">
+                <b>Det som ikke finnes her</b>
+                <p>Ingen startterskel som avgjør «nå begynner et ord». Ingen oppdeling av lyden i ord. Ingen nettforbindelse, ingen nedlasting — alt regnes ut på telefonen, og fasiten forlater den aldri.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sect und" data-sect="hjelp2">
+          <button class="sechead" data-acc="hjelp2">
+            <span class="secname">Bruksanvisning</span>
+            <span class="secsum">innlesing, spill, feilsøking</span>
+            <span class="secchev" aria-hidden="true">›</span>
+          </button>
+          <div class="secbody">
+            <div class="card hjelp">
+
+              <h4>Kom i gang</h4>
+              <ol class="steg">
+                <li><b>Les inn stemmen din.</b> Gå til <i>Les inn stemmen</i> over. Trykk ▶ ved et ord, eller <i>Les inn alle ordene</i>. Skjermen blir grønn i nøyaktig ett sekund — si ordet da. Så pause, så grønt igjen.</li>
+                <li><b>Ta fire av hvert ord.</b> Målingene mine viser at fire er klart bedre enn to: riktig ord gikk fra 93 % til 96 %, og feil ord fra 6 % til 1 %.</li>
+                <li><b>Varier som du faktisk varierer.</b> Noen rolige, noen kjappe, noen litt slurvete. Det er variasjonen som gjør fasiten robust — sier du dem alle fire helt likt, dekker de bare én måte å si ordet på.</li>
+                <li><b>Stå der du kaster fra.</b> Samme rom, samme avstand til telefonen. Leser du inn tett på og spiller to meter unna, ligner det mindre.</li>
+                <li><b>Se over opptakene.</b> Under <i>Opptak</i> kan du dra i de gule håndtakene om grensene ble feil, og slette et opptak som ble dårlig.</li>
+              </ol>
+
+              <h4>Under spill</h4>
+              <ol class="steg">
+                <li>Start <b>rundt brettet</b> eller <b>dobbeltrening</b>. En mikrofonknapp dukker opp nede til høyre.</li>
+                <li>Trykk på den. Den sier «klar», og en stripe viser hva den hører.</li>
+                <li>Si <b>treff</b>, <b>bom</b>, <b>dobbel</b> eller <b>trippel</b> — én pil om gangen, med et lite opphold mellom.</li>
+                <li>Etter tredje pil: pling, og den leser opp runden.</li>
+                <li>Ble noe feil: trykk <b>↩ Angre</b> på skjermen. Stemmelista følger med.</li>
+              </ol>
+              <div class="fakta">
+                <b>I dobbeltrening</b>
+                <p>Der finnes bare <b>treff</b> og <b>bom</b> — knappene for dobbel og trippel er skjult, og ordene avvises på samme måte. Bullseye har ingen trippel.</p>
+              </div>
+
+              <h4>Når noe ikke stemmer</h4>
+              <table class="feil">
+                <tr><th>Det skjer</th><th>Gjør dette</th></tr>
+                <tr><td>Den hører ikke ordene i det hele tatt</td><td>Dra <b>hvor full en sjablong må være</b> ned. Se på søylene på innlesingssiden mens du snakker — kommer de ikke over streken, er kravet for høyt.</td></tr>
+                <tr><td>Feil ord kommer inn</td><td>Dra <b>hvor full</b> opp noen hakk, eller <b>hvor mye et kort ord skal straffes</b> opp. Det korteste ordet trekker til seg de andre.</td></tr>
+                <tr><td>Ord dukker opp av seg selv</td><td>Dra <b>straff for lyd utenfor mønsteret</b> opp, eller <b>hvor høyt det må sies</b> opp.</td></tr>
+                <tr><td>Ett ord telles to ganger</td><td>Dra <b>sperre per ord</b> opp.</td></tr>
+                <tr><td>Sier du to ord raskt, kommer bare det ene</td><td>Dra <b>sperre per ord</b> ned, eller legg inn et lite opphold mellom ordene.</td></tr>
+                <tr><td>Alt oppfører seg rart etter at du har dratt på mye</td><td>Trykk <b>Sett målte innstillinger</b>. Den setter alt tilbake til det som ble målt fram.</td></tr>
+              </table>
+
+              <h4>Om innstillingene</h4>
+              <p>Standardverdiene er ikke gjettet. De ble sveipet fram mot 46 ekte opptak av stemmen din, matet inn hele og urørte med din egen romlyd imellom, 560 ord per innstilling. Fasiten var lest inn i en annen økt enn testordene, så motoren hadde aldri sett dem.</p>
+              <p>Arbeidspunktet er smalt: senker du straffen fra 50 % til 25 %, går feilprosenten fra 1 % til 48 %. Dra i små steg, og bruk <b>Sett målte innstillinger</b> som vei tilbake.</p>
+
+              <h4>Tre motorer</h4>
+              <p>I panelet ved siden av mikrofonknappen kan du velge mellom <b>v3</b>, <b>v2</b> og <b>v1</b>. v3 er sjablongene beskrevet over og er den beste i alle målinger. v2 sammenligner formen løpende og topper seg; v1 er den første måten, med startterskel og egen fasit. v2 og v3 deler fasit, så du kan bytte mellom dem uten å lese inn noe nytt.</p>
+            </div>
+          </div>
+        </div>
+
+      <div class="card">
         <div class="rowbtns" style="margin-top:12px">
           <button class="ghost" id="btnExport">Eksporter backup</button>
           <button class="ghost" id="btnImport">Importer backup</button>
@@ -1243,8 +1440,8 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 45;
-const APP_ROLLOUT = "2026-08-22T20:03:54+00:00";
+const APP_VERSION = 46;
+const APP_ROLLOUT = "2026-08-24T07:29:43+00:00";
 
 const $ = id => document.getElementById(id);
 const LS = {
@@ -1464,6 +1661,7 @@ function enterBoard(mode){
 
 function renderTraining(){
   updateMicBtn();
+  if(typeof vSync==="function") vSync();
   const best = bestScore(T.mode);
   $("tBest").textContent = best ?? "–";
   const effDarts = T.darts + T.turnHits.length;
@@ -2405,7 +2603,7 @@ function syncFilterUI(){
   $("filtSummary").textContent = filterSummary();
 }
 
-const SECT_KEYS = ["tot","rtb","num","dbl","tp","co","quiz","game","tools"];
+const SECT_KEYS = ["tot","rtb","num","dbl","tp","co","quiz","game","tools","hjelp1","hjelp2"];
 function renderSections(){
   document.querySelectorAll(".sect").forEach(el=>{
     const open = !!F.open[el.dataset.sect];
@@ -3301,6 +3499,8 @@ showTView("modePicker");
    Ordene treffer «rundt brettet» rett i begge: treff=enkel, dobbel,
    trippel, bom. Den glidende har i tillegg «pilkast», som betyr ignorer.  */
 const VMAP = { treff:1, dobbel:2, trippel:3, bom:0 };
+// samme vei tilbake: en pil i runden vet hvilket ord den kom fra
+const VORD = { 0:"bom", 1:"treff", 2:"dobbel", 3:"trippel" };
 const VMIN = 4;                 // alle fire ordene må være lest inn
 const MOTORKEY = "dart_voice_motor";
 
@@ -3474,21 +3674,33 @@ function vHeard(word){
     return;
   }
   if(navigator.vibrate) navigator.vibrate(20);
-  vSaid.push(word);
-  tapDart(kind);
-
-  vShowSaid();
+  // hva runden vil bestå av etter denne pila — hentet fra runden, ikke telt
+  const sagt = T.turnHits.map(k => VORD[k] || "?").concat([word]);
+  const full = sagt.length >= 3;
+  tapDart(kind);          // vSync kjører inni og bygger lista på nytt
   // Tre piler er en runde. Den er allerede registrert av tapDart, så
-  // opplesingen er en kvittering — sier den feil, si «angre».
-  if(vSaid.length>=3 || !voiceUsable()){
-    const sagt=vSaid.slice(); vSaid=[];
-    clearTimeout(vTimer);
-    vTimer=setTimeout(()=>vReadBack(sagt), 1000);
+  // opplesingen er en kvittering — stemmer den ikke, angre på skjermen.
+  if(full || !voiceUsable()){
+    if(vTimer) clearTimeout(vTimer);
+    vTimer = setTimeout(()=>vReadBack(sagt), 1000);
   }
 }
 function vShowSaid(){
   const e=$("voiceSaid");
   if(e) e.textContent = vSaid.length ? vSaid.join(" · ") : "";
+}
+/* Lista over hva du har sagt i runden UTLEDES av runden selv, den telles
+   ikke ved siden av. Ellers glir de fra hverandre: angrer du en pil på
+   skjermen, blir den borte i runden men står igjen i stemmelista — og da
+   plinger kvitteringen med et ord for mye, på en runde som ikke er ferdig.
+   Nå kan de ikke komme i utakt, for det finnes bare én kilde.          */
+function vSync(){
+  const foer = vSaid.length;
+  if(!T || T.done || T.pending) vSaid = [];
+  else vSaid = T.turnHits.map(k => VORD[k] || "?");
+  // endret runden seg under føttene på en ventende kvittering, gjelder den ikke
+  if(vSaid.length !== foer && vTimer){ clearTimeout(vTimer); vTimer = null; }
+  vShowSaid();
 }
 
 /* ---- pling og opplesing ---- */
