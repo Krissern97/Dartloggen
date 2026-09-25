@@ -540,6 +540,7 @@
   .vmsg{font-size:11.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
 
   /* ---- hjelpepanelene under Verktøy ---- */
+  body.novoice .vonly{display:none}
   .sect.und{margin-top:8px}
   .sect.und .sechead{background:var(--surface2);border-color:var(--line)}
   .sect.und.open .sechead{background:var(--green-soft);border-color:var(--green-mid)}
@@ -1194,6 +1195,11 @@
           <label for="soundToggle">Lydeffekter (klapping)</label>
           <input type="checkbox" id="soundToggle">
         </div>
+        <div class="toggle-row" style="padding-bottom:10px">
+          <label for="voiceToggle">Stemmestyring</label>
+          <input type="checkbox" id="voiceToggle">
+        </div>
+        <div class="vonly">
         <div class="voicestate" id="voiceState">Les inn stemmen din</div>
         <a class="voicelink" href="./lydtest.html">
           <span>
@@ -1217,8 +1223,10 @@
           <span class="chev">›</span>
         </a>
         <div class="note" style="margin-top:8px">Hvilken som gjelder velges i innstillingsknappen ved siden av mikrofonen, under spill.</div>
+        </div>
       </div>
 
+        <div class="vonly">
         <div class="sect und" data-sect="hjelp1">
           <button class="sechead" data-acc="hjelp1">
             <span class="secname">Slik virker stemmestyringen</span>
@@ -1362,6 +1370,7 @@
             </div>
           </div>
         </div>
+        </div>
 
       <div class="card">
         <div class="rowbtns" style="margin-top:12px">
@@ -1440,7 +1449,7 @@
 /* Versjon vises nederst på startskjermen, så du kan se om telefonen faktisk
    har fått siste oppdatering. MÅ oppdateres sammen med CACHE i sw.js — de to
    skal alltid vise samme nummer. */
-const APP_VERSION = 46;
+const APP_VERSION = 47;
 const APP_ROLLOUT = "2026-08-24T07:29:43+00:00";
 
 const $ = id => document.getElementById(id);
@@ -1477,6 +1486,9 @@ function fmtDur(ms){
 const dayNum = ts => { const d=new Date(ts); return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/86400000; };
 let SET = load(LS.set,{sound:true,coDiff:"alle"});
 function saveSet(){ save(LS.set,SET); }
+// Stemmestyring kan slås av under Verktøy — da forsvinner mikrofonen og alt rundt
+function voiceWanted(){ return SET.voice!==false; }
+document.body.classList.toggle("novoice", !voiceWanted());
 
 // registrer på pointerdown: trykket telles i det fingeren treffer skjermen,
 // før nettleseren rekker å tolke bevegelsen som scroll
@@ -2648,6 +2660,7 @@ function renderStats(){
   renderQuizStats(qz);
   renderGameStats(gm);
   $("soundToggle").checked = SET.sound!==false;
+  $("voiceToggle").checked = voiceWanted();
   setSum("tools", "stemme, lyd, backup, sletting");
   // Fasiten bor i nettleseren på denne telefonen. Broren din leser inn sin
   // egen på sin egen — de skal ikke deles, stemmene er ulike.
@@ -3418,6 +3431,11 @@ function renderChart(h){
 
 /* ---- verktøy: lyd, eksport, import, slett ---- */
 $("soundToggle").addEventListener("change",()=>{ SET.sound=$("soundToggle").checked; saveSet(); });
+$("voiceToggle").addEventListener("change",()=>{
+  SET.voice=$("voiceToggle").checked; saveSet();
+  document.body.classList.toggle("novoice", !voiceWanted());
+  updateMicBtn();
+});
 function toolMsg(t){
   const el=$("toolMsg"); el.textContent=t; el.style.display="block";
   setTimeout(()=>{ el.style.display="none"; },4000);
@@ -3550,7 +3568,7 @@ function voiceUsable(){
 function updateMicBtn(){
   const b=$("btnVoice");
   if(!b) return;
-  const vis = voiceUsable() && voiceReady()>=VMIN;
+  const vis = voiceWanted() && voiceUsable() && voiceReady()>=VMIN;
   b.style.display = vis ? "grid" : "none";
   const sb=$("btnVoiceSet");
   if(sb) sb.style.display = vis ? "grid" : "none";
